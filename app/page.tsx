@@ -212,13 +212,13 @@ export default function Page() {
         </select>
         <div className={styles.spacer} />
         <div className={styles.tabGroup}>
-          {(['dashboard','card','watchlist'] as TabKey[]).map(t => (
+          {(['dashboard','card'] as TabKey[]).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
               onClick={() => setTab(t)}
             >
-              {{ dashboard:'ダッシュボード', card:'カード', watchlist:'銘柄管理' }[t]}
+              {{ dashboard:'ダッシュボード', card:'カード' }[t as 'dashboard'|'card']}
             </button>
           ))}
         </div>
@@ -490,8 +490,8 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   return (
     <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar}>★</td>
-      <td className={`${styles.tdCode} ${styles.stickyCol0}`}>{r.code}</td>
-      <td className={`${styles.tdName} ${styles.stickyCol1}`}>{r.name || '—'}</td>
+      <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: bg || '#0d1117'}}>{r.code}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: bg || '#0d1117'}}>{r.name || '—'}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>

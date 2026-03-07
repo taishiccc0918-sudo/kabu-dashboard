@@ -236,6 +236,7 @@ export default function Page() {
                   <th colSpan={5} style={{background:'rgba(30,107,77,0.15)',borderBottom:'2px solid #1e6b4d',textAlign:'center',fontSize:10,color:'#4ade80',letterSpacing:2}}>── 株価 ──</th>
                   <th colSpan={4} style={{background:'rgba(30,77,107,0.15)',borderBottom:'2px solid #1e4d6b',textAlign:'center',fontSize:10,color:'#60a5fa',letterSpacing:2}}>── PER ──</th>
                   <th colSpan={8} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
+                  <th colSpan={3} style={{background:'rgba(40,40,40,0.5)',borderBottom:'2px solid #333',textAlign:'center',fontSize:10,color:'#555',letterSpacing:2}}>── 情報サイト ──</th>
                 </tr>
                 {/* カラム行 */}
                 <tr>
@@ -273,9 +274,9 @@ export default function Page() {
                     </th>
                   ))}
                   <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>四季報</th>
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>YF</th>
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>かぶたん</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>四季報</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>YF</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>かぶたん</th>
                 </tr>
               </thead>
               <tbody>
@@ -515,9 +516,9 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
 
       <td><JudgmentBadge j={r.judgment} /></td>
-      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
-      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">→</a></td>
-      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
     </tr>
   )
 }

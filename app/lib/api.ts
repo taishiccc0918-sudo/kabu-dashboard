@@ -127,7 +127,7 @@ export async function fetchPrices(
     { map: prev1yMap, key: 'prev1y', chgKey: 'chg1y' },
   ]
   for (const { map, key, chgKey } of periodMaps) {
-    for (const [code, p] of map.entries()) {
+    for (const [code, p] of Array.from(map.entries())) {
       if (!db[code]) db[code] = { close: 0 }
       db[code][key] = p
       if (chgKey && db[code].close && p) db[code][chgKey] = db[code].close / p - 1

@@ -45,9 +45,11 @@ export default function Page() {
     const measure = () => {
       const header = document.querySelector('header') as HTMLElement | null
       const toolbar = document.querySelector('[data-toolbar]') as HTMLElement | null
-      setTheadTop((header?.offsetHeight ?? 56) + (toolbar?.offsetHeight ?? 54))
+      const h = (header?.getBoundingClientRect().height ?? 52) + (toolbar?.getBoundingClientRect().height ?? 44)
+      setTheadTop(Math.round(h))
     }
-    measure()
+    // DOMが確実に描画された後に計測
+    requestAnimationFrame(() => { requestAnimationFrame(measure) })
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
@@ -169,7 +171,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}{stats.total > 0 && <span style={{marginLeft:12,color:'#60a5fa',fontSize:13,fontWeight:600}}>お気に入り {stats.total}銘柄</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></>  : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; {stats.total}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
           <label className={styles.apiLabel}>API Key</label>
@@ -492,7 +494,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClick: () => void }) {
-  const stickyBg = idx % 2 === 0 ? '#0d1117' : 'rgba(20,28,42,0.9)'
+  const stickyBg = idx % 2 === 0 ? '#0d1219' : 'rgba(17,24,37,0.9)'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ cursor: 'pointer' }} onClick={onClick}>

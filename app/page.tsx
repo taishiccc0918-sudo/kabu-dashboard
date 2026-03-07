@@ -31,7 +31,7 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [filter,     setFilter]     = useState<FilterKey>('all')
+  const [filter, setFilter] = useState<'all'|'buy'|'up'|'down'>('all')
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)

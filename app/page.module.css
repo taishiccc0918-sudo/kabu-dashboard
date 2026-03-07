@@ -148,17 +148,9 @@
 
 /* ── TABLE ───────────────────────────────────────── */
 .main { flex: 1; }
-/* 横スクロール専用ラッパー: overflow-xのみ */
-.tableScrollX {
-  overflow-x: auto;
-  overflow-y: visible;
-  width: 100%;
-}
-/* tableWrapはスクロールなし: theadのstickyをページ基準にする */
-.tableWrap {
-  overflow: visible;
-  min-width: max-content;
-}
+/* 旧スタイル(互換) */
+.tableScrollX { overflow-x: auto; }
+.tableWrap { overflow: visible; }
 .table {
   width: 100%; border-collapse: collapse;
   background: #0d1219;
@@ -513,4 +505,29 @@
   border-color: #3b82f6;
   color: #93c5fd;
   transform: translateY(-1px);
+}
+
+/* ── DASHBOARD TABLE (固定ヘッダー + 横スクロール同期) ── */
+.dashWrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+/* ヘッダー: 固定。overflow hidden でスクロールバーを隠す */
+.theadOuter {
+  overflow: hidden;
+  flex-shrink: 0;
+  position: sticky;
+  top: 96px;
+  z-index: 20;
+  border-bottom: 2px solid #2a3a52;
+}
+/* ボディ: 横スクロール可 */
+.tbodyOuter {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+/* theadTableとtbodyTableは同じcolumn幅を共有 */
+.theadTable {
+  table-layout: fixed;
 }

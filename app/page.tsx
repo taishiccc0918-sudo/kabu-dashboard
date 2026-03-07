@@ -31,7 +31,7 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [filter, setFilter] = useState<'all'|'buy'|'up'|'down'>('all')
+  const [filter,     setFilter]     = useState<'all'|'buy'|'up'|'down'>('all')
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -121,8 +121,6 @@ export default function Page() {
 
   const stats = useMemo(() => ({
     total: allRows.length,
-    buy:   allRows.filter(r => r.judgment === '買い').length,
-    watch: allRows.filter(r => r.judgment === '様子見').length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
     down:  allRows.filter(r => (r.chg1d ?? 0) < 0).length,
   }), [allRows])
@@ -180,8 +178,6 @@ export default function Page() {
       <div className={styles.statsBar}>
         {[
           { label: 'お気に入り銘柄数',  val: stats.total, cls: styles.blue  },
-          { label: '買いシグナル',       val: stats.buy,   cls: styles.green },
-          { label: '様子見',             val: stats.watch, cls: styles.yellow},
           { label: '上昇銘柄（前日比）', val: stats.up,    cls: styles.green },
           { label: '下落銘柄（前日比）', val: stats.down,  cls: styles.red   },
         ].map(({ label, val, cls }) => (
@@ -203,7 +199,7 @@ export default function Page() {
           />
         </div>
         <div className={styles.filterGroup}>
-        {(['all','buy','up','down'] as ('all'|'buy'|'up'|'down')[]).map(f => (
+          {(['all','buy','up','down'] as ('all'|'buy'|'up'|'down')[]).map(f => (
             <button
               key={f}
               className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
@@ -257,9 +253,10 @@ export default function Page() {
                   {([
                     ['close','株価'],['chg1d','前日比%'],['chg1w','1週間%'],
                     ['chg3m','3ヶ月%'],['chg1y','1年%'],['mcap','時価総額(億)'],
-                    ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],
+                    ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],['perFChg1m','PER今期(1M)'],
                     ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
                     ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
+                    ['perFChg1w','PER今期(1W)'],['perFChg1m','PER今期(1M)'],['perFChg3m','PER今期(3M)'],['perFChg1y','PER今期(1Y)'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
                     <th key={k} className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
@@ -502,6 +499,10 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.epsGr)]}`}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
       <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
+      {[r.perFChg1w, r.perFChg1m, r.perFChg3m, r.perFChg1y].map((v, i) => (
+        <td key={`perchg${i}`} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
+          style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
+      ))}
       <td><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdLink}>
         <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank"
@@ -548,13 +549,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
           </div>
         ))}
       </div>
-      <button
-        className={styles.chartToggleBtn}
-        onClick={e => { e.stopPropagation(); setShowChart(s => !s) }}
-      >
-        {showChart ? '▲ チャートを閉じる' : '📈 チャートを表示'}
-      </button>
-      {showChart && apiKey && (
+      {apiKey && (
         <div onClick={e => e.stopPropagation()}>
           <MiniChart code={r.code} apiKey={apiKey} />
         </div>
@@ -564,8 +559,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
 }
 
 function JudgmentBadge({ j }: { j: string }) {
-  if (j === '買い')   return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
-  if (j === '様子見') return <span className={`${styles.jBadge} ${styles.jWatch}`}>様子見</span>
+  if (j === '買い') return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 

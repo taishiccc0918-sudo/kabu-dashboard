@@ -109,7 +109,11 @@
 
 /* TABLE */
 .main { flex: 1; }
-.tableWrap { overflow-x: auto; overflow-y: visible; }
+.tableWrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
 .table { width: 100%; border-collapse: collapse; }
 
 /* STICKY HEADER: header=56px + toolbar=約44px = top:100px */
@@ -120,7 +124,7 @@
   border-bottom: 2px solid #2a3342;
   white-space: nowrap;
   position: sticky !important;
-  top: 100px !important;
+  top: 0 !important;
   z-index: 50 !important;
 }
 .thLeft  { text-align: left !important; }

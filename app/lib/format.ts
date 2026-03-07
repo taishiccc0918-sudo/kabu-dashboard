@@ -1,4 +1,4 @@
-import { StockRow, PriceRecord, FinRecord, MasterRecord, getGenre } from './types'
+import { StockRow, PriceRecord, FinRecord, MasterRecord, DEFAULT_GENRES } from './types'
 
 export function fmtN(v: number | null | undefined, dec = 1): string {
   if (v == null || v === 0) return '—'
@@ -24,7 +24,6 @@ export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('グロース'))     return { label: 'Growth',   cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
-
 export function getJudgment(perFChg1m: number | null | undefined): string {
   if (perFChg1m == null) return ''
   if (perFChg1m <= -0.05) return '買い'
@@ -35,7 +34,8 @@ export function buildStockRow(
   code: string,
   priceDB: Record<string, PriceRecord>,
   finDB: Record<string, FinRecord>,
-  masterDB: Record<string, MasterRecord>
+  masterDB: Record<string, MasterRecord>,
+  customGenres: Record<string, string>
 ): StockRow {
   const p = priceDB[code] ?? { close: 0 }
   const f = finDB[code]
@@ -56,20 +56,22 @@ export function buildStockRow(
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
 
-  // PER今期の変化率: 株価ベースで計算（EPSが同じならPER変化率=株価変化率）
   function perFAt(pastClose: number | undefined): number | null {
     if (!pastClose || !close || !feps) return null
     return close / pastClose - 1
   }
-  // 1ヶ月前のPER今期値（絶対値）
   const prev1m = (p as { prev1m?: number }).prev1m
   const perFChg1mPrev = (prev1m && feps) ? prev1m / feps : null
+
+  // ジャンル: カスタム優先、なければデフォルト、なければ「その他」
+  const genreStr = customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'
+  const genres = genreStr.split(',').map(g => g.trim()).filter(Boolean)
 
   return {
     code,
     name:       m?.name   ?? '',
     market:     m?.market ?? '',
-    genre:      getGenre(code),
+    genres,
     close,
     chg1d:      p.chg1d ?? null,
     chg1w:      p.chg1w ?? null,

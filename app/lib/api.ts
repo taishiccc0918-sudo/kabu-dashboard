@@ -145,13 +145,25 @@ export async function fetchFinancials(
   const shOutDB: Record<string, number> = {}
 
   // 最大2回リトライ
+  // 全stmtから最善の値を拾う汎用関数
+  function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
+    for (const key of keys) {
+      for (let i = stmts.length - 1; i >= 0; i--) {
+        const v = n(stmts[i][key])
+        if (v !== 0) return v
+      }
+    }
+    return 0
+  }
+
   async function fetchOne(code: string): Promise<boolean> {
     try {
-      await new Promise(r => setTimeout(r, 150))
+      await new Promise(r => setTimeout(r, 120))
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string, string>[] = data.data ?? []
       if (stmts.length === 0) return false
 
+      // FY / 非FY を両方探す
       let latestFY: Record<string, string> | null = null
       let latestNonFY: Record<string, string> | null = null
       for (let j = stmts.length - 1; j >= 0; j--) {
@@ -162,23 +174,40 @@ export async function fetchFinancials(
       }
       const fy  = latestFY  ?? stmts[stmts.length - 1]
       const nfy = latestNonFY ?? fy
-      const shOut = n(fy.ShOutFY)
+      const all = stmts  // 全データから拾うフォールバック用
+
+      const shOut = bestVal(all, 'ShOutFY', 'ShOut')
       if (shOut > 0) shOutDB[code] = shOut
-      const equity = n(fy.Eq); const assets = n(fy.TA)
-      const sales = n(fy.Sales); const op = n(fy.OP); const np = n(fy.NP)
-      const fsales = n(nfy.FSales) || n(fy.FSales)
-      const nySales = n(fy.NxFSales) || n(nfy.NxFSales)
+
+      const equity = bestVal(all, 'Eq')
+      const assets = bestVal(all, 'TA')
+      const sales  = bestVal(all, 'Sales')
+      const op     = bestVal(all, 'OP')
+      const np     = bestVal(all, 'NP')
+      const eps    = bestVal(all, 'EPS')
+      const bps    = bestVal(all, 'BPS')
+
+      // 予想EPS: 直近非FY優先、なければFY、なければ全stmtから
+      const feps   = n(nfy.FEPS) || n(fy.FEPS) || bestVal(all, 'FEPS')
+      const nyEPS  = n(fy.NxFEPS) || n(nfy.NxFEPS) || bestVal(all, 'NxFEPS')
+      const fsales = n(nfy.FSales) || n(fy.FSales) || bestVal(all, 'FSales')
+      const nySales= n(fy.NxFSales) || n(nfy.NxFSales) || bestVal(all, 'NxFSales')
+      const fdiv   = n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn) || bestVal(all, 'FDivAnn','DivAnn')
+      const fop    = n(nfy.FOP) || n(fy.FOP) || bestVal(all, 'FOP')
+      const nyOP   = n(fy.NxFOP) || n(nfy.NxFOP) || bestVal(all, 'NxFOP')
+
       finDB[code] = {
-        sales, op, odp: n(fy.OdP), np,
-        eps: n(fy.EPS), feps: n(nfy.FEPS) || n(fy.FEPS),
-        nyEPS: n(fy.NxFEPS) || n(nfy.NxFEPS), bps: n(fy.BPS),
-        equity, assets, divAnn: n(fy.DivAnn),
-        fdiv: n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn),
-        shOut, discDate: fy.DiscDate ?? '', perType: fy.CurPerType ?? '',
-        fsales, fop: n(nfy.FOP) || n(fy.FOP), nySales, nyOP: n(fy.NxFOP) || n(nfy.NxFOP),
-        roe: equity ? np / equity : 0, eqRat: assets ? equity / assets : 0,
-        opMgn: sales ? op / sales : 0, salesGr: (sales && fsales) ? fsales / sales - 1 : 0,
-        nySalesGr: (fsales && nySales) ? nySales / fsales - 1 : 0,
+        sales, op, odp: bestVal(all, 'OdP'), np, eps, feps, nyEPS, bps,
+        equity, assets, divAnn: bestVal(all, 'DivAnn'),
+        fdiv, shOut,
+        discDate: fy.DiscDate ?? '',
+        perType: fy.CurPerType ?? '',
+        fsales, fop, nySales, nyOP,
+        roe:      equity ? np / equity : 0,
+        eqRat:    assets ? equity / assets : 0,
+        opMgn:    sales  ? op / sales : 0,
+        salesGr:  (sales && fsales) ? fsales / sales - 1 : 0,
+        nySalesGr:(fsales && nySales) ? nySales / fsales - 1 : 0,
       }
       return true
     } catch { return false }
@@ -190,12 +219,17 @@ export async function fetchFinancials(
     const ok = await fetchOne(code)
     if (!ok) failed.push(code)
   }
-  // 失敗分を500ms待ってリトライ
-  if (failed.length > 0) {
-    await new Promise(r => setTimeout(r, 500))
-    for (const code of failed) {
-      await fetchOne(code)
+  // 失敗分を段階的にリトライ（最大3回）
+  let remaining = failed
+  for (const waitMs of [600, 1200, 2000]) {
+    if (remaining.length === 0) break
+    await new Promise(r => setTimeout(r, waitMs))
+    const stillFailed: string[] = []
+    for (const code of remaining) {
+      const ok = await fetchOne(code)
+      if (!ok) stillFailed.push(code)
     }
+    remaining = stillFailed
   }
 
   return { finDB, shOutDB }

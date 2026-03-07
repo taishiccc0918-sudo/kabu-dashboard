@@ -230,28 +230,28 @@ export default function Page() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th className={styles.thLeft} style={{width:28, top:theadTop}}></th>
+                  <th className={styles.thLeft} style={{width:28}}></th>
                   {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l],i) => (
-                    <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} style={{top:theadTop}} onClick={() => handleSort(k)}>
+                    <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
-                  <th className={styles.thLeft} style={{top:theadTop}}>市場</th>
-                  <th className={`${styles.thRight} ${styles.thSort}`} style={{top:theadTop}} onClick={() => handleSort('mcap')}>
+                  <th className={styles.thLeft}>市場</th>
+                  <th className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort('mcap')}>
                     時価総額(億)<span className={`${styles.sortArrow} ${sortKey==='mcap'?styles.sorted:''}`}>↕</span>
                   </th>
                   {([
                     ['close','株価'],['chg1d','前日比%'],['chg1w','1週間%'],
                     ['chg3m','3ヶ月%'],['chg1y','1年%'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPriceGroup}`} style={{top:theadTop}} onClick={() => handleSort(k)}>
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPriceGroup}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
                   {([
                     ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],['perFChg1m','PER今期(1M)'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPerGroup}`} style={{top:theadTop}} onClick={() => handleSort(k)}>
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPerGroup}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
@@ -259,14 +259,14 @@ export default function Page() {
                     ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
                     ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thOtherGroup}`} style={{top:theadTop}} onClick={() => handleSort(k)}>
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thOtherGroup}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`} style={{top:theadTop}}>判定</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`} style={{top:theadTop}}>四季報</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`} style={{top:theadTop}}>YF</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`} style={{top:theadTop}}>かぶたん</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>四季報</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>YF</th>
+                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>かぶたん</th>
                 </tr>
               </thead>
               <tbody>

@@ -157,7 +157,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}{stats.total > 0 && <span style={{marginLeft:12,color:'#8b9ab4',fontSize:13}}>{stats.total}銘柄</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}{stats.total > 0 && <span style={{marginLeft:12,color:'#60a5fa',fontSize:13,fontWeight:600}}>お気に入り {stats.total}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
           <label className={styles.apiLabel}>API Key</label>
@@ -171,7 +171,6 @@ export default function Page() {
           <button className={styles.btnPrimary} onClick={fetchAll} disabled={loading}>
             {loading ? '取得中...' : '全更新'}
           </button>
-          <button className={styles.btnSecondary} onClick={() => setTab('watchlist')}>銘柄管理</button>
         </div>
       </header>
 
@@ -235,7 +234,7 @@ export default function Page() {
                   <th colSpan={5} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
                   <th colSpan={5} style={{background:'rgba(30,107,77,0.15)',borderBottom:'2px solid #1e6b4d',textAlign:'center',fontSize:10,color:'#4ade80',letterSpacing:2}}>── 株価 ──</th>
                   <th colSpan={4} style={{background:'rgba(30,77,107,0.15)',borderBottom:'2px solid #1e4d6b',textAlign:'center',fontSize:10,color:'#60a5fa',letterSpacing:2}}>── PER ──</th>
-                  <th colSpan={7} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
+                  <th colSpan={8} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
                 </tr>
                 {/* カラム行 */}
                 <tr>
@@ -245,7 +244,7 @@ export default function Page() {
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
-                  <th className={`${styles.thLeft} ${styles.stickyCol2}`}>市場</th>
+                  <th className={styles.thLeft}>市場</th>
                   <th className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort('mcap')}>
                     時価総額(億)<span className={`${styles.sortArrow} ${sortKey==='mcap'?styles.sorted:''}`}>↕</span>
                   </th>
@@ -493,7 +492,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={styles.tdStar}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`}>{r.name || '—'}</td>
-      <td className={styles.stickyCol2}><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
+      <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (

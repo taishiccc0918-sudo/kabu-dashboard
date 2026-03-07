@@ -152,8 +152,11 @@
 .tableScrollX { overflow-x: auto; }
 .tableWrap { overflow: visible; }
 .table {
-  width: 100%; border-collapse: collapse;
+  width: 1926px;
+  min-width: 1926px;
+  border-collapse: collapse;
   background: #0d1219;
+  table-layout: fixed;
 }
 
 /* thead: topはJS inline styleで渡す */
@@ -521,6 +524,10 @@
   top: 96px;
   z-index: 20;
   border-bottom: 2px solid #2a3a52;
+  width: 100%;
+}
+.tbodyOuter {
+  width: 100%;
 }
 /* ボディ: 横スクロール可 */
 .tbodyOuter {
@@ -528,6 +535,4 @@
   overflow-y: visible;
 }
 /* theadTableとtbodyTableは同じcolumn幅を共有 */
-.theadTable {
-  table-layout: fixed;
-}
+.theadTable { table-layout: fixed; }

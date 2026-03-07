@@ -85,7 +85,7 @@ export async function fetchPrices(
     }
   }
 
-  // 過去4時点
+  // 過去4時点（株価変化率用）
   const periods = [
     { days: 1,   key: 'prev1d' as const, chgKey: 'chg1d' as const },
     { days: 5,   key: 'prev1w' as const, chgKey: 'chg1w' as const },
@@ -106,6 +106,26 @@ export async function fetchPrices(
     } catch { /* skip on error */ }
   }
 
+  // PER変化率用: 1週間前・1ヶ月前・3ヶ月前・1年前の株価を別途保存
+  const perPeriods = [
+    { days: 5,   key: 'prev1w'  as const },
+    { days: 21,  key: 'prev1m'  as const },
+    { days: 65,  key: 'prev3m'  as const },
+    { days: 252, key: 'prev1y'  as const },
+  ]
+  for (const { days, key } of perPeriods) {
+    try {
+      const pd = bizDateMinus(dateStr, days)
+      const past = await jqFetch(`/equities/bars/daily?date=${pd}`, apiKey)
+      for (const d of past.data ?? []) {
+        const code = normalizeCode(d.Code)
+        if (!db[code]) db[code] = { close: 0 }
+        const p = d.AdjC || d.C || 0
+        if (p && !db[code][key]) db[code][key] = p
+      }
+    } catch { /* skip */ }
+  }
+
   return db
 }
 
@@ -117,6 +137,7 @@ export async function fetchFinancials(
   const shOutDB: Record<string, number> = {}
 
   for (const code of watchlist) {
+    await new Promise(r => setTimeout(r, 150)) // rate limit対策
     try {
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string, string>[] = data.data ?? []
@@ -184,4 +205,27 @@ export async function fetchAnnouncements(
     }
   } catch { /* skip */ }
   return finDB
+}
+
+export interface ChartPoint { date: string; close: number; volume: number }
+
+export async function fetchChartData(
+  apiKey: string,
+  code: string,
+  fromDate: string // YYYYMMDD
+): Promise<ChartPoint[]> {
+  // 正しいパラメータ名: dateFrom / dateTo
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const data = await jqFetch(
+    `/equities/bars/daily?code=${code}&dateFrom=${fromDate}&dateTo=${today}`,
+    apiKey
+  )
+  return (data.data ?? [])
+    .map((d: Record<string, string>) => ({
+      date: d.Date ?? '',
+      close: parseFloat(d.AdjC ?? d.C ?? '0') || 0,
+      volume: parseFloat(d.Vo ?? '0') || 0,
+    }))
+    .filter((d: ChartPoint) => d.close > 0)
+    .sort((a: ChartPoint, b: ChartPoint) => a.date.localeCompare(b.date))
 }

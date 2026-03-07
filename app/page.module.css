@@ -112,20 +112,29 @@
 .tableWrap {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 112px);
 }
 .table { width: 100%; border-collapse: collapse; }
 
 /* STICKY HEADER: header=56px + toolbar=約44px = top:100px */
-.table thead tr th {
+.table thead tr:first-child th {
+  background: #0a0f1a !important;
+  padding: 4px 10px;
+  font-size: 10px; font-weight: 600; color: #8b9ab4;
+  white-space: nowrap;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 52 !important;
+}
+.table thead tr:last-child th {
   background: #0f1520 !important;
   padding: 10px 10px;
   font-size: 11px; font-weight: 600; color: #8b9ab4;
   border-bottom: 2px solid #2a3342;
   white-space: nowrap;
   position: sticky !important;
-  top: 0 !important;
-  z-index: 50 !important;
+  top: 22px !important;
+  z-index: 52 !important;
 }
 .thLeft  { text-align: left !important; }
 .thRight { text-align: right !important; }
@@ -330,20 +339,22 @@
 .stickyCol0 {
   position: sticky !important;
   left: 28px !important;
-  z-index: 30 !important;
+  z-index: 31 !important;
   background: #0f1520 !important;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.2);
 }
 .stickyCol1 {
   position: sticky !important;
   left: 88px !important;
-  z-index: 30 !important;
+  z-index: 31 !important;
   background: #0f1520 !important;
 }
 .stickyCol2 {
   position: sticky !important;
-  left: 228px !important;
-  z-index: 30 !important;
+  left: 248px !important;
+  z-index: 31 !important;
   background: #0f1520 !important;
+  box-shadow: 3px 0 6px rgba(0,0,0,0.3);
 }
 /* PERグループ背景色 */
 .thPerGroup {
@@ -358,3 +369,14 @@
   background: #0d1f1a !important;
   border-bottom: 2px solid #1e6b4d !important;
 }
+
+/* 他指標グループ */
+.thOtherGroup {
+  background: rgba(107,77,30,0.15) !important;
+  border-bottom: 2px solid #6b4d1e !important;
+}
+.tdOtherGroup {
+  background: rgba(107,77,30,0.05) !important;
+}
+
+/* tableWrap: ヘッダーとツールバーの高さ分を引く */

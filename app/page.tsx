@@ -273,7 +273,7 @@ export default function Page() {
                     </th>
                   ))}
                   <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>四季報</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>リンク</th>
                 </tr>
               </thead>
               <tbody>
@@ -490,7 +490,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
-      <td className={styles.tdStar}>★</td>
+      <td className={styles.tdStar} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.name || '—'}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
@@ -513,9 +513,10 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
 
       <td><JudgmentBadge j={r.judgment} /></td>
-      <td className={styles.tdLink}>
-        <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank"
-          onClick={e => e.stopPropagation()}>四季報→</a>
+      <td className={styles.tdLink} onClick={e => e.stopPropagation()}>
+        <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
+        {' '}<a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">YF</a>
+        {' '}<a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
       </td>
     </tr>
   )

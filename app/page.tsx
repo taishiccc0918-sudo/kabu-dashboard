@@ -176,7 +176,7 @@ export default function Page() {
       </header>
 
 
-      <div className={styles.toolbar}>
+      <div className={styles.toolbar} data-toolbar="">
         <div className={styles.searchWrap}>
           <span className={styles.searchIcon}>🔍</span>
           <input
@@ -230,7 +230,7 @@ export default function Page() {
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
-                <tr>
+                <tr style={{['--thead-top' as string]: `${theadTop}px`}}>
                   <th className={styles.thLeft} style={{width:28}}></th>
                   {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l],i) => (
                     <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} onClick={() => handleSort(k)}>

@@ -2,7 +2,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord,
-  FilterKey, TabKey, StatusType,
+  TabKey, StatusType,
 } from './lib/types'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements,

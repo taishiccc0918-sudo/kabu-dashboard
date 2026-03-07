@@ -226,60 +226,13 @@ export default function Page() {
 
       <main className={styles.main}>
         {tab === 'dashboard' && (
-          <div className={styles.tableScrollX}>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.thLeft} style={{width:28}}></th>
-                  {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l],i) => (
-                    <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} onClick={() => handleSort(k)}>
-                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
-                    </th>
-                  ))}
-                  <th className={styles.thLeft}>市場</th>
-                  <th className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort('mcap')}>
-                    時価総額(億)<span className={`${styles.sortArrow} ${sortKey==='mcap'?styles.sorted:''}`}>↕</span>
-                  </th>
-                  {([
-                    ['close','株価'],['chg1d','前日比%'],['chg1w','1週間%'],
-                    ['chg3m','3ヶ月%'],['chg1y','1年%'],
-                  ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPriceGroup}`} onClick={() => handleSort(k)}>
-                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
-                    </th>
-                  ))}
-                  {([
-                    ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],['perFChg1m','PER今期(1M)'],
-                  ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPerGroup}`} onClick={() => handleSort(k)}>
-                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
-                    </th>
-                  ))}
-                  {([
-                    ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
-                    ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
-                  ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thOtherGroup}`} onClick={() => handleSort(k)}>
-                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
-                    </th>
-                  ))}
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>四季報</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>YF</th>
-                  <th className={`${styles.thRight} ${styles.thInfoGroup}`}>かぶたん</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>
-                ) : filteredRows.map((r, i) => (
-                  <TableRow key={r.code} row={r} idx={i} onClick={() => setDetailCode(r.code)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </div>
+          <DashboardTable
+            filteredRows={filteredRows}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            handleSort={handleSort}
+            onRowClick={(code) => setDetailCode(code)}
+          />
         )}
 
         {tab === 'card' && (
@@ -475,6 +428,96 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
       ) : (
         <canvas ref={canvasRef} className={styles.chartCanvas} />
       )}
+    </div>
+  )
+}
+
+
+// ─── DashboardTable ──────────────────────────────────────────────────
+// theadとtbodyを別コンテナに分離し、横スクロールをJS同期することで
+// 縦スクロール時のheader固定と横スクロールを両立する
+function DashboardTable({
+  filteredRows, sortKey, sortDir, handleSort, onRowClick
+}: {
+  filteredRows: StockRow[]
+  sortKey: keyof StockRow | null
+  sortDir: 1 | -1
+  handleSort: (k: keyof StockRow) => void
+  onRowClick: (code: string) => void
+}) {
+  const headRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  // 横スクロール同期
+  const onBodyScroll = () => {
+    if (headRef.current && bodyRef.current)
+      headRef.current.scrollLeft = bodyRef.current.scrollLeft
+  }
+
+  const SortArrow = ({ k }: { k: keyof StockRow }) => (
+    <span className={`${styles.sortArrow} ${sortKey===k ? styles.sorted : ''}`}>↕</span>
+  )
+
+  const cols = [
+    { label: '', cls: styles.thLeft, key: null, width: 32, group: '' },
+    { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
+    { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
+    { label: '市場', cls: styles.thLeft, key: null, group: '' },
+    { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '' },
+    { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
+    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price' },
+    { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price' },
+    { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price' },
+    { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price' },
+    { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
+    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
+    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
+    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per' },
+    { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
+    { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
+    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },
+    { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other' },
+    { label: 'PEG',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other' },
+    { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other' },
+    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other' },
+    { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'YF',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+  ]
+
+  return (
+    <div className={styles.dashWrap}>
+      {/* 固定ヘッダー行 */}
+      <div className={styles.theadOuter} ref={headRef}>
+        <table className={`${styles.table} ${styles.theadTable}`}>
+          <thead>
+            <tr>
+              {cols.map((col, i) => (
+                <th
+                  key={i}
+                  className={`${col.cls} ${col.key ? styles.thSort : ''}`}
+                  style={col.width ? {width: col.width, minWidth: col.width} : undefined}
+                  onClick={col.key ? () => handleSort(col.key!) : undefined}
+                >
+                  {col.label}{col.key && <SortArrow k={col.key} />}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        </table>
+      </div>
+      {/* スクロールするボディ */}
+      <div className={styles.tbodyOuter} ref={bodyRef} onScroll={onBodyScroll}>
+        <table className={styles.table}>
+          <tbody>
+            {filteredRows.length === 0 ? (
+              <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>
+            ) : filteredRows.map((r, i) => (
+              <TableRow key={r.code} row={r} idx={i} onClick={() => onRowClick(r.code)} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

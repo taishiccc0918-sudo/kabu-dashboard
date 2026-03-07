@@ -31,7 +31,7 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [filter,     setFilter]     = useState<'all'|'buy'|'up'|'down'>('all')
+  const [filter,     setFilter]     = useState<'all'|'buy'>('all')
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -39,20 +39,7 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
-  const [theadTop,   setTheadTop]   = useState(110)
-
-  useEffect(() => {
-    const measure = () => {
-      const header = document.querySelector('header') as HTMLElement | null
-      const toolbar = document.querySelector('[data-toolbar]') as HTMLElement | null
-      const h = (header?.getBoundingClientRect().height ?? 52) + (toolbar?.getBoundingClientRect().height ?? 44)
-      setTheadTop(Math.round(h))
-    }
-    // DOMが確実に描画された後に計測
-    requestAnimationFrame(() => { requestAnimationFrame(measure) })
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
+  const theadTop = 96  // header(52px) + toolbar(44px)
 
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
@@ -105,8 +92,6 @@ export default function Page() {
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy')   return r.judgment === '買い'
-      if (filter === 'up')    return (r.chg1d ?? 0) > 0
-      if (filter === 'down')  return (r.chg1d ?? 0) < 0
       return true
     })
     const sortMap: Record<string, (a: StockRow, b: StockRow) => number> = {
@@ -201,13 +186,13 @@ export default function Page() {
           />
         </div>
         <div className={styles.filterGroup}>
-          {(['all','buy','up','down'] as ('all'|'buy'|'up'|'down')[]).map(f => (
+          {(['all','buy'] as ('all'|'buy')[]).map(f => (
             <button
               key={f}
               className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
-              onClick={() => setFilter(f)}
+              onClick={() => setFilter(f as 'all'|'buy')}
             >
-              {{ all:'全て', buy:'買い', up:'上昇', down:'下落' }[f]}
+              {{ all:'全て', buy:'買い' }[f]}
             </button>
           ))}
         </div>
@@ -521,9 +506,9 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
 
       <td><JudgmentBadge j={r.judgment} /></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">→</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>YF</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
     </tr>
   )
 }

@@ -174,7 +174,7 @@ export default function Page() {
     setMemos(next); lsSet('memos', next)
   }
 
-  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB) : null
+  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, customGenres) : null
   const detailFin = detailCode ? finDB[detailCode] : null
 
   return (

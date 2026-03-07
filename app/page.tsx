@@ -226,6 +226,7 @@ export default function Page() {
 
       <main className={styles.main}>
         {tab === 'dashboard' && (
+          <div className={styles.tableScrollX}>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
@@ -277,6 +278,7 @@ export default function Page() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         )}
 

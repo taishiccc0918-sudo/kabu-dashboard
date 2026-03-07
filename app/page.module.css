@@ -115,21 +115,21 @@
 }
 .table { width: 100%; border-collapse: collapse; background: #0d1117; }
 
-/* STICKY HEADER: header=56px + toolbar=54px = top:110px */
+/* STICKY HEADER */
 .table thead th {
   background: #0f1520;
   padding: 9px 10px;
   font-size: 11px; font-weight: 600; color: #8b9ab4;
   white-space: nowrap;
   position: sticky;
-  top: 110px;
+  top: var(--thead-top, 0);
   z-index: 4;
   border-bottom: 2px solid #2a3342;
 }
 /* ★ヘッダー: 縦横両方固定 */
 .table thead th:first-child {
   position: sticky;
-  top: 110px;
+  top: var(--thead-top, 0);
   left: 0;
   z-index: 6;
   background: #0f1520;
@@ -137,7 +137,7 @@
 /* コード列ヘッダー: 縦横両方固定 */
 .table thead th.stickyCol0 {
   position: sticky !important;
-  top: 110px !important;
+  top: var(--thead-top, 0) !important;
   left: 28px !important;
   z-index: 6 !important;
   background: #0f1520 !important;
@@ -145,7 +145,7 @@
 /* 銘柄名列ヘッダー: 縦横両方固定 */
 .table thead th.stickyCol1 {
   position: sticky !important;
-  top: 110px !important;
+  top: var(--thead-top, 0) !important;
   left: 88px !important;
   z-index: 6 !important;
   background: #0f1520 !important;

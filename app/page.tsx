@@ -490,6 +490,32 @@ function DashboardTable({
       {/* 固定ヘッダー行 */}
       <div className={styles.theadOuter} ref={headRef}>
         <table className={`${styles.table} ${styles.theadTable}`}>
+            <colgroup>
+              <col style={{width:32, minWidth:32}} />
+              <col style={{width:60, minWidth:60}} />
+              <col style={{width:150, minWidth:150}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:90, minWidth:90}} />
+              <col style={{width:90, minWidth:90}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:60, minWidth:60}} />
+              <col style={{width:80, minWidth:80}} />
+            </colgroup>
           <thead>
             <tr>
               {cols.map((col, i) => (
@@ -509,6 +535,32 @@ function DashboardTable({
       {/* スクロールするボディ */}
       <div className={styles.tbodyOuter} ref={bodyRef} onScroll={onBodyScroll}>
         <table className={styles.table}>
+            <colgroup>
+              <col style={{width:32, minWidth:32}} />
+              <col style={{width:60, minWidth:60}} />
+              <col style={{width:150, minWidth:150}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:80, minWidth:80}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:90, minWidth:90}} />
+              <col style={{width:90, minWidth:90}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:100, minWidth:100}} />
+              <col style={{width:70, minWidth:70}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:60, minWidth:60}} />
+              <col style={{width:80, minWidth:80}} />
+            </colgroup>
           <tbody>
             {filteredRows.length === 0 ? (
               <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>

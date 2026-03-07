@@ -202,7 +202,7 @@ export default function Page() {
           />
         </div>
         <div className={styles.filterGroup}>
-          {(['all','buy','up','down'] as FilterKey[]).map(f => (
+          {(['all','buy','up','down'] as ('all'|'buy'|'up'|'down')[]).map(f => (
             <button
               key={f}
               className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}

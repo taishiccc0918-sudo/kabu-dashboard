@@ -91,7 +91,6 @@ export default function Page() {
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy')   return r.judgment === '買い'
-      if (filter === 'watch') return r.judgment === '様子見'
       if (filter === 'up')    return (r.chg1d ?? 0) > 0
       if (filter === 'down')  return (r.chg1d ?? 0) < 0
       return true

@@ -115,41 +115,40 @@
 }
 .table { width: 100%; border-collapse: collapse; background: #0d1117; }
 
-/* STICKY HEADER: header=56px + toolbar=約44px = top:100px */
-.table thead tr:first-child th {
-  background: #0a0f1a;
-  padding: 3px 10px;
-  height: 22px;
-  font-size: 10px; font-weight: 600; color: #8b9ab4;
+/* STICKY HEADER: header=56px + toolbar=54px = top:110px */
+.table thead th {
+  background: #0f1520;
+  padding: 9px 10px;
+  font-size: 11px; font-weight: 600; color: #8b9ab4;
   white-space: nowrap;
   position: sticky;
   top: 110px;
   z-index: 4;
-}
-.table thead tr:last-child th {
-  background: #0f1520;
-  padding: 8px 10px;
-  font-size: 11px; font-weight: 600; color: #8b9ab4;
   border-bottom: 2px solid #2a3342;
-  white-space: nowrap;
-  position: sticky;
-  top: 132px;
-  z-index: 4;
 }
-/* ★ヘッダーもsticky（左固定） */
-.table thead tr th:first-child {
+/* ★ヘッダー: 縦横両方固定 */
+.table thead th:first-child {
   position: sticky;
+  top: 110px;
   left: 0;
   z-index: 6;
+  background: #0f1520;
 }
-/* theadのコード・銘柄名: 縦横両方固定 */
-.table thead tr th.stickyCol0 {
+/* コード列ヘッダー: 縦横両方固定 */
+.table thead th.stickyCol0 {
+  position: sticky !important;
+  top: 110px !important;
+  left: 28px !important;
   z-index: 6 !important;
-  background: #0a0f1a !important;
+  background: #0f1520 !important;
 }
-.table thead tr th.stickyCol1 {
+/* 銘柄名列ヘッダー: 縦横両方固定 */
+.table thead th.stickyCol1 {
+  position: sticky !important;
+  top: 110px !important;
+  left: 88px !important;
   z-index: 6 !important;
-  background: #0a0f1a !important;
+  background: #0f1520 !important;
 }
 /* ★tdもsticky */
 .table tbody td:first-child {
@@ -372,24 +371,15 @@
   border-right: 2px solid rgba(96,165,250,0.25);
 }
 /* PERグループ背景色 */
-.thPerGroup {
-  background: #0d1f2d !important;
-  border-bottom: 2px solid #1e4d6b !important;
-}
+.thPerGroup { background: rgba(30,77,107,0.15) !important; border-left: 3px solid #1e4d6b !important; color: #60a5fa !important; }
 .tdPerGroup {
   background: rgba(30, 77, 107, 0.08) !important;
 }
 /* 株価グループ背景色 */
-.thPriceGroup {
-  background: #0d1f1a !important;
-  border-bottom: 2px solid #1e6b4d !important;
-}
+.thPriceGroup { background: rgba(30,107,77,0.15) !important; border-left: 3px solid #1e6b4d !important; color: #4ade80 !important; }
 
 /* 他指標グループ */
-.thOtherGroup {
-  background: rgba(107,77,30,0.15) !important;
-  border-bottom: 2px solid #6b4d1e !important;
-}
+.thOtherGroup { background: rgba(107,77,30,0.15) !important; border-left: 3px solid #6b4d1e !important; color: #fbbf24 !important; }
 .tdOtherGroup {
   background: rgba(107,77,30,0.05) !important;
 }
@@ -398,8 +388,8 @@
 
 /* 情報サイトリンク列 */
 .thInfoGroup {
-  background: rgba(40,40,40,0.5) !important;
-  border-bottom: 2px solid #333 !important;
+  background: rgba(30,30,30,0.4) !important;
+  border-left: 3px solid #333 !important;
   color: #555 !important;
 }
 .tdInfoLink {

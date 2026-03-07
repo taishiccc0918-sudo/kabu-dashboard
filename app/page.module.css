@@ -164,6 +164,7 @@
   color: #4e6280;
   white-space: nowrap;
   position: sticky;
+  top: 96px;
   z-index: 10;
   border-bottom: 1px solid #2a3a52;
   border-top: 1px solid #1f2d40;

@@ -337,7 +337,7 @@ export default function Page() {
                 const text = prompt('銘柄コードをカンマ区切りで入力:')
                 if (!text) return
                 const codes = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-                const next = [...new Set([...watchlist, ...codes])]
+                const next = Array.from(new Set([...watchlist, ...codes]))
                 setWatchlist(next); lsSet('watchlist', next)
               }}>インポート</button>
             </div>

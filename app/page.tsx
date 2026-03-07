@@ -32,6 +32,7 @@ export default function Page() {
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
   const [filter,     setFilter]     = useState<'all'|'buy'>('all')
+  const [mktFilter,  setMktFilter]  = useState<string>('all')
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -93,6 +94,7 @@ export default function Page() {
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy')   return r.judgment === '買い'
+      if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
       return true
     })
     const sortMap: Record<string, (a: StockRow, b: StockRow) => number> = {
@@ -117,7 +119,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, sortKey, sortDir, sortSel])
+  }, [allRows, search, filter, mktFilter, sortKey, sortDir, sortSel])
 
   const stats = useMemo(() => ({
     total: allRows.length,
@@ -194,6 +196,23 @@ export default function Page() {
               onClick={() => setFilter(f as 'all'|'buy')}
             >
               {{ all:'全て', buy:'買い' }[f]}
+            </button>
+          ))}
+        </div>
+        <div className={styles.filterDivider} />
+        <div className={styles.filterGroup}>
+          {([
+            { key: 'all',      label: '全市場' },
+            { key: 'prime',    label: 'Prime' },
+            { key: 'standard', label: 'Standard' },
+            { key: 'growth',   label: 'Growth' },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              className={`${styles.filterBtn} ${styles['mktBtn_'+key]} ${mktFilter === key ? styles.filterBtnActive : ''}`}
+              onClick={() => setMktFilter(key)}
+            >
+              {label}
             </button>
           ))}
         </div>
@@ -478,7 +497,7 @@ function DashboardTable({
     <span className={`${styles.sortArrow} ${sortKey===k ? styles.sorted : ''}`}>↕</span>
   )
 
-  const cols = [
+  const cols: { label: string; cls: string; key: keyof StockRow | null; group: string; width?: number; tooltip?: string }[] = [
     { label: '', cls: styles.thLeft, key: null, width: 32, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
     { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
@@ -492,7 +511,7 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per' },
+    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前と比較したPER今期の変化率。マイナス＝割安方向に改善' },
     { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
     { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },
@@ -541,11 +560,12 @@ function DashboardTable({
               {cols.map((col, i) => (
                 <th
                   key={i}
-                  className={`${col.cls} ${col.key ? styles.thSort : ''}`}
+                  className={`${col.cls} ${col.key ? styles.thSort : ''} ${(col as {tooltip?:string}).tooltip ? styles.thTooltip : ''}`}
                   style={col.width ? {width: col.width, minWidth: col.width} : undefined}
                   onClick={col.key ? () => handleSort(col.key!) : undefined}
+                  title={(col as {tooltip?:string}).tooltip}
                 >
-                  {col.label}{col.key && <SortArrow k={col.key} />}
+                  {col.label}{(col as {tooltip?:string}).tooltip && <span className={styles.tooltipIcon}>?</span>}{col.key && <SortArrow k={col.key} />}
                 </th>
               ))}
             </tr>

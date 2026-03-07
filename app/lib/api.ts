@@ -85,45 +85,53 @@ export async function fetchPrices(
     }
   }
 
-  // 過去4時点（株価変化率用）
-  const periods = [
-    { days: 1,   key: 'prev1d' as const, chgKey: 'chg1d' as const },
-    { days: 5,   key: 'prev1w' as const, chgKey: 'chg1w' as const },
-    { days: 65,  key: 'prev3m' as const, chgKey: 'chg3m' as const },
-    { days: 252, key: 'prev1y' as const, chgKey: 'chg1y' as const },
-  ]
-  for (const { days, key, chgKey } of periods) {
-    try {
-      const pd = bizDateMinus(dateStr, days)
-      const past = await jqFetch(`/equities/bars/daily?date=${pd}`, apiKey)
-      for (const d of past.data ?? []) {
-        const code = normalizeCode(d.Code)
-        if (!db[code]) db[code] = { close: 0 }
-        const p = d.AdjC || d.C || 0
-        db[code][key] = p
-        if (db[code].close && p) db[code][chgKey] = db[code].close / p - 1
+  // 過去データ取得: 指定日にデータがない場合は前後3営業日を探す（祝日・休場対応）
+  async function fetchPastDate(baseDays: number): Promise<Map<string, number>> {
+    const map = new Map<string, number>()
+    for (let offset = 0; offset <= 4; offset++) {
+      for (const sign of [0, -1, 1, -2, 2]) {
+        const actualDays = baseDays + sign + offset
+        if (actualDays < 0) continue
+        try {
+          const pd = bizDateMinus(dateStr, actualDays)
+          const past = await jqFetch(`/equities/bars/daily?date=${pd}`, apiKey)
+          const records = past.data ?? []
+          if (records.length > 10) {  // データが存在する日
+            for (const d of records) {
+              const code = normalizeCode(d.Code)
+              const p = d.AdjC || d.C || 0
+              if (p && !map.has(code)) map.set(code, p)
+            }
+            return map  // 見つかったら即返す
+          }
+        } catch { /* try next */ }
       }
-    } catch { /* skip on error */ }
+    }
+    return map
   }
 
-  // PER変化率用: 1週間前・1ヶ月前・3ヶ月前・1年前の株価を別途保存
-  const perPeriods = [
-    { days: 5,   key: 'prev1w'  as const },
-    { days: 21,  key: 'prev1m'  as const },
-    { days: 65,  key: 'prev3m'  as const },
-    { days: 252, key: 'prev1y'  as const },
+  // 4時点のデータを並行取得
+  const [prev1dMap, prev1wMap, prev1mMap, prev3mMap, prev1yMap] = await Promise.all([
+    fetchPastDate(1),
+    fetchPastDate(5),
+    fetchPastDate(21),
+    fetchPastDate(65),
+    fetchPastDate(252),
+  ])
+
+  const periodMaps: { map: Map<string,number>; key: 'prev1d'|'prev1w'|'prev1m'|'prev3m'|'prev1y'; chgKey?: 'chg1d'|'chg1w'|'chg3m'|'chg1y' }[] = [
+    { map: prev1dMap, key: 'prev1d', chgKey: 'chg1d' },
+    { map: prev1wMap, key: 'prev1w', chgKey: 'chg1w' },
+    { map: prev1mMap, key: 'prev1m' },
+    { map: prev3mMap, key: 'prev3m', chgKey: 'chg3m' },
+    { map: prev1yMap, key: 'prev1y', chgKey: 'chg1y' },
   ]
-  for (const { days, key } of perPeriods) {
-    try {
-      const pd = bizDateMinus(dateStr, days)
-      const past = await jqFetch(`/equities/bars/daily?date=${pd}`, apiKey)
-      for (const d of past.data ?? []) {
-        const code = normalizeCode(d.Code)
-        if (!db[code]) db[code] = { close: 0 }
-        const p = d.AdjC || d.C || 0
-        if (p && !db[code][key]) db[code][key] = p
-      }
-    } catch { /* skip */ }
+  for (const { map, key, chgKey } of periodMaps) {
+    for (const [code, p] of map.entries()) {
+      if (!db[code]) db[code] = { close: 0 }
+      db[code][key] = p
+      if (chgKey && db[code].close && p) db[code][chgKey] = db[code].close / p - 1
+    }
   }
 
   return db

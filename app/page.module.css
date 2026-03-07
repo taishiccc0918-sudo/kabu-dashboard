@@ -249,16 +249,7 @@
   font-weight: 600;
 }
 .tdInfoLink { padding: 0 6px; text-align: center; }
-.tdInfoLink a {
-  color: #4e6280; font-size: 10px;
-  text-decoration: none;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  padding: 2px 6px; border-radius: 3px;
-  border: 1px solid #1f2d40;
-  transition: all .12s;
-  display: inline-block;
-}
-.tdInfoLink a:hover { color: #60a5fa; border-color: #3b82f6; }
+.tdInfoLink a { text-decoration: none; }
 
 /* row height */
 .table tbody tr td { height: 42px; }
@@ -489,3 +480,26 @@
 /* sticky cols in tbody */
 .stickyCol0 { position: sticky !important; left: 32px !important; z-index: 4 !important; }
 .stickyCol1 { position: sticky !important; left: 92px !important; z-index: 4 !important; }
+
+/* 情報サイトリンクボタン */
+.infoLinkBtn {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #2a3a52;
+  background: rgba(59,130,246,0.06);
+  color: #60a5fa;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all .12s;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+.infoLinkBtn:hover {
+  background: rgba(59,130,246,0.18);
+  border-color: #3b82f6;
+  color: #93c5fd;
+  transform: translateY(-1px);
+}

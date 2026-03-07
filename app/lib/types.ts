@@ -8,7 +8,6 @@ export const DEFAULT_WATCHLIST = [
   '6269','6701','4186','6383','6501','7974','3993','7018','4011','1663',
   '4180','7936','285A','6946','9468','5803','268A','5136','6524',
 ]
-
 export interface PriceRecord {
   close: number
   open?: number
@@ -18,6 +17,7 @@ export interface PriceRecord {
   mcap?: number
   prev1d?: number
   prev1w?: number
+  prev1m?: number
   prev3m?: number
   prev1y?: number
   chg1d?: number
@@ -25,7 +25,6 @@ export interface PriceRecord {
   chg3m?: number
   chg1y?: number
 }
-
 export interface FinRecord {
   sales: number
   op: number
@@ -52,12 +51,10 @@ export interface FinRecord {
   nySales: number
   nyOP: number
 }
-
 export interface MasterRecord {
   name: string
   market: string
 }
-
 export interface StockRow {
   code: string
   name: string
@@ -71,6 +68,11 @@ export interface StockRow {
   perA: number | null
   perF: number | null
   perN: number | null
+  // PER今期の変化率
+  perFChg1w: number | null
+  perFChg1m: number | null
+  perFChg3m: number | null
+  perFChg1y: number | null
   pbr: number | null
   roe: number | null
   divY: number | null
@@ -79,8 +81,7 @@ export interface StockRow {
   nySalesGr: number | null
   judgment: string
 }
-
 export type SortKey = keyof StockRow
-export type FilterKey = 'all' | 'buy' | 'watch' | 'up' | 'down'
+export type FilterKey = 'all' | 'buy' | 'up' | 'down'
 export type TabKey = 'dashboard' | 'card' | 'watchlist'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'

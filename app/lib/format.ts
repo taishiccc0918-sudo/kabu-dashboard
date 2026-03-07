@@ -65,7 +65,7 @@ export function buildStockRow(
     return close / pastClose - 1
   }
   const perFChg1w = perFAt(p.prev1w)
-  const perFChg1m = perFAt(p.prev1m)
+  const perFChg1m = perFAt((p as {prev1m?:number}).prev1m)
   const perFChg3m = perFAt(p.prev3m)
   const perFChg1y = perFAt(p.prev1y)
 

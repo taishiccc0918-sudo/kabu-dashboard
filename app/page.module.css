@@ -111,32 +111,39 @@
 .main { flex: 1; }
 .tableWrap {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: calc(100vh - 112px);
+  overflow-y: visible;
   position: relative;
 }
 .table { width: 100%; border-collapse: collapse; }
 
 /* STICKY HEADER: header=56px + toolbar=約44px = top:100px */
 .table thead tr:first-child th {
-  background: #0a0f1a !important;
+  background: #0a0f1a;
   padding: 3px 10px;
   height: 22px;
   font-size: 10px; font-weight: 600; color: #8b9ab4;
   white-space: nowrap;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 52 !important;
+  position: sticky;
+  top: 0;
+  z-index: 4;
 }
 .table thead tr:last-child th {
-  background: #0f1520 !important;
+  background: #0f1520;
   padding: 8px 10px;
   font-size: 11px; font-weight: 600; color: #8b9ab4;
   border-bottom: 2px solid #2a3342;
   white-space: nowrap;
-  position: sticky !important;
-  top: 22px !important;
-  z-index: 52 !important;
+  position: sticky;
+  top: 22px;
+  z-index: 4;
+}
+/* theadのstickyCol（コード・銘柄名ヘッダー）は両方向固定 */
+.table thead tr:first-child th.stickyCol0,
+.table thead tr:first-child th.stickyCol1,
+.table thead tr:last-child th.stickyCol0,
+.table thead tr:last-child th.stickyCol1 {
+  z-index: 5 !important;
+  background: #0f1520 !important;
 }
 .thLeft  { text-align: left !important; }
 .thRight { text-align: right !important; }
@@ -345,21 +352,20 @@
 .stickyCol0 {
   position: sticky !important;
   left: 28px !important;
-  z-index: 40 !important;
-  background: inherit !important;
+  z-index: 3 !important;
 }
 .stickyCol1 {
   position: sticky !important;
   left: 88px !important;
-  z-index: 40 !important;
-  background: inherit !important;
-  box-shadow: 4px 0 8px rgba(0,0,0,0.4);
+  z-index: 3 !important;
 }
-/* thead内のstickyColはz-indexをさらに高く */
-.table thead .stickyCol0,
-.table thead .stickyCol1 {
-  z-index: 60 !important;
-  background: #0a0f1a !important;
+/* 銘柄名列の右に区切り線 */
+.stickyCol1::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to right, rgba(96,165,250,0.3), transparent);
 }
 /* PERグループ背景色 */
 .thPerGroup {

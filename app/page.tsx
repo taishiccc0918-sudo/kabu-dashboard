@@ -156,7 +156,7 @@ export default function Page() {
     <div className={styles.root}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.logo}>株式<span>DB</span></div>
+          <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
           <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}{stats.total > 0 && <span style={{marginLeft:12,color:'#8b9ab4',fontSize:13}}>{stats.total}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
@@ -235,7 +235,7 @@ export default function Page() {
                   <th colSpan={5} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
                   <th colSpan={5} style={{background:'rgba(30,107,77,0.15)',borderBottom:'2px solid #1e6b4d',textAlign:'center',fontSize:10,color:'#4ade80',letterSpacing:2}}>── 株価 ──</th>
                   <th colSpan={4} style={{background:'rgba(30,77,107,0.15)',borderBottom:'2px solid #1e4d6b',textAlign:'center',fontSize:10,color:'#60a5fa',letterSpacing:2}}>── PER ──</th>
-                  <th colSpan={6} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
+                  <th colSpan={7} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
                 </tr>
                 {/* カラム行 */}
                 <tr>
@@ -268,12 +268,12 @@ export default function Page() {
                     ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
                     ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort(k)}>
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thOtherGroup}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
-                  <th className={styles.thRight}>判定</th>
-                  <th className={styles.thRight}>四季報</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>四季報</th>
                 </tr>
               </thead>
               <tbody>

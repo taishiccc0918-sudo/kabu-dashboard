@@ -261,6 +261,7 @@ export default function Page() {
                     ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],
                     ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
                     ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
+                    ['perFChg1w','PER今期(1W)'],['perFChg1m','PER今期(1M)'],['perFChg3m','PER今期(3M)'],['perFChg1y','PER今期(1Y)'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
                     <th key={k} className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
@@ -503,6 +504,10 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.epsGr)]}`}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
       <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
+      {[r.perFChg1w, r.perFChg1m, r.perFChg3m, r.perFChg1y].map((v, i) => (
+        <td key={`perchg${i}`} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
+          style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
+      ))}
       <td><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdLink}>
         <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank"
@@ -549,13 +554,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
           </div>
         ))}
       </div>
-      <button
-        className={styles.chartToggleBtn}
-        onClick={e => { e.stopPropagation(); setShowChart(s => !s) }}
-      >
-        {showChart ? '▲ チャートを閉じる' : '📈 チャートを表示'}
-      </button>
-      {showChart && apiKey && (
+      {apiKey && (
         <div onClick={e => e.stopPropagation()}>
           <MiniChart code={r.code} apiKey={apiKey} />
         </div>

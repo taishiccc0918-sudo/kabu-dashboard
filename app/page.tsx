@@ -10,7 +10,6 @@ import {
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, marketShort } from './lib/format'
 import styles from './page.module.css'
 
-// ─── localStorage helpers ────────────────────────────────────────────
 function ls<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback } catch { return fallback }
@@ -41,7 +40,6 @@ export default function Page() {
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
 
-  // ─── fetch all ───────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
     if (loading) return
@@ -62,7 +60,6 @@ export default function Page() {
 
       st('財務データ取得中...', 55)
       const { finDB: fins, shOutDB } = await fetchFinancials(apiKey, watchlist)
-      // 時価総額をpriceDBに反映
       for (const [code, sh] of Object.entries(shOutDB)) {
         if (prices[code]?.close) {
           prices[code].mcap = Math.round(prices[code].close * sh / 1e8)
@@ -90,7 +87,6 @@ export default function Page() {
     }
   }, [apiKey, loading, watchlist])
 
-  // ─── rows ─────────────────────────────────────────────────────────────
   const allRows = useMemo(
     () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB)),
     [watchlist, priceDB, finDB, masterDB]
@@ -144,7 +140,6 @@ export default function Page() {
     setSortSel('default')
   }
 
-  // ─── watchlist ops ───────────────────────────────────────────────────
   function addStock() {
     const code = addCode.trim().toUpperCase()
     if (!code) return
@@ -163,11 +158,9 @@ export default function Page() {
     setMemos(next); lsSet('memos', next)
   }
 
-  // ─── detail row ──────────────────────────────────────────────────────
   const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB) : null
   const detailFin = detailCode ? finDB[detailCode] : null
 
-  // ─── render ──────────────────────────────────────────────────────────
   return (
     <div className={styles.root}>
       {/* HEADER */}
@@ -192,19 +185,18 @@ export default function Page() {
         </div>
       </header>
 
-      {/* STATS */}
+      {/* STATS - 基準日を削除 */}
       <div className={styles.statsBar}>
         {[
-          { label: 'お気に入り銘柄数', val: stats.total,  cls: styles.blue  },
-          { label: '買いシグナル',     val: stats.buy,    cls: styles.green },
-          { label: '様子見',           val: stats.watch,  cls: styles.yellow},
-          { label: '上昇銘柄（前日比）', val: stats.up,   cls: styles.green },
-          { label: '下落銘柄（前日比）', val: stats.down, cls: styles.red   },
-          { label: '基準日',           val: lastUpdate || '—', cls: styles.gray, small: true },
-        ].map(({ label, val, cls, small }) => (
+          { label: 'お気に入り銘柄数',   val: stats.total, cls: styles.blue  },
+          { label: '買いシグナル',        val: stats.buy,   cls: styles.green },
+          { label: '様子見',              val: stats.watch, cls: styles.yellow},
+          { label: '上昇銘柄（前日比）',  val: stats.up,    cls: styles.green },
+          { label: '下落銘柄（前日比）',  val: stats.down,  cls: styles.red   },
+        ].map(({ label, val, cls }) => (
           <div key={label} className={styles.statCard}>
             <div className={styles.statLabel}>{label}</div>
-            <div className={`${styles.statValue} ${cls} ${small ? styles.statSmall : ''}`}>{val}</div>
+            <div className={`${styles.statValue} ${cls}`}>{val}</div>
           </div>
         ))}
       </div>
@@ -265,11 +257,10 @@ export default function Page() {
 
       {/* MAIN */}
       <main className={styles.main}>
-        {/* DASHBOARD TABLE */}
         {tab === 'dashboard' && (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
-              <thead>
+              <thead className={styles.stickyHead}>
                 <tr>
                   <th className={styles.thLeft} style={{width:28}}></th>
                   {([
@@ -306,7 +297,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* CARD VIEW */}
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
@@ -315,7 +305,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* WATCHLIST MANAGER */}
         {tab === 'watchlist' && (
           <div className={styles.wlManager}>
             <div className={styles.wlTitle}>銘柄管理</div>
@@ -355,7 +344,6 @@ export default function Page() {
         )}
       </main>
 
-      {/* DETAIL PANEL */}
       {detailCode && detailRow && (
         <div className={styles.detailOverlay} onClick={e => { if (e.target === e.currentTarget) setDetailCode(null) }}>
           <div className={styles.detailPanel}>
@@ -390,7 +378,6 @@ export default function Page() {
   )
 }
 
-// ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClick: () => void }) {
   const bg = idx % 2 === 1 ? 'rgba(22,27,34,0.6)' : 'transparent'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
@@ -424,7 +411,6 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   )
 }
 
-// ─── StockCard ───────────────────────────────────────────────────────
 function StockCard({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -463,14 +449,12 @@ function StockCard({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
   )
 }
 
-// ─── JudgmentBadge ───────────────────────────────────────────────────
 function JudgmentBadge({ j }: { j: string }) {
   if (j === '買い')   return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
   if (j === '様子見') return <span className={`${styles.jBadge} ${styles.jWatch}`}>様子見</span>
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
-// ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
   row: r, fin: f, memo, onSaveMemo,
 }: {
@@ -503,7 +487,6 @@ function DetailPanel({
       <div className={styles.detailSubPrice}>
         前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
       </div>
-
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],
@@ -512,7 +495,6 @@ function DetailPanel({
           ['1年',    r.chg1y, fmtPct(r.chg1y), pctClass(r.chg1y)],
         ]} />
       </Section>
-
       <Section title="バリュー指標">
         <Grid2 items={[
           ['PER実績',    null, r.perA ? fmtN(r.perA) : '—', ''],
@@ -527,7 +509,6 @@ function DetailPanel({
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],
         ]} />
       </Section>
-
       {f && (
         <Section title={`財務データ${f.discDate ? ` (開示: ${f.discDate})` : ''}`}>
           <Grid2 items={[
@@ -540,7 +521,6 @@ function DetailPanel({
           ]} />
         </Section>
       )}
-
       <Section title="メモ">
         <textarea
           className={styles.detailMemo}
@@ -556,7 +536,6 @@ function DetailPanel({
           {saved ? '保存しました ✓' : 'メモを保存'}
         </button>
       </Section>
-
       <Section title="リンク">
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank">四季報オンライン</a>

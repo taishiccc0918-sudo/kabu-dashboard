@@ -40,6 +40,7 @@ export default function Page() {
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
   const theadTop = 96  // header(52px) + toolbar(44px)
+  const [forcePc, setForcePc] = useState(false)
 
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
@@ -211,6 +212,9 @@ export default function Page() {
           <option value="peg_asc">PEG ↑</option>
         </select>
         <div className={styles.spacer} />
+        <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
+          {forcePc ? '📱 最適化' : '🖥 PC表示'}
+        </button>
         <div className={styles.tabGroup}>
           {(['dashboard','card'] as TabKey[]).map(t => (
             <button
@@ -226,13 +230,29 @@ export default function Page() {
 
       <main className={styles.main}>
         {tab === 'dashboard' && (
-          <DashboardTable
-            filteredRows={filteredRows}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            handleSort={handleSort}
-            onRowClick={(code) => setDetailCode(code)}
-          />
+          <>
+            {/* PC: フルテーブル */}
+            <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
+              <DashboardTable
+                filteredRows={filteredRows}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                handleSort={handleSort}
+                onRowClick={(code) => setDetailCode(code)}
+              />
+            </div>
+            {/* スマホ: コンパクトリスト */}
+            <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
+              <div className={styles.mobileList}>
+                {filteredRows.length === 0
+                  ? <div className={styles.emptyCell}>該当銘柄なし</div>
+                  : filteredRows.map(r => (
+                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} />
+                  ))
+                }
+              </div>
+            </div>
+          </>
         )}
 
         {tab === 'card' && (
@@ -607,6 +627,38 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>YF</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
     </tr>
+  )
+}
+
+
+// ─── MobileRow (スマホ専用コンパクトリスト) ──────────────────────────
+function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
+  const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+  return (
+    <div className={styles.mobileRow} onClick={onClick}>
+      <div className={styles.mobileRowLeft}>
+        <div className={styles.mobileRowTop}>
+          <span className={styles.mobileCode}>{r.code}</span>
+          <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+          <JudgmentBadge j={r.judgment} />
+        </div>
+        <div className={styles.mobileName}>{r.name || '—'}</div>
+        <div className={styles.mobileMetaRow}>
+          <span className={styles.mobileMetaItem}>PER {r.perF ? fmtN(r.perF) : '—'}</span>
+          <span className={styles.mobileMetaItem}>PBR {r.pbr ? fmtN(r.pbr) : '—'}</span>
+          <span className={styles.mobileMetaItem}>配当 {r.divY ? fmtPct(r.divY) : '—'}</span>
+          {r.mcap ? <span className={styles.mobileMetaItem}>{r.mcap.toLocaleString()}億</span> : null}
+        </div>
+      </div>
+      <div className={styles.mobileRowRight}>
+        <div className={styles.mobilePrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
+        <div className={`${styles.mobileChg} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</div>
+        <div className={styles.mobileSubChg}>
+          <span className={styles[pctClass(r.chg1w)]}>1W {fmtPct(r.chg1w)}</span>
+          <span className={styles[pctClass(r.chg3m)]}>3M {fmtPct(r.chg3m)}</span>
+        </div>
+      </div>
+    </div>
   )
 }
 

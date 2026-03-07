@@ -182,7 +182,6 @@ export default function Page() {
         {[
           { label: 'お気に入り銘柄数',  val: stats.total, cls: styles.blue  },
           { label: '買いシグナル',       val: stats.buy,   cls: styles.green },
-          { label: '様子見',             val: stats.watch, cls: styles.yellow},
           { label: '上昇銘柄（前日比）', val: stats.up,    cls: styles.green },
           { label: '下落銘柄（前日比）', val: stats.down,  cls: styles.red   },
         ].map(({ label, val, cls }) => (
@@ -204,13 +203,13 @@ export default function Page() {
           />
         </div>
         <div className={styles.filterGroup}>
-          {(['all','buy','watch','up','down'] as FilterKey[]).map(f => (
+          {(['all','buy','up','down'] as FilterKey[]).map(f => (
             <button
               key={f}
               className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
               onClick={() => setFilter(f)}
             >
-              {{ all:'全て', buy:'買い', watch:'様子見', up:'上昇', down:'下落' }[f]}
+              {{ all:'全て', buy:'買い', up:'上昇', down:'下落' }[f]}
             </button>
           ))}
         </div>
@@ -564,8 +563,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
 }
 
 function JudgmentBadge({ j }: { j: string }) {
-  if (j === '買い')   return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
-  if (j === '様子見') return <span className={`${styles.jBadge} ${styles.jWatch}`}>様子見</span>
+  if (j === '買い') return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 

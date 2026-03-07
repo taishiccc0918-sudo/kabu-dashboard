@@ -171,6 +171,7 @@ export default function Page() {
           <button className={styles.btnPrimary} onClick={fetchAll} disabled={loading}>
             {loading ? '取得中...' : '全更新'}
           </button>
+          <button className={styles.btnSecondary} onClick={() => setTab('watchlist')}>銘柄管理</button>
         </div>
       </header>
 
@@ -490,8 +491,8 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   return (
     <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar}>★</td>
-      <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: bg || '#0d1117'}}>{r.code}</td>
-      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: bg || '#0d1117'}}>{r.name || '—'}</td>
+      <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.code}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.name || '—'}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>

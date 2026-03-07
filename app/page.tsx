@@ -501,8 +501,10 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
           style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
       ))}
       <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perA ? fmtN(r.perA) : '—'}</td>
-      <td className={styles.tdNum}>{r.perF ? fmtN(r.perF) : '—'}</td>
-      <td className={styles.tdNum}>{r.perN ? fmtN(r.perN) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perF ? fmtN(r.perF) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perN ? fmtN(r.perN) : '—'}</td>
+      <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup}`}
+        style={{background: pctBg(r.perFChg1m)}}>{fmtPct(r.perFChg1m)}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={`${styles.tdNum} ${r.roe && r.roe > 0.1 ? styles.up : ''}`}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={`${styles.tdNum} ${r.divY && r.divY > 0.03 ? styles.up : ''}`}>{r.divY ? fmtPct(r.divY) : '—'}</td>

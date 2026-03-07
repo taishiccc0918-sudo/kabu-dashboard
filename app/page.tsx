@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord,
   TabKey, StatusType,
@@ -241,8 +241,8 @@ export default function Page() {
         {tab === 'dashboard' && (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
-              <thead>
-                <tr style={{['--thead-top' as string]: `${theadTop}px`}}>
+              <thead style={{['--thead-top' as string]: theadTop+'px'} as React.CSSProperties}>
+                <tr>
                   <th className={styles.thLeft} style={{width:28}}></th>
                   {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l],i) => (
                     <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} onClick={() => handleSort(k)}>

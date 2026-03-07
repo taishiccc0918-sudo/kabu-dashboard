@@ -112,7 +112,6 @@
 .tableWrap {
   overflow-x: auto;
   overflow-y: visible;
-  position: relative;
 }
 .table { width: 100%; border-collapse: collapse; background: #0d1117; }
 
@@ -124,7 +123,7 @@
   font-size: 10px; font-weight: 600; color: #8b9ab4;
   white-space: nowrap;
   position: sticky;
-  top: 0;
+  top: 100px;
   z-index: 4;
 }
 .table thead tr:last-child th {
@@ -134,29 +133,29 @@
   border-bottom: 2px solid #2a3342;
   white-space: nowrap;
   position: sticky;
-  top: 22px;
+  top: 122px;
   z-index: 4;
 }
-/* theadのstickyCol（コード・銘柄名ヘッダー）は両方向固定 */
-.table thead tr:first-child th.stickyCol0,
-.table thead tr:first-child th.stickyCol1,
-.table thead tr:last-child th.stickyCol0,
-.table thead tr:last-child th.stickyCol1 {
-  z-index: 5 !important;
+/* ★ヘッダーもsticky（左固定） */
+.table thead tr th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+}
+/* theadのコード・銘柄名: 縦横両方固定 */
+.table thead tr th.stickyCol0 {
+  z-index: 6 !important;
   background: #0a0f1a !important;
 }
-/* ★ヘッダー（最初のth）もsticky */
-.table thead tr th:first-child {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 5 !important;
+.table thead tr th.stickyCol1 {
+  z-index: 6 !important;
   background: #0a0f1a !important;
 }
 /* ★tdもsticky */
 .table tbody td:first-child {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 3 !important;
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 .thLeft  { text-align: left !important; }
 .thRight { text-align: right !important; }
@@ -396,3 +395,27 @@
 }
 
 /* tableWrap: ヘッダーとツールバーの高さ分を引く */
+
+/* 情報サイトリンク列 */
+.thInfoGroup {
+  background: rgba(40,40,40,0.5) !important;
+  border-bottom: 2px solid #333 !important;
+  color: #555 !important;
+}
+.tdInfoLink {
+  padding: 8px 6px;
+  text-align: center;
+}
+.tdInfoLink a {
+  color: #4a5568;
+  font-size: 10px;
+  text-decoration: none;
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid #2a3342;
+  transition: all .15s;
+}
+.tdInfoLink a:hover {
+  color: #8b9ab4;
+  border-color: #4a5568;
+}

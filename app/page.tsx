@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord,
-  TabKey, StatusType,
+  TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
 } from './lib/types'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements,
@@ -38,6 +38,7 @@ export default function Page() {
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [divYMin,    setDivYMin]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
+  const [customGenres, setCustomGenres] = useState<Record<string,string>>(() => ls('customGenres', {}))
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -90,17 +91,17 @@ export default function Page() {
   }, [apiKey, loading, watchlist])
 
   const allRows = useMemo(
-    () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB)),
-    [watchlist, priceDB, finDB, masterDB]
+    () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB, customGenres)),
+    [watchlist, priceDB, finDB, masterDB, customGenres]
   )
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
-      if (filter === 'buy')   return r.judgment === '買い'
+      if (filter === 'buy' && r.judgment !== '買い') return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
-      if (genreFilter !== 'all' && r.genre !== genreFilter) return false
+      if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
       if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
       if (perFMax !== '' && (r.perF == null || r.perF > parseFloat(perFMax))) return false
       if (divYMin !== '' && (r.divY == null || r.divY * 100 < parseFloat(divYMin))) return false
@@ -122,9 +123,12 @@ export default function Page() {
     if (sortSel !== 'default' && sortMap[sortSel]) rows = [...rows].sort(sortMap[sortSel])
     else if (sortKey) {
       rows = [...rows].sort((a, b) => {
-        const av = (a[sortKey] as number) ?? (sortDir > 0 ? Infinity : -Infinity)
-        const bv = (b[sortKey] as number) ?? (sortDir > 0 ? Infinity : -Infinity)
-        return (av - bv) * sortDir
+        const av = a[sortKey]
+        const bv = b[sortKey]
+        if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv) * sortDir
+        const an = (av as number) ?? (sortDir > 0 ? Infinity : -Infinity)
+        const bn = (bv as number) ?? (sortDir > 0 ? Infinity : -Infinity)
+        return (an - bn) * sortDir
       })
     }
     return rows
@@ -140,6 +144,16 @@ export default function Page() {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
     setSortSel('default')
+  }
+
+  function saveCustomGenre(code: string, genreStr: string) {
+    const next = { ...customGenres, [code]: genreStr }
+    setCustomGenres(next); lsSet('customGenres', next)
+  }
+  function resetCustomGenre(code: string) {
+    const next = { ...customGenres }
+    delete next[code]
+    setCustomGenres(next); lsSet('customGenres', next)
   }
 
   function addStock() {
@@ -359,11 +373,14 @@ export default function Page() {
             <div className={styles.wlCount}>{watchlist.length}銘柄登録中</div>
             <div className={styles.wlChips}>
               {watchlist.map(code => (
-                <div key={code} className={styles.wlChip}>
-                  <span className={styles.wlChipCode}>{code}</span>
-                  <span className={styles.wlChipName}>{masterDB[code]?.name ?? ''}</span>
-                  <span className={styles.wlChipRemove} onClick={() => removeStock(code)}>×</span>
-                </div>
+                <GenreEditChip
+                  key={code} code={code}
+                  name={masterDB[code]?.name ?? ''}
+                  currentGenre={customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'}
+                  onSave={saveCustomGenre}
+                  onReset={resetCustomGenre}
+                  onRemove={removeStock}
+                />
               ))}
             </div>
           </div>
@@ -551,7 +568,7 @@ function DashboardTable({
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
     { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
     { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, group: '' },
-    { label: '市場', cls: styles.thLeft, key: null, group: '' },
+    { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
     { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price' },
@@ -561,7 +578,7 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化率。各セルにホバーで詳細表示' },
+    { label: 'PER今期の1ヶ月前成長率', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期と現在のPER今期の比較。セルにホバーすると詳細表示' },
     { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
     { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },
@@ -678,7 +695,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyBg}}>{r.name || '—'}</td>
-      <td><span className={`${styles.genreBadge}`}>{r.genre}</span></td>
+      <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
@@ -691,7 +708,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perN ? fmtN(r.perN) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup} ${styles.hasTooltip}`}
         style={{background: pctBg(r.perFChg1m)}}
-        title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍（差分: ${fmtPct(r.perFChg1m)}）` : undefined}
+        title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fmtPct(r.perFChg1m)}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={`${styles.tdNum} ${r.roe && r.roe > 0.1 ? styles.up : ''}`}>{r.roe ? fmtPct(r.roe) : '—'}</td>
@@ -781,6 +798,64 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
       {apiKey && (
         <div onClick={e => e.stopPropagation()}>
           <MiniChart code={r.code} apiKey={apiKey} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ─── GenreEditChip ───────────────────────────────────────────────────
+function GenreEditChip({ code, name, currentGenre, onSave, onReset, onRemove }: {
+  code: string
+  name: string
+  currentGenre: string
+  onSave: (code: string, genre: string) => void
+  onReset: (code: string) => void
+  onRemove: (code: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(currentGenre)
+  const tags = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
+
+  function toggleTag(tag: string) {
+    const current = val.split(',').map(g => g.trim()).filter(Boolean)
+    const next = current.includes(tag)
+      ? current.filter(g => g !== tag)
+      : [...current, tag]
+    setVal(next.join(','))
+  }
+
+  function save() {
+    onSave(code, val || 'その他')
+    setEditing(false)
+  }
+
+  return (
+    <div className={styles.wlChip} style={{flexDirection:'column', alignItems:'flex-start', padding:'8px 12px', minWidth:200, maxWidth:280}}>
+      <div style={{display:'flex', alignItems:'center', gap:6, width:'100%'}}>
+        <span className={styles.wlChipCode}>{code}</span>
+        <span className={styles.wlChipName} style={{flex:1}}>{name}</span>
+        <button className={styles.genreEditBtn} onClick={() => { setEditing(e => !e); setVal(currentGenre) }}>✏️</button>
+        <span className={styles.wlChipRemove} onClick={() => onRemove(code)}>×</span>
+      </div>
+      <div style={{display:'flex', gap:3, flexWrap:'wrap', marginTop:4}}>
+        {tags.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}
+      </div>
+      {editing && (
+        <div className={styles.genreEditPanel}>
+          <div className={styles.genreTagGrid}>
+            {ALL_GENRE_OPTIONS.map(g => (
+              <button key={g}
+                className={`${styles.filterChip} ${val.includes(g) ? styles.filterChipActive : ''}`}
+                onClick={() => toggleTag(g)}
+              >{g}</button>
+            ))}
+          </div>
+          <div style={{display:'flex', gap:6, marginTop:6}}>
+            <button className={styles.btnPrimary} style={{fontSize:11, padding:'4px 12px'}} onClick={save}>保存</button>
+            <button className={styles.btnSecondary} style={{fontSize:11, padding:'4px 10px'}} onClick={() => { onReset(code); setEditing(false) }}>リセット</button>
+          </div>
         </div>
       )}
     </div>

@@ -157,7 +157,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo}>株式<span>DB</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? `基準日: ${lastUpdate}` : '未取得'}{stats.total > 0 && <span style={{marginLeft:12,color:'#8b9ab4',fontSize:13}}>{stats.total}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
           <label className={styles.apiLabel}>API Key</label>
@@ -175,18 +175,6 @@ export default function Page() {
         </div>
       </header>
 
-      <div className={styles.statsBar}>
-        {[
-          { label: 'お気に入り銘柄数',  val: stats.total, cls: styles.blue  },
-          { label: '上昇銘柄（前日比）', val: stats.up,    cls: styles.green },
-          { label: '下落銘柄（前日比）', val: stats.down,  cls: styles.red   },
-        ].map(({ label, val, cls }) => (
-          <div key={label} className={styles.statCard}>
-            <div className={styles.statLabel}>{label}</div>
-            <div className={`${styles.statValue} ${cls}`}>{val}</div>
-          </div>
-        ))}
-      </div>
 
       <div className={styles.toolbar}>
         <div className={styles.searchWrap}>
@@ -242,21 +230,43 @@ export default function Page() {
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
+                {/* グループ行 */}
+                <tr>
+                  <th colSpan={5} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
+                  <th colSpan={5} style={{background:'rgba(30,107,77,0.15)',borderBottom:'2px solid #1e6b4d',textAlign:'center',fontSize:10,color:'#4ade80',letterSpacing:2}}>── 株価 ──</th>
+                  <th colSpan={4} style={{background:'rgba(30,77,107,0.15)',borderBottom:'2px solid #1e4d6b',textAlign:'center',fontSize:10,color:'#60a5fa',letterSpacing:2}}>── PER ──</th>
+                  <th colSpan={6} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
+                </tr>
+                {/* カラム行 */}
                 <tr>
                   <th className={styles.thLeft} style={{width:28}}></th>
-                  {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l]) => (
-                    <th key={k} className={`${styles.thLeft} ${styles.thSort}`} onClick={() => handleSort(k)}>
+                  {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l],i) => (
+                    <th key={k} className={`${styles.thLeft} ${styles.thSort} ${i===0?styles.stickyCol0:styles.stickyCol1}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
                   ))}
-                  <th className={styles.thLeft}>市場</th>
+                  <th className={`${styles.thLeft} ${styles.stickyCol2}`}>市場</th>
+                  <th className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort('mcap')}>
+                    時価総額(億)<span className={`${styles.sortArrow} ${sortKey==='mcap'?styles.sorted:''}`}>↕</span>
+                  </th>
                   {([
                     ['close','株価'],['chg1d','前日比%'],['chg1w','1週間%'],
-                    ['chg3m','3ヶ月%'],['chg1y','1年%'],['mcap','時価総額(億)'],
+                    ['chg3m','3ヶ月%'],['chg1y','1年%'],
+                  ] as [keyof StockRow, string][]).map(([k,l]) => (
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPriceGroup}`} onClick={() => handleSort(k)}>
+                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
+                    </th>
+                  ))}
+                  {([
                     ['perA','PER実績'],['perF','PER今期'],['perN','PER来期'],['perFChg1m','PER今期(1M)'],
+                  ] as [keyof StockRow, string][]).map(([k,l]) => (
+                    <th key={k} className={`${styles.thRight} ${styles.thSort} ${styles.thPerGroup}`} onClick={() => handleSort(k)}>
+                      {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
+                    </th>
+                  ))}
+                  {([
                     ['pbr','PBR'],['roe','ROE'],['divY','配当利回り'],
                     ['epsGr','EPS成長率'],['peg','PEG'],['nySalesGr','来期売上成長'],
-                    ['perFChg1w','PER今期(1W)'],['perFChg1m','PER今期(1M)'],['perFChg3m','PER今期(3M)'],['perFChg1y','PER今期(1Y)'],
                   ] as [keyof StockRow, string][]).map(([k,l]) => (
                     <th key={k} className={`${styles.thRight} ${styles.thSort}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
@@ -481,16 +491,16 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   return (
     <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar}>★</td>
-      <td className={styles.tdCode}>{r.code}</td>
-      <td className={styles.tdName}>{r.name || '—'}</td>
-      <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
+      <td className={`${styles.tdCode} ${styles.stickyCol0}`}>{r.code}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1}`}>{r.name || '—'}</td>
+      <td className={styles.stickyCol2}><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
+      <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
         <td key={i} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
           style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
       ))}
-      <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
-      <td className={styles.tdNum}>{r.perA ? fmtN(r.perA) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perA ? fmtN(r.perA) : '—'}</td>
       <td className={styles.tdNum}>{r.perF ? fmtN(r.perF) : '—'}</td>
       <td className={styles.tdNum}>{r.perN ? fmtN(r.perN) : '—'}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
@@ -499,10 +509,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.epsGr)]}`}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
       <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-      {[r.perFChg1w, r.perFChg1m, r.perFChg3m, r.perFChg1y].map((v, i) => (
-        <td key={`perchg${i}`} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
-          style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
-      ))}
+
       <td><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdLink}>
         <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank"

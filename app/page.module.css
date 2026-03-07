@@ -113,6 +113,7 @@
   overflow-x: auto;
   overflow-y: auto;
   max-height: calc(100vh - 112px);
+  position: relative;
 }
 .table { width: 100%; border-collapse: collapse; }
 
@@ -149,6 +150,10 @@
   transition: background .1s;
 }
 .table tbody tr:hover { background: rgba(30,45,66,0.5) !important; }
+.table tbody tr:hover .stickyCol0,
+.table tbody tr:hover .stickyCol1 {
+  background: rgba(30,45,66,0.5) !important;
+}
 .emptyCell { text-align: center; padding: 48px; color: #8b9ab4; }
 
 /* TD */
@@ -340,15 +345,21 @@
 .stickyCol0 {
   position: sticky !important;
   left: 28px !important;
-  z-index: 31 !important;
-  background: #0f1520 !important;
+  z-index: 40 !important;
+  background: inherit !important;
 }
 .stickyCol1 {
   position: sticky !important;
   left: 88px !important;
-  z-index: 31 !important;
-  background: #0f1520 !important;
-  box-shadow: 3px 0 6px rgba(0,0,0,0.35);
+  z-index: 40 !important;
+  background: inherit !important;
+  box-shadow: 4px 0 8px rgba(0,0,0,0.4);
+}
+/* thead内のstickyColはz-indexをさらに高く */
+.table thead .stickyCol0,
+.table thead .stickyCol1 {
+  z-index: 60 !important;
+  background: #0a0f1a !important;
 }
 /* PERグループ背景色 */
 .thPerGroup {

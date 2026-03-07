@@ -33,6 +33,11 @@ export default function Page() {
   const [tab,        setTab]        = useState<TabKey>('dashboard')
   const [filter,     setFilter]     = useState<'all'|'buy'>('all')
   const [mktFilter,  setMktFilter]  = useState<string>('all')
+  const [genreFilter, setGenreFilter] = useState<string>('all')
+  const [mcapMin,    setMcapMin]    = useState<string>('')
+  const [perFMax,    setPerFMax]    = useState<string>('')
+  const [divYMin,    setDivYMin]    = useState<string>('')
+  const [showFilter, setShowFilter] = useState(false)
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -95,6 +100,10 @@ export default function Page() {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy')   return r.judgment === '買い'
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
+      if (genreFilter !== 'all' && r.genre !== genreFilter) return false
+      if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
+      if (perFMax !== '' && (r.perF == null || r.perF > parseFloat(perFMax))) return false
+      if (divYMin !== '' && (r.divY == null || r.divY * 100 < parseFloat(divYMin))) return false
       return true
     })
     const sortMap: Record<string, (a: StockRow, b: StockRow) => number> = {
@@ -119,7 +128,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, mktFilter, sortKey, sortDir, sortSel])
+  }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, divYMin, sortKey, sortDir, sortSel])
 
   const stats = useMemo(() => ({
     total: allRows.length,
@@ -218,8 +227,6 @@ export default function Page() {
         </div>
         <select className={styles.sortSelect} value={sortSel} onChange={e => setSortSel(e.target.value)}>
           <option value="default">並び順: デフォルト</option>
-          <option value="price_asc">株価 ↑</option>
-          <option value="price_desc">株価 ↓</option>
           <option value="chg1d_desc">前日比 ↓</option>
           <option value="chg1d_asc">前日比 ↑</option>
           <option value="chg3m_asc">3ヶ月比 ↑</option>
@@ -234,6 +241,12 @@ export default function Page() {
         <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
           {forcePc ? '📱 最適化' : '🖥 PC表示'}
         </button>
+        <button
+          className={`${styles.filterToggleBtn} ${showFilter ? styles.filterToggleBtnActive : ''}`}
+          onClick={() => setShowFilter(s => !s)}
+        >
+          ▼ 絞り込み{(mcapMin||perFMax||divYMin||genreFilter!=='all') ? ' ●' : ''}
+        </button>
         <div className={styles.tabGroup}>
           {(['dashboard','card'] as TabKey[]).map(t => (
             <button
@@ -247,6 +260,42 @@ export default function Page() {
         </div>
       </div>
 
+      {showFilter && (
+        <div className={styles.filterPanel}>
+          <div className={styles.filterPanelGrid}>
+            <div className={styles.filterPanelGroup}>
+              <label className={styles.filterPanelLabel}>ジャンル</label>
+              <div className={styles.filterPanelChips}>
+                {['all','防衛','宇宙','半導体','造船','IP','スポーツ','保険','銀行','素材','化学','機械','IT','サービス','小売','エネルギー','自動車','その他'].map(g => (
+                  <button key={g}
+                    className={`${styles.filterChip} ${genreFilter===g ? styles.filterChipActive : ''}`}
+                    onClick={() => setGenreFilter(g)}
+                  >{g==='all'?'全て':g}</button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.filterPanelGroup}>
+              <label className={styles.filterPanelLabel}>時価総額（億円）以上</label>
+              <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
+                value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
+            </div>
+            <div className={styles.filterPanelGroup}>
+              <label className={styles.filterPanelLabel}>PER今期 以下</label>
+              <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
+                value={perFMax} onChange={e => setPerFMax(e.target.value)} />
+            </div>
+            <div className={styles.filterPanelGroup}>
+              <label className={styles.filterPanelLabel}>配当利回り（%）以上</label>
+              <input type="number" className={styles.filterPanelInput} placeholder="例: 2"
+                value={divYMin} onChange={e => setDivYMin(e.target.value)} />
+            </div>
+          </div>
+          <button className={styles.filterPanelClear}
+            onClick={() => { setMcapMin(''); setPerFMax(''); setDivYMin(''); setGenreFilter('all') }}>
+            条件をクリア
+          </button>
+        </div>
+      )}
       <main className={styles.main}>
         {tab === 'dashboard' && (
           <>
@@ -501,6 +550,7 @@ function DashboardTable({
     { label: '', cls: styles.thLeft, key: null, width: 32, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
     { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
+    { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, group: '' },
     { label: '市場', cls: styles.thLeft, key: null, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
@@ -511,14 +561,15 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前と比較したPER今期の変化率。マイナス＝割安方向に改善' },
+    { label: 'PER今期(1M)',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化率。各セルにホバーで詳細表示' },
     { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
     { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },
     { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other' },
     { label: 'PEG',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other' },
+    { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other' },
-    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other' },
+    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other' },
     { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'YF',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
@@ -533,6 +584,7 @@ function DashboardTable({
               <col style={{width:32, minWidth:32}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:150, minWidth:150}} />
+              <col style={{width:80, minWidth:80}} />
               <col style={{width:72, minWidth:72}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:80, minWidth:80}} />
@@ -549,6 +601,7 @@ function DashboardTable({
               <col style={{width:90, minWidth:90}} />
               <col style={{width:90, minWidth:90}} />
               <col style={{width:70, minWidth:70}} />
+              <col style={{width:80, minWidth:80}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:70, minWidth:70}} />
               <col style={{width:72, minWidth:72}} />
@@ -579,6 +632,7 @@ function DashboardTable({
               <col style={{width:32, minWidth:32}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:150, minWidth:150}} />
+              <col style={{width:80, minWidth:80}} />
               <col style={{width:72, minWidth:72}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:80, minWidth:80}} />
@@ -595,6 +649,7 @@ function DashboardTable({
               <col style={{width:90, minWidth:90}} />
               <col style={{width:90, minWidth:90}} />
               <col style={{width:70, minWidth:70}} />
+              <col style={{width:80, minWidth:80}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:70, minWidth:70}} />
               <col style={{width:72, minWidth:72}} />
@@ -623,6 +678,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyBg}}>{r.name || '—'}</td>
+      <td><span className={`${styles.genreBadge}`}>{r.genre}</span></td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
@@ -633,13 +689,16 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perA ? fmtN(r.perA) : '—'}</td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perF ? fmtN(r.perF) : '—'}</td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perN ? fmtN(r.perN) : '—'}</td>
-      <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup}`}
-        style={{background: pctBg(r.perFChg1m)}}>{fmtPct(r.perFChg1m)}</td>
+      <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup} ${styles.hasTooltip}`}
+        style={{background: pctBg(r.perFChg1m)}}
+        title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍（差分: ${fmtPct(r.perFChg1m)}）` : undefined}
+      >{fmtPct(r.perFChg1m)}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={`${styles.tdNum} ${r.roe && r.roe > 0.1 ? styles.up : ''}`}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={`${styles.tdNum} ${r.divY && r.divY > 0.03 ? styles.up : ''}`}>{r.divY ? fmtPct(r.divY) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.epsGr)]}`}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
       <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
+      <td className={`${styles.tdNum} ${r.opMgn && r.opMgn > 0.15 ? styles.up : ''}`}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
 
       <td><JudgmentBadge j={r.judgment} /></td>

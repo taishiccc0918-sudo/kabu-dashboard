@@ -152,8 +152,8 @@
 .tableScrollX { overflow-x: auto; }
 .tableWrap { overflow: visible; }
 .table {
-  width: 1926px;
-  min-width: 1926px;
+  width: 2086px;
+  min-width: 2086px;
   border-collapse: collapse;
   background: #0d1219;
   table-layout: fixed;
@@ -683,4 +683,93 @@
   border-bottom-color: #2a3a52;
   z-index: 1000;
   pointer-events: none;
+}
+
+/* ── ジャンルバッジ ───────────────────────────────── */
+.genreBadge {
+  display: inline-block; padding: 2px 7px;
+  border-radius: 3px; font-size: 10px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #8fa3be;
+  white-space: nowrap;
+}
+
+/* ── セルtooltip ─────────────────────────────────── */
+.hasTooltip { cursor: help; }
+.hasTooltip:hover { outline: 1px solid rgba(96,165,250,0.4); }
+
+/* ── 詳細フィルタートグルボタン ──────────────────── */
+.filterToggleBtn {
+  padding: 4px 12px; border-radius: 4px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.04);
+  color: #8fa3be; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.filterToggleBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.filterToggleBtnActive {
+  border-color: #3b82f6; color: #60a5fa;
+  background: rgba(59,130,246,0.1);
+}
+
+/* ── 詳細フィルターパネル ─────────────────────────── */
+.filterPanel {
+  background: #0d1219;
+  border-bottom: 1px solid #2a3a52;
+  padding: 14px 20px;
+  display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+}
+.filterPanelGrid {
+  display: flex; gap: 20px; flex-wrap: wrap; flex: 1;
+}
+.filterPanelGroup {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.filterPanelLabel {
+  font-size: 10px; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.filterPanelChips {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.filterChip {
+  padding: 3px 10px; border-radius: 4px;
+  border: 1px solid #1f2d40;
+  background: rgba(255,255,255,0.03);
+  color: #4e6280; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .12s;
+}
+.filterChip:hover { color: #8fa3be; border-color: #2a3a52; }
+.filterChipActive {
+  border-color: #3b82f6; color: #60a5fa;
+  background: rgba(59,130,246,0.12);
+}
+.filterPanelInput {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #2a3a52;
+  color: #e8eef8; padding: 5px 9px;
+  border-radius: 6px; font-size: 12px; width: 110px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.filterPanelInput:focus { outline: none; border-color: #3b82f6; }
+.filterPanelClear {
+  padding: 5px 14px; border-radius: 5px;
+  border: 1px solid #2a3a52;
+  background: rgba(248,81,73,0.08);
+  color: #f87171; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .12s;
+  align-self: flex-end; white-space: nowrap;
+}
+.filterPanelClear:hover { background: rgba(248,81,73,0.15); border-color: #f87171; }
+
+@media (max-width: 768px) {
+  .filterPanel { padding: 10px 12px; gap: 12px; }
+  .filterPanelGrid { gap: 12px; }
+  .filterToggleBtn { display: block; }
 }

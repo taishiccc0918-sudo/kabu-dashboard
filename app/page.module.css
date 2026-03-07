@@ -627,3 +627,60 @@
 }
 /* theadTableとtbodyTableは同じcolumn幅を共有 */
 .theadTable { table-layout: fixed; }
+
+/* ── 市場フィルターボタン色 ──────────────────────── */
+.filterDivider {
+  width: 1px; height: 18px;
+  background: #1f2d40;
+  margin: 0 2px;
+}
+.mktBtn_prime.filterBtnActive    { border-color: #60a5fa; color: #60a5fa; background: rgba(59,130,246,0.1); }
+.mktBtn_standard.filterBtnActive { border-color: #34d399; color: #34d399; background: rgba(16,185,129,0.1); }
+.mktBtn_growth.filterBtnActive   { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
+
+/* ── TOOLTIP (th hover) ──────────────────────────── */
+.thTooltip { position: relative; }
+.tooltipIcon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: rgba(96,165,250,0.2);
+  border: 1px solid rgba(96,165,250,0.4);
+  color: #60a5fa;
+  font-size: 9px; font-weight: 700;
+  margin-left: 3px;
+  cursor: help;
+  vertical-align: middle;
+  font-family: 'Noto Sans JP', sans-serif;
+  line-height: 1;
+}
+.thTooltip:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a2235;
+  border: 1px solid #2a3a52;
+  color: #e8eef8;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 6px;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.thTooltip:hover::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-bottom-color: #2a3a52;
+  z-index: 1000;
+  pointer-events: none;
+}

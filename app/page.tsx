@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord,
   FilterKey, TabKey, StatusType,
@@ -45,19 +45,15 @@ export default function Page() {
     if (loading) return
     setLoading(true); setStatus('loading')
     const st = (msg: string, pct: number) => { setStatusMsg(msg); setProgress(pct) }
-
     try {
       st('最新営業日を確認中...', 5)
       const { dateStr, dateDisp } = await findLatestBizDate(apiKey)
-
       st('銘柄マスタを取得中...', 15)
       const master = await fetchMaster(apiKey)
       setMasterDB(master)
-
       st(`株価取得中 (${dateDisp})...`, 30)
       const prices = await fetchPrices(apiKey, dateStr)
       setPriceDB(prices)
-
       st('財務データ取得中...', 55)
       const { finDB: fins, shOutDB } = await fetchFinancials(apiKey, watchlist)
       for (const [code, sh] of Object.entries(shOutDB)) {
@@ -66,11 +62,9 @@ export default function Page() {
         }
       }
       setPriceDB({ ...prices })
-
       st('決算予定日取得中...', 90)
       await fetchAnnouncements(apiKey, fins)
       setFinDB(fins)
-
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
@@ -163,7 +157,6 @@ export default function Page() {
 
   return (
     <div className={styles.root}>
-      {/* HEADER */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo}>株式<span>DB</span></div>
@@ -185,14 +178,13 @@ export default function Page() {
         </div>
       </header>
 
-      {/* STATS - 基準日を削除 */}
       <div className={styles.statsBar}>
         {[
-          { label: 'お気に入り銘柄数',   val: stats.total, cls: styles.blue  },
-          { label: '買いシグナル',        val: stats.buy,   cls: styles.green },
-          { label: '様子見',              val: stats.watch, cls: styles.yellow},
-          { label: '上昇銘柄（前日比）',  val: stats.up,    cls: styles.green },
-          { label: '下落銘柄（前日比）',  val: stats.down,  cls: styles.red   },
+          { label: 'お気に入り銘柄数',  val: stats.total, cls: styles.blue  },
+          { label: '買いシグナル',       val: stats.buy,   cls: styles.green },
+          { label: '様子見',             val: stats.watch, cls: styles.yellow},
+          { label: '上昇銘柄（前日比）', val: stats.up,    cls: styles.green },
+          { label: '下落銘柄（前日比）', val: stats.down,  cls: styles.red   },
         ].map(({ label, val, cls }) => (
           <div key={label} className={styles.statCard}>
             <div className={styles.statLabel}>{label}</div>
@@ -201,7 +193,6 @@ export default function Page() {
         ))}
       </div>
 
-      {/* TOOLBAR */}
       <div className={styles.toolbar}>
         <div className={styles.searchWrap}>
           <span className={styles.searchIcon}>🔍</span>
@@ -223,17 +214,13 @@ export default function Page() {
             </button>
           ))}
         </div>
-        <select
-          className={styles.sortSelect}
-          value={sortSel}
-          onChange={e => setSortSel(e.target.value)}
-        >
+        <select className={styles.sortSelect} value={sortSel} onChange={e => setSortSel(e.target.value)}>
           <option value="default">並び順: デフォルト</option>
           <option value="price_asc">株価 ↑</option>
           <option value="price_desc">株価 ↓</option>
           <option value="chg1d_desc">前日比 ↓</option>
           <option value="chg1d_asc">前日比 ↑</option>
-          <option value="chg3m_asc">3ヶ月比 ↑（買いシグナル順）</option>
+          <option value="chg3m_asc">3ヶ月比 ↑</option>
           <option value="chg3m_desc">3ヶ月比 ↓</option>
           <option value="per_asc">PER今期 ↑</option>
           <option value="per_desc">PER今期 ↓</option>
@@ -255,17 +242,16 @@ export default function Page() {
         </div>
       </div>
 
-      {/* MAIN */}
       <main className={styles.main}>
         {tab === 'dashboard' && (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
-              <thead className={styles.stickyHead}>
+              <thead>
                 <tr>
                   <th className={styles.thLeft} style={{width:28}}></th>
-                  {([
-                    ['code','コード'],['name','銘柄名'],
-                  ] as [keyof StockRow, string][]).map(([k,l]) => (
+                  {(['code','コード'],['name','銘柄名']).length && (
+                    [['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]
+                  ).map(([k,l]) => (
                     <th key={k} className={`${styles.thLeft} ${styles.thSort}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>
@@ -300,7 +286,7 @@ export default function Page() {
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} onClick={() => setDetailCode(r.code)} />
+              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} />
             ))}
           </div>
         )}
@@ -353,12 +339,12 @@ export default function Page() {
               fin={detailFin}
               memo={memos[detailCode] ?? ''}
               onSaveMemo={text => saveMemo(detailCode, text)}
+              apiKey={apiKey}
             />
           </div>
         </div>
       )}
 
-      {/* STATUS BAR */}
       <div className={styles.statusBar}>
         <div className={`${styles.statusDot} ${
           status === 'loading' ? styles.statusLoading :
@@ -378,8 +364,125 @@ export default function Page() {
   )
 }
 
+// ─── MiniChart ───────────────────────────────────────────────────────
+type ChartMode = 'daily' | 'monthly'
+
+function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
+  const [mode, setMode] = useState<ChartMode>('daily')
+  const [chartData, setChartData] = useState<number[]>([])
+  const [chartLoading, setChartLoading] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    if (!apiKey || !code) return
+    setChartLoading(true)
+    const today = new Date()
+    const fmt = (d: Date) => d.toISOString().slice(0,10).replace(/-/g,'')
+
+    let from: Date
+    if (mode === 'daily') {
+      from = new Date(today); from.setMonth(from.getMonth() - 6)
+    } else {
+      from = new Date(today); from.setFullYear(from.getFullYear() - 5)
+    }
+
+    const url = `/api/jquants?path=/v2/equities/bars/daily&code=${code}&dateFrom=${fmt(from)}&dateTo=${fmt(today)}`
+    fetch(url, { headers: { 'x-api-key': apiKey } })
+      .then(r => r.json())
+      .then(json => {
+        const data = json?.data ?? []
+        if (mode === 'daily') {
+          setChartData(data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0))
+        } else {
+          // 月足: 月末終値のみ抽出
+          const monthly: Record<string, number> = {}
+          for (const d of data) {
+            const mon = (d.Date as string)?.slice(0,7) ?? ''
+            if (mon) monthly[mon] = d.AdjC ?? d.C ?? 0
+          }
+          setChartData(Object.values(monthly))
+        }
+      })
+      .catch(() => setChartData([]))
+      .finally(() => setChartLoading(false))
+  }, [code, apiKey, mode])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || chartData.length < 2) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const w = canvas.offsetWidth || 280
+    const h = 120
+    canvas.width = w
+    canvas.height = h
+
+    const min = Math.min(...chartData)
+    const max = Math.max(...chartData)
+    const range = max - min || 1
+
+    const isUp = chartData[chartData.length - 1] >= chartData[0]
+    const color = isUp ? '#34d399' : '#f87171'
+
+    ctx.clearRect(0, 0, w, h)
+
+    // グラデーション塗りつぶし
+    const grad = ctx.createLinearGradient(0, 0, 0, h)
+    grad.addColorStop(0, isUp ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)')
+    grad.addColorStop(1, 'rgba(0,0,0,0)')
+
+    ctx.beginPath()
+    chartData.forEach((v, i) => {
+      const x = (i / (chartData.length - 1)) * w
+      const y = h - ((v - min) / range) * (h - 12) - 6
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    })
+    ctx.lineTo(w, h)
+    ctx.lineTo(0, h)
+    ctx.closePath()
+    ctx.fillStyle = grad
+    ctx.fill()
+
+    // ライン
+    ctx.beginPath()
+    chartData.forEach((v, i) => {
+      const x = (i / (chartData.length - 1)) * w
+      const y = h - ((v - min) / range) * (h - 12) - 6
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    })
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+  }, [chartData])
+
+  return (
+    <div className={styles.chartArea}>
+      <div className={styles.chartTabs}>
+        {(['daily','monthly'] as ChartMode[]).map(m => (
+          <button
+            key={m}
+            className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
+            onClick={e => { e.stopPropagation(); setMode(m) }}
+          >
+            {m === 'daily' ? '日足(6ヶ月)' : '月足(5年)'}
+          </button>
+        ))}
+      </div>
+      {chartLoading ? (
+        <div className={styles.chartLoading}>読込中...</div>
+      ) : chartData.length < 2 ? (
+        <div className={styles.chartLoading}>データなし</div>
+      ) : (
+        <canvas ref={canvasRef} className={styles.chartCanvas} />
+      )}
+    </div>
+  )
+}
+
+// ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClick: () => void }) {
-  const bg = idx % 2 === 1 ? 'rgba(22,27,34,0.6)' : 'transparent'
+  const bg = idx % 2 === 1 ? 'rgba(20,28,42,0.6)' : 'transparent'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
@@ -411,8 +514,11 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   )
 }
 
-function StockCard({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
+// ─── StockCard (チャート付き) ─────────────────────────────────────────
+function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+  const [showChart, setShowChart] = useState(false)
+
   return (
     <div className={styles.card} onClick={onClick}>
       <div className={styles.cardHeader}>
@@ -445,6 +551,17 @@ function StockCard({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
           </div>
         ))}
       </div>
+      <button
+        className={styles.chartToggleBtn}
+        onClick={e => { e.stopPropagation(); setShowChart(s => !s) }}
+      >
+        {showChart ? '▲ チャートを閉じる' : '📈 チャートを表示'}
+      </button>
+      {showChart && apiKey && (
+        <div onClick={e => e.stopPropagation()}>
+          <MiniChart code={r.code} apiKey={apiKey} />
+        </div>
+      )}
     </div>
   )
 }
@@ -456,12 +573,13 @@ function JudgmentBadge({ j }: { j: string }) {
 }
 
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo,
+  row: r, fin: f, memo, onSaveMemo, apiKey,
 }: {
   row: StockRow
   fin: FinRecord | null | undefined
   memo: string
   onSaveMemo: (t: string) => void
+  apiKey: string
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -487,6 +605,11 @@ function DetailPanel({
       <div className={styles.detailSubPrice}>
         前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
       </div>
+
+      <Section title="チャート">
+        <MiniChart code={r.code} apiKey={apiKey} />
+      </Section>
+
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],
@@ -495,6 +618,7 @@ function DetailPanel({
           ['1年',    r.chg1y, fmtPct(r.chg1y), pctClass(r.chg1y)],
         ]} />
       </Section>
+
       <Section title="バリュー指標">
         <Grid2 items={[
           ['PER実績',    null, r.perA ? fmtN(r.perA) : '—', ''],
@@ -509,6 +633,7 @@ function DetailPanel({
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],
         ]} />
       </Section>
+
       {f && (
         <Section title={`財務データ${f.discDate ? ` (開示: ${f.discDate})` : ''}`}>
           <Grid2 items={[
@@ -521,6 +646,7 @@ function DetailPanel({
           ]} />
         </Section>
       )}
+
       <Section title="メモ">
         <textarea
           className={styles.detailMemo}
@@ -530,12 +656,13 @@ function DetailPanel({
         />
         <button
           className={styles.btnPrimary}
-          style={{ width: '100%', marginTop: 8, ...(saved ? { background: 'var(--green)' } : {}) }}
+          style={{ width: '100%', marginTop: 8, ...(saved ? { background: '#34d399' } : {}) }}
           onClick={save}
         >
           {saved ? '保存しました ✓' : 'メモを保存'}
         </button>
       </Section>
+
       <Section title="リンク">
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank">四季報オンライン</a>

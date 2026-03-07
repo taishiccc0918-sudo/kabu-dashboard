@@ -273,7 +273,9 @@ export default function Page() {
                     </th>
                   ))}
                   <th className={`${styles.thRight} ${styles.thOtherGroup}`}>判定</th>
-                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>リンク</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>四季報</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>YF</th>
+                  <th className={`${styles.thRight} ${styles.thOtherGroup}`}>かぶたん</th>
                 </tr>
               </thead>
               <tbody>
@@ -486,13 +488,13 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClick: () => void }) {
-  const bg = idx % 2 === 1 ? 'rgba(20,28,42,0.6)' : 'transparent'
+  const stickyBg = idx % 2 === 0 ? '#0d1117' : 'rgba(20,28,42,0.9)'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
-    <tr style={{ background: bg, cursor: 'pointer' }} onClick={onClick}>
-      <td className={styles.tdStar} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>★</td>
-      <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.code}</td>
-      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: bg === 'transparent' ? '#0d1117' : bg}}>{r.name || '—'}</td>
+    <tr style={{ cursor: 'pointer' }} onClick={onClick}>
+      <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
+      <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyBg}}>{r.name || '—'}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
@@ -513,11 +515,9 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
 
       <td><JudgmentBadge j={r.judgment} /></td>
-      <td className={styles.tdLink} onClick={e => e.stopPropagation()}>
-        <a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
-        {' '}<a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">YF</a>
-        {' '}<a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-      </td>
+      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">→</a></td>
+      <td className={styles.tdLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">→</a></td>
     </tr>
   )
 }

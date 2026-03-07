@@ -249,7 +249,7 @@ export default function Page() {
               <thead>
                 <tr>
                   <th className={styles.thLeft} style={{width:28}}></th>
-{([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l]) => (
+                  {([['code','コード'],['name','銘柄名']] as [keyof StockRow, string][]).map(([k,l]) => (
                     <th key={k} className={`${styles.thLeft} ${styles.thSort}`} onClick={() => handleSort(k)}>
                       {l}<span className={`${styles.sortArrow} ${sortKey===k?styles.sorted:''}`}>↕</span>
                     </th>

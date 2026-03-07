@@ -325,3 +325,36 @@
   transition: all .15s; margin-top: 4px;
 }
 .chartToggleBtn:hover { background: rgba(96,165,250,0.12); border-color: #60a5fa; }
+
+/* コード・銘柄名 固定列 */
+.stickyCol0 {
+  position: sticky !important;
+  left: 28px !important;
+  z-index: 30 !important;
+  background: #0f1520 !important;
+}
+.stickyCol1 {
+  position: sticky !important;
+  left: 88px !important;
+  z-index: 30 !important;
+  background: #0f1520 !important;
+}
+.stickyCol2 {
+  position: sticky !important;
+  left: 228px !important;
+  z-index: 30 !important;
+  background: #0f1520 !important;
+}
+/* PERグループ背景色 */
+.thPerGroup {
+  background: #0d1f2d !important;
+  border-bottom: 2px solid #1e4d6b !important;
+}
+.tdPerGroup {
+  background: rgba(30, 77, 107, 0.08) !important;
+}
+/* 株価グループ背景色 */
+.thPriceGroup {
+  background: #0d1f1a !important;
+  border-bottom: 2px solid #1e6b4d !important;
+}

@@ -4,35 +4,32 @@ export function fmtN(v: number | null | undefined, dec = 1): string {
   if (v == null || v === 0) return '—'
   return v.toLocaleString('ja-JP', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 }
-
 export function fmtPct(v: number | null | undefined): string {
   if (v == null) return '—'
   return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%'
 }
-
 export function pctClass(v: number | null | undefined): string {
   if (v == null) return 'flat'
   return v > 0 ? 'up' : v < 0 ? 'down' : 'flat'
 }
-
 export function pctBg(v: number | null | undefined): string {
   if (!v) return ''
   const intensity = Math.min(Math.abs(v) / 0.1, 1)
   if (v > 0) return `rgba(63,185,80,${(intensity * 0.25).toFixed(2)})`
   return `rgba(248,81,73,${(intensity * 0.25).toFixed(2)})`
 }
-
 export function marketShort(mkt: string): { label: string; cls: string } {
-  if (mkt.includes('プライム'))    return { label: 'Prime',    cls: 'prime' }
+  if (mkt.includes('プライム'))     return { label: 'Prime',    cls: 'prime' }
   if (mkt.includes('スタンダード')) return { label: 'Standard', cls: 'standard' }
-  if (mkt.includes('グロース'))    return { label: 'Growth',   cls: 'growth' }
+  if (mkt.includes('グロース'))     return { label: 'Growth',   cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
 
-export function getJudgment(chg3m: number | null | undefined): string {
-  if (chg3m == null) return ''
-  if (chg3m <= -0.1)  return '買い'
-  if (chg3m <= -0.05) return '様子見'
+// 判定ロジック: PER今期の1ヶ月前比
+export function getJudgment(perFChg1m: number | null | undefined): string {
+  if (perFChg1m == null) return ''
+  if (perFChg1m <= -0.10) return '買い'
+  if (perFChg1m <= -0.05) return '様子見'
   return ''
 }
 
@@ -45,12 +42,13 @@ export function buildStockRow(
   const p = priceDB[code] ?? { close: 0 }
   const f = finDB[code]
   const m = masterDB[code]
-  const close = p.close ?? 0
-  const eps   = f?.eps   ?? 0
-  const feps  = f?.feps  ?? 0
-  const nyeps = f?.nyEPS ?? 0
-  const bps   = f?.bps   ?? 0
-  const fdiv  = f?.fdiv  ?? f?.divAnn ?? 0
+
+  const close  = p.close ?? 0
+  const eps    = f?.eps   ?? 0
+  const feps   = f?.feps  ?? 0
+  const nyeps  = f?.nyEPS ?? 0
+  const bps    = f?.bps   ?? 0
+  const fdiv   = f?.fdiv  ?? f?.divAnn ?? 0
 
   const epsGr = (eps && feps)   ? feps  / eps   - 1 : null
   const perA  = (close && eps)   ? close / eps   : null
@@ -59,6 +57,18 @@ export function buildStockRow(
   const pbr   = (close && bps)   ? close / bps   : null
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
+
+  // PER今期の変化率: 過去株価でPERを計算して比較
+  function perFAt(pastClose: number | undefined): number | null {
+    if (!pastClose || !feps) return null
+    const pastPer = pastClose / feps
+    if (!perF || !pastPer) return null
+    return perF / pastPer - 1
+  }
+  const perFChg1w = perFAt(p.prev1w)
+  const perFChg1m = perFAt(p.prev1m)
+  const perFChg3m = perFAt(p.prev3m)
+  const perFChg1y = perFAt(p.prev1y)
 
   return {
     code,
@@ -70,12 +80,14 @@ export function buildStockRow(
     chg3m:     p.chg3m ?? null,
     chg1y:     p.chg1y ?? null,
     mcap:      p.mcap  ?? 0,
-    perA, perF, perN, pbr,
+    perA, perF, perN,
+    perFChg1w, perFChg1m, perFChg3m, perFChg1y,
+    pbr,
     roe:       f?.roe  ?? null,
     divY,
     epsGr,
     peg,
     nySalesGr: f?.nySalesGr ?? null,
-    judgment:  getJudgment(p.chg3m),
+    judgment:  getJudgment(perFChg1m),
   }
 }

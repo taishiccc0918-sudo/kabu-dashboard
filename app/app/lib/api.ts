@@ -85,7 +85,7 @@ export async function fetchPrices(
     }
   }
 
-  // 過去4時点
+  // 過去4時点（株価変化率用）
   const periods = [
     { days: 1,   key: 'prev1d' as const, chgKey: 'chg1d' as const },
     { days: 5,   key: 'prev1w' as const, chgKey: 'chg1w' as const },
@@ -104,6 +104,26 @@ export async function fetchPrices(
         if (db[code].close && p) db[code][chgKey] = db[code].close / p - 1
       }
     } catch { /* skip on error */ }
+  }
+
+  // PER変化率用: 1週間前・1ヶ月前・3ヶ月前・1年前の株価を別途保存
+  const perPeriods = [
+    { days: 5,   key: 'prev1w'  as const },
+    { days: 21,  key: 'prev1m'  as const },
+    { days: 65,  key: 'prev3m'  as const },
+    { days: 252, key: 'prev1y'  as const },
+  ]
+  for (const { days, key } of perPeriods) {
+    try {
+      const pd = bizDateMinus(dateStr, days)
+      const past = await jqFetch(`/equities/bars/daily?date=${pd}`, apiKey)
+      for (const d of past.data ?? []) {
+        const code = normalizeCode(d.Code)
+        if (!db[code]) db[code] = { close: 0 }
+        const p = d.AdjC || d.C || 0
+        if (p && !db[code][key]) db[code][key] = p
+      }
+    } catch { /* skip */ }
   }
 
   return db
@@ -193,8 +213,10 @@ export async function fetchChartData(
   code: string,
   fromDate: string // YYYYMMDD
 ): Promise<ChartPoint[]> {
+  // 正しいパラメータ名: dateFrom / dateTo
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const data = await jqFetch(
-    `/equities/bars/daily?code=${code}&from=${fromDate}`,
+    `/equities/bars/daily?code=${code}&dateFrom=${fromDate}&dateTo=${today}`,
     apiKey
   )
   return (data.data ?? [])

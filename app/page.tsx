@@ -39,6 +39,18 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
+  const [theadTop,   setTheadTop]   = useState(110)
+
+  useEffect(() => {
+    const measure = () => {
+      const header = document.querySelector('header') as HTMLElement | null
+      const toolbar = document.querySelector('[data-toolbar]') as HTMLElement | null
+      setTheadTop((header?.offsetHeight ?? 56) + (toolbar?.offsetHeight ?? 54))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }

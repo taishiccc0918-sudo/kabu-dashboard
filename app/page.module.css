@@ -148,7 +148,17 @@
 
 /* ── TABLE ───────────────────────────────────────── */
 .main { flex: 1; }
-.tableWrap { overflow-x: auto; }
+/* 横スクロール専用ラッパー: overflow-xのみ */
+.tableScrollX {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+}
+/* tableWrapはスクロールなし: theadのstickyをページ基準にする */
+.tableWrap {
+  overflow: visible;
+  min-width: max-content;
+}
 .table {
   width: 100%; border-collapse: collapse;
   background: #0d1219;
@@ -457,7 +467,7 @@
   .tabGroup { margin-left: auto; }
 
   /* mobile: table → card only */
-  .tableWrap { display: none; }
+  .tableScrollX { display: none; }
   .cardGrid {
     grid-template-columns: 1fr;
     padding: 10px;

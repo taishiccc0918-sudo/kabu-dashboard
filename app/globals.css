@@ -1,0 +1,63 @@
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --bg4: #30363d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --green-dim: rgba(63,185,80,0.15);
+  --red: #f85149;
+  --red-dim: rgba(248,81,73,0.15);
+  --yellow: #d29922;
+  --yellow-dim: rgba(210,153,34,0.15);
+  --orange: #e07b39;
+  --orange-dim: rgba(224,123,57,0.15);
+  --purple: #bc8cff;
+  --teal: #39c5cf;
+  --font: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+a { color: inherit; text-decoration: none; }
+
+input, select, textarea, button {
+  font-family: var(--font);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  to { opacity: 0.3; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

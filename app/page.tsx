@@ -203,13 +203,13 @@ export default function Page() {
           />
         </div>
         <div className={styles.filterGroup}>
-          {(['all','buy','watch','up','down'] as FilterKey[]).map(f => (
+        {(['all','buy','up','down'] as ('all'|'buy'|'up'|'down')[]).map(f => (
             <button
               key={f}
               className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
               onClick={() => setFilter(f)}
             >
-              {{ all:'全て', buy:'買い', watch:'様子見', up:'上昇', down:'下落' }[f]}
+              {{ all:'全て', buy:'買い', up:'上昇', down:'下落' }[f]}
             </button>
           ))}
         </div>

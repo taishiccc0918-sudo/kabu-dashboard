@@ -235,7 +235,7 @@ export default function Page() {
                   <th colSpan={5} style={{background:'#0f1520',borderBottom:'1px solid #2a3342'}}></th>
                   <th colSpan={5} style={{background:'rgba(30,107,77,0.15)',borderBottom:'2px solid #1e6b4d',textAlign:'center',fontSize:10,color:'#4ade80',letterSpacing:2}}>── 株価 ──</th>
                   <th colSpan={4} style={{background:'rgba(30,77,107,0.15)',borderBottom:'2px solid #1e4d6b',textAlign:'center',fontSize:10,color:'#60a5fa',letterSpacing:2}}>── PER ──</th>
-                  <th colSpan={8} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
+                  <th colSpan={7} style={{background:'rgba(107,77,30,0.15)',borderBottom:'2px solid #6b4d1e',textAlign:'center',fontSize:10,color:'#fbbf24',letterSpacing:2}}>── 他指標 ──</th>
                   <th colSpan={3} style={{background:'rgba(40,40,40,0.5)',borderBottom:'2px solid #333',textAlign:'center',fontSize:10,color:'#555',letterSpacing:2}}>── 情報サイト ──</th>
                 </tr>
                 {/* カラム行 */}
@@ -281,7 +281,7 @@ export default function Page() {
               </thead>
               <tbody>
                 {filteredRows.length === 0 ? (
-                  <tr><td colSpan={21} className={styles.emptyCell}>該当銘柄なし</td></tr>
+                  <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>
                 ) : filteredRows.map((r, i) => (
                   <TableRow key={r.code} row={r} idx={i} onClick={() => setDetailCode(r.code)} />
                 ))}

@@ -136,12 +136,13 @@ export async function fetchFinancials(
   const finDB: Record<string, FinRecord> = {}
   const shOutDB: Record<string, number> = {}
 
-  for (const code of watchlist) {
-    await new Promise(r => setTimeout(r, 150)) // rate limit対策
+  // 最大2回リトライ
+  async function fetchOne(code: string): Promise<boolean> {
     try {
+      await new Promise(r => setTimeout(r, 150))
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string, string>[] = data.data ?? []
-      if (stmts.length === 0) continue
+      if (stmts.length === 0) return false
 
       let latestFY: Record<string, string> | null = null
       let latestNonFY: Record<string, string> | null = null
@@ -153,40 +154,42 @@ export async function fetchFinancials(
       }
       const fy  = latestFY  ?? stmts[stmts.length - 1]
       const nfy = latestNonFY ?? fy
-
       const shOut = n(fy.ShOutFY)
       if (shOut > 0) shOutDB[code] = shOut
-
-      const equity = n(fy.Eq)
-      const assets = n(fy.TA)
-      const sales  = n(fy.Sales)
-      const op     = n(fy.OP)
-      const np     = n(fy.NP)
+      const equity = n(fy.Eq); const assets = n(fy.TA)
+      const sales = n(fy.Sales); const op = n(fy.OP); const np = n(fy.NP)
       const fsales = n(nfy.FSales) || n(fy.FSales)
-      const nySales= n(fy.NxFSales) || n(nfy.NxFSales)
-
+      const nySales = n(fy.NxFSales) || n(nfy.NxFSales)
       finDB[code] = {
         sales, op, odp: n(fy.OdP), np,
-        eps:    n(fy.EPS),
-        feps:   n(nfy.FEPS)    || n(fy.FEPS),
-        nyEPS:  n(fy.NxFEPS)   || n(nfy.NxFEPS),
-        bps:    n(fy.BPS),
-        equity, assets,
-        divAnn: n(fy.DivAnn),
-        fdiv:   n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn),
-        shOut,
-        discDate: fy.DiscDate ?? '',
-        perType:  fy.CurPerType ?? '',
-        fsales, fop: n(nfy.FOP) || n(fy.FOP),
-        nySales, nyOP: n(fy.NxFOP) || n(nfy.NxFOP),
-        roe:      equity ? np / equity : 0,
-        eqRat:    assets ? equity / assets : 0,
-        opMgn:    sales  ? op / sales : 0,
-        salesGr:  (sales && fsales)   ? fsales  / sales   - 1 : 0,
-        nySalesGr:(fsales && nySales) ? nySales / fsales  - 1 : 0,
+        eps: n(fy.EPS), feps: n(nfy.FEPS) || n(fy.FEPS),
+        nyEPS: n(fy.NxFEPS) || n(nfy.NxFEPS), bps: n(fy.BPS),
+        equity, assets, divAnn: n(fy.DivAnn),
+        fdiv: n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn),
+        shOut, discDate: fy.DiscDate ?? '', perType: fy.CurPerType ?? '',
+        fsales, fop: n(nfy.FOP) || n(fy.FOP), nySales, nyOP: n(fy.NxFOP) || n(nfy.NxFOP),
+        roe: equity ? np / equity : 0, eqRat: assets ? equity / assets : 0,
+        opMgn: sales ? op / sales : 0, salesGr: (sales && fsales) ? fsales / sales - 1 : 0,
+        nySalesGr: (fsales && nySales) ? nySales / fsales - 1 : 0,
       }
-    } catch { /* skip */ }
+      return true
+    } catch { return false }
   }
+
+  // 全銘柄取得（失敗したものはリトライ）
+  const failed: string[] = []
+  for (const code of watchlist) {
+    const ok = await fetchOne(code)
+    if (!ok) failed.push(code)
+  }
+  // 失敗分を500ms待ってリトライ
+  if (failed.length > 0) {
+    await new Promise(r => setTimeout(r, 500))
+    for (const code of failed) {
+      await fetchOne(code)
+    }
+  }
+
   return { finDB, shOutDB }
 }
 

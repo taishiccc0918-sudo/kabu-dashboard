@@ -450,8 +450,7 @@ export default function Page() {
             </div>
 
             {/* ── 銘柄テーブル ── */}
-            <div className={styles.wlTable}>
-              <table className={styles.wlTableInner}>
+            <table className={styles.wlTableInner}>
                 <thead>
                   <tr>
                     <th className={styles.wlTh} style={{width:70, top:52}}>コード</th>
@@ -475,8 +474,7 @@ export default function Page() {
                     />
                   ))}
                 </tbody>
-              </table>
-            </div>
+            </table>
           </div>
         )}
       </main>

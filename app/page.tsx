@@ -950,7 +950,7 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
 }
 
 // ─── WatchlistRow ────────────────────────────────────────────────────
-function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOptions, onSave, onReset, onRemove }: {
+function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOptions, onSave, onReset, onRemove, onAddGenre }: {
   code: string
   name: string
   currentGenre: string

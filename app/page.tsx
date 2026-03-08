@@ -683,7 +683,7 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期の1ヶ月前成長率', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期と現在のPER今期の比較。セルにホバーすると詳細表示' },
+    { label: 'PER今期の1ヶ月前成長率', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。セルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
     { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
     { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },

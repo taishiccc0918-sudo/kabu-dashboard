@@ -237,12 +237,12 @@ export default function Page() {
           <button className={styles.btnPrimary} onClick={fetchAll} disabled={loading}>
             {loading ? '取得中...' : '全更新'}
           </button>
-          <button className={styles.btnSecondary} onClick={() => setTab('watchlist')}>銘柄管理</button>
+          <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
         </div>
       </header>
 
 
-      <div className={styles.toolbar} data-toolbar="">
+      <div className={`${styles.toolbar} ${tab === 'watchlist' ? styles.toolbarHidden : ''}`} data-toolbar="">
         <div className={styles.searchWrap}>
           <span className={styles.searchIcon}>🔍</span>
           <input
@@ -315,7 +315,7 @@ export default function Page() {
         </div>
       </div>
 
-      {showFilter && (
+      {showFilter && tab !== 'watchlist' && (
         <div className={styles.filterPanel}>
           <div className={styles.filterPanelGrid}>
             <div className={styles.filterPanelGroup}>
@@ -454,10 +454,10 @@ export default function Page() {
               <table className={styles.wlTableInner}>
                 <thead>
                   <tr>
-                    <th className={styles.wlTh} style={{width:70}}>コード</th>
-                    <th className={styles.wlTh}>銘柄名</th>
-                    <th className={styles.wlTh} style={{width:280}}>ジャンル（複数選択可）</th>
-                    <th className={styles.wlTh} style={{width:50}}></th>
+                    <th className={styles.wlTh} style={{width:70, top:52}}>コード</th>
+                    <th className={styles.wlTh} style={{top:52}}>銘柄名</th>
+                    <th className={styles.wlTh} style={{width:'auto', top:52}}>ジャンル（複数選択可）</th>
+                    <th className={styles.wlTh} style={{width:50, top:52}}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -471,6 +471,7 @@ export default function Page() {
                       onSave={saveCustomGenre}
                       onReset={resetCustomGenre}
                       onRemove={removeStock}
+                      onAddGenre={addGenreOption}
                     />
                   ))}
                 </tbody>
@@ -898,6 +899,37 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
 }
 
 
+// ─── InlineGenreAdd ─────────────────────────────────────────────────
+function InlineGenreAdd({ onAdd }: { onAdd: (name: string) => void }) {
+  const [val, setVal] = useState('')
+  const [open, setOpen] = useState(false)
+  if (!open) return (
+    <button className={styles.genreTag} style={{borderStyle:'dashed'}} onClick={() => setOpen(true)}>
+      ＋ 新規
+    </button>
+  )
+  return (
+    <span style={{display:'inline-flex', gap:3, alignItems:'center'}}>
+      <input
+        autoFocus
+        className={styles.genreNewInput}
+        placeholder="ジャンル名..."
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && val.trim()) { onAdd(val.trim()); setVal(''); setOpen(false) }
+          if (e.key === 'Escape') { setVal(''); setOpen(false) }
+        }}
+        maxLength={10}
+        style={{width:80}}
+      />
+      <button className={styles.genreAddBtn}
+        onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(''); setOpen(false) } }}>追加</button>
+      <button className={styles.genreResetBtn} onClick={() => { setVal(''); setOpen(false) }}>✕</button>
+    </span>
+  )
+}
+
 // ─── AddGenreInput ──────────────────────────────────────────────────
 function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState('')
@@ -927,6 +959,7 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
   onSave: (code: string, genre: string) => void
   onReset: (code: string) => void
   onRemove: (code: string) => void
+  onAddGenre: (name: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const selected = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
@@ -959,9 +992,7 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
               className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
               onClick={() => setEditing(e => !e)}
             >{editing ? '▲ 閉じる' : '✏️ 編集'}</button>
-            {isModified && !editing && (
-              <button className={styles.genreResetBtn} onClick={() => onReset(code)} title="デフォルトに戻す">↩</button>
-            )}
+
           </div>
         </td>
         <td className={styles.wlTd} style={{textAlign:'center'}}>
@@ -978,7 +1009,10 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
                   onClick={() => toggle(g)}
                 >{g}</button>
               ))}
-              <button className={styles.genreResetBtn} onClick={() => { onReset(code); setEditing(false) }} title="デフォルトに戻す">↩ リセット</button>
+              <InlineGenreAdd onAdd={(name) => {
+                onAddGenre(name)
+                toggle(name)
+              }} />
             </div>
           </td>
         </tr>

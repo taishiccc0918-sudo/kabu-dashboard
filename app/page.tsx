@@ -532,102 +532,164 @@ export default function Page() {
 // ─── MiniChart ───────────────────────────────────────────────────────
 type ChartMode = 'daily' | 'monthly'
 
+interface SeriesData { prices: number[]; label: string; color: string }
+
+// 指数はstooq.com CSV経由（CORSなし・公開API）
+async function fetchIndex(stooqSymbol: string, from: string, to: string): Promise<number[]> {
+  // from/to: YYYYMMDD → YYYY-MM-DD
+  const fd = `${from.slice(0,4)}-${from.slice(4,6)}-${from.slice(6,8)}`
+  const td = `${to.slice(0,4)}-${to.slice(4,6)}-${to.slice(6,8)}`
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&d1=${fd.replace(/-/g,'')}&d2=${td.replace(/-/g,'')}&i=d`
+  try {
+    const r = await fetch(url)
+    const text = await r.text()
+    if (!text || text.includes('No data') || text.trim().length < 20) return []
+    const lines = text.trim().split('\n').slice(1) // ヘッダースキップ
+    const closes: number[] = []
+    for (const line of lines) {
+      const cols = line.split(',')
+      const c = parseFloat(cols[4] ?? '') // Close列
+      if (!isNaN(c) && c > 0) closes.push(c)
+    }
+    return closes
+  } catch { return [] }
+}
+
+function normalizeSeries(prices: number[]): number[] {
+  if (prices.length === 0) return []
+  const base = prices[0]
+  return prices.map(v => v / base)
+}
+
 function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   const [mode, setMode] = useState<ChartMode>('daily')
-  const [chartData, setChartData] = useState<number[]>([])
+  // モードごとにデータをキャッシュ
+  const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, monthly: null })
   const [chartLoading, setChartLoading] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  const fmt = (d: Date) => d.toISOString().slice(0,10).replace(/-/g,'')
+
   useEffect(() => {
     if (!apiKey || !code) return
+    if (cachedData[mode] !== null) return  // キャッシュあれば再取得しない
+
     setChartLoading(true)
     const today = new Date()
-    const fmt = (d: Date) => d.toISOString().slice(0,10).replace(/-/g,'')
-
-    let from: Date
+    const from = new Date(today)
     if (mode === 'daily') {
-      from = new Date(today); from.setFullYear(from.getFullYear() - 1)
+      from.setFullYear(from.getFullYear() - 1)
     } else {
-      from = new Date(today); from.setFullYear(from.getFullYear() - 5)
+      from.setFullYear(from.getFullYear() - 5)
     }
+    const fromStr = fmt(from)
+    const toStr = fmt(today)
 
-    const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fmt(from)}&dateTo=${fmt(today)}`)
+    const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
     const url = `/api/jquants?path=${path}`
-    fetch(url, { headers: { 'x-api-key': apiKey } })
-      .then(r => r.json())
-      .then(json => {
-        const data = json?.data ?? []
-        if (mode === 'daily') {
-          setChartData(data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0))
-        } else {
-          // 月足: 月末終値のみ抽出
-          const monthly: Record<string, number> = {}
-          for (const d of data) {
-            const mon = (d.Date as string)?.slice(0,7) ?? ''
-            if (mon) monthly[mon] = d.AdjC ?? d.C ?? 0
-          }
-          setChartData(Object.values(monthly))
+
+    Promise.all([
+      fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
+      fetchIndex('n225.jp', fromStr, toStr),
+      fetchIndex('ixic', fromStr, toStr),
+    ]).then(([json, nkPrices, ndqPrices]) => {
+      const data = json?.data ?? []
+      let stockPrices: number[]
+
+      if (mode === 'daily') {
+        stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
+      } else {
+        const monthly: Record<string, number> = {}
+        for (const d of data) {
+          const mon = (d.Date as string)?.slice(0,7) ?? ''
+          if (mon) monthly[mon] = d.AdjC ?? d.C ?? 0
         }
-      })
-      .catch(() => setChartData([]))
-      .finally(() => setChartLoading(false))
+        stockPrices = Object.values(monthly).filter(v => v > 0)
+      }
+
+      const series: SeriesData[] = [
+        { prices: normalizeSeries(stockPrices), label: code, color: stockPrices.length > 1 && stockPrices[stockPrices.length-1] >= stockPrices[0] ? '#34d399' : '#f87171' },
+        { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
+        { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
+      ]
+      setCachedData(prev => ({ ...prev, [mode]: series }))
+    }).catch(() => {
+      setCachedData(prev => ({ ...prev, [mode]: [] }))
+    }).finally(() => setChartLoading(false))
   }, [code, apiKey, mode])
 
+  // キャンバス描画
   useEffect(() => {
+    const draw = () => {
     const canvas = canvasRef.current
-    if (!canvas || chartData.length < 2) return
+    const series = cachedData[mode]
+    if (!canvas || !series || series.length === 0) return
+    const stockSeries = series[0].prices
+    if (stockSeries.length < 2) return
+
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const w = canvas.offsetWidth || 280
-    const h = 120
+    // 幅取得: 非表示時は親要素から取得
+    const w = canvas.clientWidth || canvas.offsetWidth ||
+      (canvas.parentElement?.clientWidth ?? 280)
+    const h = 140
     canvas.width = w
     canvas.height = h
-
-    const min = Math.min(...chartData)
-    const max = Math.max(...chartData)
-    const range = max - min || 1
-
-    const isUp = chartData[chartData.length - 1] >= chartData[0]
-    const color = isUp ? '#34d399' : '#f87171'
-
     ctx.clearRect(0, 0, w, h)
 
-    // グラデーション塗りつぶし
+    // 全系列のmin/maxで正規化表示
+    const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
+    const min = Math.min(...allValues) * 0.98
+    const max = Math.max(...allValues) * 1.02
+    const range = max - min || 1
+
+    const toX = (i: number, len: number) => (i / (len - 1)) * w
+    const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
+
+    // 株価のグラデーション塗りつぶし
+    const stockColor = series[0].color
     const grad = ctx.createLinearGradient(0, 0, 0, h)
-    grad.addColorStop(0, isUp ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)')
+    grad.addColorStop(0, stockColor.includes('34d') ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)')
     grad.addColorStop(1, 'rgba(0,0,0,0)')
-
+    const sp = stockSeries
     ctx.beginPath()
-    chartData.forEach((v, i) => {
-      const x = (i / (chartData.length - 1)) * w
-      const y = h - ((v - min) / range) * (h - 12) - 6
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-    })
-    ctx.lineTo(w, h)
-    ctx.lineTo(0, h)
-    ctx.closePath()
-    ctx.fillStyle = grad
-    ctx.fill()
+    sp.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, sp.length), toY(v)) : ctx.lineTo(toX(i, sp.length), toY(v)) })
+    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
+    ctx.fillStyle = grad; ctx.fill()
 
-    // ライン
-    ctx.beginPath()
-    chartData.forEach((v, i) => {
-      const x = (i / (chartData.length - 1)) * w
-      const y = h - ((v - min) / range) * (h - 12) - 6
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    // 各系列のライン描画
+    for (const s of series) {
+      if (s.prices.length < 2) continue
+      ctx.beginPath()
+      s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
+      ctx.strokeStyle = s.color
+      ctx.lineWidth = s.label === code ? 1.8 : 1.2
+      ctx.stroke()
+    }
+
+    // 凡例
+    const legends = series.filter(s => s.prices.length > 1)
+    legends.forEach((s, i) => {
+      ctx.fillStyle = s.color
+      ctx.fillRect(8 + i * 72, 4, 10, 2)
+      ctx.fillStyle = 'rgba(200,220,240,0.7)'
+      ctx.font = '10px JetBrains Mono, monospace'
+      ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
     })
-    ctx.strokeStyle = color
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-  }, [chartData])
+    } // end draw
+    // canvasが非表示の場合でもrAFで1フレーム後に描画
+    requestAnimationFrame(draw)
+  }, [cachedData, mode, code])
+
+  const currentData = cachedData[mode]
+  const hasData = currentData !== null && currentData[0]?.prices.length >= 2
 
   return (
     <div className={styles.chartArea}>
       <div className={styles.chartTabs}>
         {(['daily','monthly'] as ChartMode[]).map(m => (
-          <button
-            key={m}
+          <button key={m}
             className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
             onClick={e => { e.stopPropagation(); setMode(m) }}
           >
@@ -635,17 +697,17 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
           </button>
         ))}
       </div>
-      {chartLoading ? (
-        <div className={styles.chartLoading}>読込中...</div>
-      ) : chartData.length < 2 ? (
-        <div className={styles.chartLoading}>データなし</div>
-      ) : (
-        <canvas ref={canvasRef} className={styles.chartCanvas} />
-      )}
+      {/* canvasは常にDOMに存在させ、refを維持 */}
+      <canvas
+        ref={canvasRef}
+        className={styles.chartCanvas}
+        style={{ display: hasData && !chartLoading ? 'block' : 'none' }}
+      />
+      {chartLoading && <div className={styles.chartLoading}>読込中...</div>}
+      {!chartLoading && !hasData && <div className={styles.chartLoading}>データなし</div>}
     </div>
   )
 }
-
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 // theadとtbodyを別コンテナに分離し、横スクロールをJS同期することで

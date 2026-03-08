@@ -39,6 +39,10 @@ export default function Page() {
   const [divYMin,    setDivYMin]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
   const [customGenres, setCustomGenres] = useState<Record<string,string>>(() => ls('customGenres', {}))
+  const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{code:string;name:string}[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -144,6 +148,43 @@ export default function Page() {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
     setSortSel('default')
+  }
+
+  const allGenreOptions = [...ALL_GENRE_OPTIONS, ...customGenreOptions]
+
+  function addGenreOption(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || allGenreOptions.includes(trimmed)) return
+    const next = [...customGenreOptions, trimmed]
+    setCustomGenreOptions(next); lsSet('customGenreOptions', next)
+  }
+  function removeGenreOption(name: string) {
+    const next = customGenreOptions.filter(g => g !== name)
+    setCustomGenreOptions(next); lsSet('customGenreOptions', next)
+  }
+
+  // masterDBから銘柄検索
+  function searchMaster(q: string) {
+    setSearchQuery(q)
+    if (!q.trim()) { setSearchResults([]); setSearchOpen(false); return }
+    const lower = q.toLowerCase()
+    const results = Object.entries(masterDB)
+      .filter(([code, rec]) =>
+        code.toLowerCase().includes(lower) ||
+        rec.name.toLowerCase().includes(lower)
+      )
+      .slice(0, 10)
+      .map(([code, rec]) => ({ code, name: rec.name }))
+    setSearchResults(results)
+    setSearchOpen(results.length > 0)
+  }
+
+  function addStockFromSearch(code: string) {
+    if (!watchlist.includes(code)) {
+      const next = [...watchlist, code]
+      setWatchlist(next); lsSet('watchlist', next)
+    }
+    setSearchQuery(''); setSearchResults([]); setSearchOpen(false)
   }
 
   function saveCustomGenre(code: string, genreStr: string) {
@@ -347,41 +388,93 @@ export default function Page() {
 
         {tab === 'watchlist' && (
           <div className={styles.wlManager}>
-            <div className={styles.wlTitle}>銘柄管理</div>
-            <div className={styles.wlAddRow}>
-              <input
-                className={styles.wlInput}
-                placeholder="証券コード (例: 7203)"
-                value={addCode}
-                onChange={e => setAddCode(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addStock()}
-                maxLength={5}
-              />
-              <button className={styles.btnPrimary} onClick={addStock}>追加</button>
-              <button className={styles.btnSecondary} onClick={() => {
-                navigator.clipboard.writeText(watchlist.join(','))
-                  .then(() => alert('クリップボードにコピーしました'))
-              }}>エクスポート</button>
-              <button className={styles.btnSecondary} onClick={() => {
-                const text = prompt('銘柄コードをカンマ区切りで入力:')
-                if (!text) return
-                const codes = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-                const next = Array.from(new Set([...watchlist, ...codes]))
-                setWatchlist(next); lsSet('watchlist', next)
-              }}>インポート</button>
+            {/* ── ヘッダー ── */}
+            <div className={styles.wlHeader}>
+              <div className={styles.wlTitle}>銘柄管理 <span className={styles.wlCount}>{watchlist.length}銘柄</span></div>
+              <div style={{display:'flex', gap:8}}>
+                <button className={styles.btnSecondary} onClick={() => {
+                  navigator.clipboard.writeText(watchlist.join(','))
+                    .then(() => alert('コピーしました'))
+                }}>エクスポート</button>
+                <button className={styles.btnSecondary} onClick={() => {
+                  const text = prompt('銘柄コードをカンマ区切りで入力:')
+                  if (!text) return
+                  const codes = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+                  const next = Array.from(new Set([...watchlist, ...codes]))
+                  setWatchlist(next); lsSet('watchlist', next)
+                }}>インポート</button>
+              </div>
             </div>
-            <div className={styles.wlCount}>{watchlist.length}銘柄登録中</div>
-            <div className={styles.wlChips}>
-              {watchlist.map(code => (
-                <GenreEditChip
-                  key={code} code={code}
-                  name={masterDB[code]?.name ?? ''}
-                  currentGenre={customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'}
-                  onSave={saveCustomGenre}
-                  onReset={resetCustomGenre}
-                  onRemove={removeStock}
-                />
+
+            {/* ── ジャンル管理 ── */}
+            <div className={styles.wlGenreBar}>
+              <span className={styles.wlGenreLabel}>ジャンル一覧:</span>
+              {allGenreOptions.map(g => (
+                <span key={g} className={styles.genreBadge} style={{marginRight:3}}>
+                  {g}
+                  {customGenreOptions.includes(g) && (
+                    <button className={styles.genreRemoveBtn} onClick={() => removeGenreOption(g)}>×</button>
+                  )}
+                </span>
               ))}
+              <AddGenreInput onAdd={addGenreOption} />
+            </div>
+
+            {/* ── 銘柄検索・追加 ── */}
+            <div className={styles.wlSearchRow}>
+              <div className={styles.wlSearchWrap}>
+                <input
+                  className={styles.wlSearchInput}
+                  placeholder="銘柄名またはコードで検索して追加..."
+                  value={searchQuery}
+                  onChange={e => searchMaster(e.target.value)}
+                  onFocus={() => searchQuery && setSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                />
+                {searchOpen && searchResults.length > 0 && (
+                  <div className={styles.searchDropdown}>
+                    {searchResults.map(r => (
+                      <div
+                        key={r.code}
+                        className={styles.searchDropdownItem}
+                        onMouseDown={() => addStockFromSearch(r.code)}
+                      >
+                        <span className={styles.searchItemCode}>{r.code}</span>
+                        <span className={styles.searchItemName}>{r.name}</span>
+                        {watchlist.includes(r.code) && <span className={styles.searchItemAdded}>登録済</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── 銘柄テーブル ── */}
+            <div className={styles.wlTable}>
+              <table className={styles.wlTableInner}>
+                <thead>
+                  <tr>
+                    <th className={styles.wlTh} style={{width:70}}>コード</th>
+                    <th className={styles.wlTh}>銘柄名</th>
+                    <th className={styles.wlTh} style={{width:280}}>ジャンル（複数選択可）</th>
+                    <th className={styles.wlTh} style={{width:50}}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {watchlist.map(code => (
+                    <WatchlistRow
+                      key={code} code={code}
+                      name={masterDB[code]?.name ?? ''}
+                      currentGenre={customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'}
+                      allGenreOptions={allGenreOptions}
+                      customGenreOptions={customGenreOptions}
+                      onSave={saveCustomGenre}
+                      onReset={resetCustomGenre}
+                      onRemove={removeStock}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -805,60 +898,71 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
 }
 
 
-// ─── GenreEditChip ───────────────────────────────────────────────────
-function GenreEditChip({ code, name, currentGenre, onSave, onReset, onRemove }: {
+// ─── AddGenreInput ──────────────────────────────────────────────────
+function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
+  const [val, setVal] = useState('')
+  return (
+    <span style={{display:'inline-flex', gap:4, alignItems:'center'}}>
+      <input
+        className={styles.genreNewInput}
+        placeholder="新ジャンル名..."
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && val.trim()) { onAdd(val); setVal('') } }}
+        maxLength={10}
+      />
+      <button className={styles.genreAddBtn}
+        onClick={() => { if (val.trim()) { onAdd(val); setVal('') } }}>+追加</button>
+    </span>
+  )
+}
+
+// ─── WatchlistRow ────────────────────────────────────────────────────
+function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOptions, onSave, onReset, onRemove }: {
   code: string
   name: string
   currentGenre: string
+  allGenreOptions: string[]
+  customGenreOptions: string[]
   onSave: (code: string, genre: string) => void
   onReset: (code: string) => void
   onRemove: (code: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(currentGenre)
-  const tags = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
+  const selected = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
 
-  function toggleTag(tag: string) {
-    const current = val.split(',').map(g => g.trim()).filter(Boolean)
-    const next = current.includes(tag)
-      ? current.filter(g => g !== tag)
-      : [...current, tag]
-    setVal(next.join(','))
-  }
-
-  function save() {
-    onSave(code, val || 'その他')
-    setEditing(false)
+  function toggle(tag: string) {
+    const next = selected.includes(tag)
+      ? selected.filter(g => g !== tag)
+      : [...selected, tag]
+    onSave(code, next.join(',') || 'その他')
   }
 
   return (
-    <div className={styles.wlChip} style={{flexDirection:'column', alignItems:'flex-start', padding:'8px 12px', minWidth:200, maxWidth:280}}>
-      <div style={{display:'flex', alignItems:'center', gap:6, width:'100%'}}>
+    <tr className={styles.wlTr}>
+      <td className={styles.wlTd}>
         <span className={styles.wlChipCode}>{code}</span>
-        <span className={styles.wlChipName} style={{flex:1}}>{name}</span>
-        <button className={styles.genreEditBtn} onClick={() => { setEditing(e => !e); setVal(currentGenre) }}>✏️</button>
-        <span className={styles.wlChipRemove} onClick={() => onRemove(code)}>×</span>
-      </div>
-      <div style={{display:'flex', gap:3, flexWrap:'wrap', marginTop:4}}>
-        {tags.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}
-      </div>
-      {editing && (
-        <div className={styles.genreEditPanel}>
-          <div className={styles.genreTagGrid}>
-            {ALL_GENRE_OPTIONS.map(g => (
-              <button key={g}
-                className={`${styles.filterChip} ${val.includes(g) ? styles.filterChipActive : ''}`}
-                onClick={() => toggleTag(g)}
-              >{g}</button>
-            ))}
-          </div>
-          <div style={{display:'flex', gap:6, marginTop:6}}>
-            <button className={styles.btnPrimary} style={{fontSize:11, padding:'4px 12px'}} onClick={save}>保存</button>
-            <button className={styles.btnSecondary} style={{fontSize:11, padding:'4px 10px'}} onClick={() => { onReset(code); setEditing(false) }}>リセット</button>
-          </div>
+      </td>
+      <td className={styles.wlTd}>
+        <span className={styles.wlTdName}>{name || '—'}</span>
+      </td>
+      <td className={styles.wlTd}>
+        <div className={styles.wlGenreCell}>
+          {allGenreOptions.map(g => (
+            <button key={g}
+              className={`${styles.genreTag} ${selected.includes(g) ? styles.genreTagOn : ''}`}
+              onClick={() => toggle(g)}
+            >{g}</button>
+          ))}
+          {currentGenre !== (DEFAULT_GENRES[code] ?? 'その他') && (
+            <button className={styles.genreResetBtn} onClick={() => onReset(code)}>↩</button>
+          )}
         </div>
-      )}
-    </div>
+      </td>
+      <td className={styles.wlTd} style={{textAlign:'center'}}>
+        <button className={styles.wlRemoveBtn} onClick={() => onRemove(code)}>✕</button>
+      </td>
+    </tr>
   )
 }
 

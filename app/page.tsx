@@ -40,6 +40,7 @@ export default function Page() {
   const [showFilter, setShowFilter] = useState(false)
   const [customGenres, setCustomGenres] = useState<Record<string,string>>(() => ls('customGenres', {}))
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
+  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{code:string;name:string}[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
@@ -150,7 +151,7 @@ export default function Page() {
     setSortSel('default')
   }
 
-  const allGenreOptions = [...ALL_GENRE_OPTIONS, ...customGenreOptions]
+  const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
 
   function addGenreOption(name: string) {
     const trimmed = name.trim()
@@ -159,8 +160,17 @@ export default function Page() {
     setCustomGenreOptions(next); lsSet('customGenreOptions', next)
   }
   function removeGenreOption(name: string) {
-    const next = customGenreOptions.filter(g => g !== name)
-    setCustomGenreOptions(next); lsSet('customGenreOptions', next)
+    if (customGenreOptions.includes(name)) {
+      const next = customGenreOptions.filter(g => g !== name)
+      setCustomGenreOptions(next); lsSet('customGenreOptions', next)
+    } else {
+      // デフォルトジャンルは「削除済み」として記録
+      const next = [...removedDefaultGenres, name]
+      setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
+    }
+  }
+  function restoreDefaultGenres() {
+    setRemovedDefaultGenres([]); lsSet('removedDefaultGenres', [])
   }
 
   // masterDBから銘柄検索
@@ -408,16 +418,19 @@ export default function Page() {
 
             {/* ── ジャンル管理 ── */}
             <div className={styles.wlGenreBar}>
-              <span className={styles.wlGenreLabel}>ジャンル一覧:</span>
+              <span className={styles.wlGenreLabel}>ジャンル:</span>
               {allGenreOptions.map(g => (
-                <span key={g} className={styles.genreBadge} style={{marginRight:3}}>
+                <span key={g} className={styles.genreBadgeEditable}>
                   {g}
-                  {customGenreOptions.includes(g) && (
-                    <button className={styles.genreRemoveBtn} onClick={() => removeGenreOption(g)}>×</button>
-                  )}
+                  <button className={styles.genreRemoveBtn} onClick={() => removeGenreOption(g)} title="削除">×</button>
                 </span>
               ))}
               <AddGenreInput onAdd={addGenreOption} />
+              {removedDefaultGenres.length > 0 && (
+                <button className={styles.genreRestoreBtn} onClick={restoreDefaultGenres}>
+                  ↩ デフォルト復元
+                </button>
+              )}
             </div>
 
             {/* ── 銘柄検索・追加 ── */}
@@ -697,22 +710,22 @@ function DashboardTable({
               <col style={{width:72, minWidth:72}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:130, minWidth:130}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:88, minWidth:88}} />
+              <col style={{width:88, minWidth:88}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:88, minWidth:88}} />
               <col style={{width:100, minWidth:100}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:90, minWidth:90}} />
-              <col style={{width:90, minWidth:90}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:70, minWidth:70}} />
+              <col style={{width:64, minWidth:64}} />
               <col style={{width:72, minWidth:72}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:80, minWidth:80}} />
@@ -745,22 +758,22 @@ function DashboardTable({
               <col style={{width:72, minWidth:72}} />
               <col style={{width:100, minWidth:100}} />
               <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:80, minWidth:80}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:76, minWidth:76}} />
+              <col style={{width:130, minWidth:130}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:88, minWidth:88}} />
+              <col style={{width:88, minWidth:88}} />
+              <col style={{width:64, minWidth:64}} />
+              <col style={{width:88, minWidth:88}} />
               <col style={{width:100, minWidth:100}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:90, minWidth:90}} />
-              <col style={{width:90, minWidth:90}} />
-              <col style={{width:70, minWidth:70}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:70, minWidth:70}} />
+              <col style={{width:64, minWidth:64}} />
               <col style={{width:72, minWidth:72}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:80, minWidth:80}} />

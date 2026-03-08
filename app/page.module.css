@@ -797,7 +797,7 @@
 
 /* ══ 銘柄管理 新UI ══════════════════════════════════════════════ */
 .wlManager {
-  padding: 0; width: 100%;
+  padding: 0; width: 100%; overflow-x: auto;
 }
 .wlHeader {
   display: flex; align-items: center; justify-content: space-between;
@@ -896,7 +896,7 @@
 
 /* テーブル */
 .wlTable {
-  overflow-x: auto; width: 100%;
+  width: 100%;
 }
 .wlTableInner {
   width: 100%; border-collapse: collapse;
@@ -910,7 +910,8 @@
   letter-spacing: 0.5px; text-transform: uppercase;
   background: #0d1219;
   border-bottom: 1px solid #1f2d40;
-  position: sticky; top: 96px; z-index: 5;
+  position: sticky;
+  z-index: 10;
 }
 .wlTr {
   border-bottom: 1px solid #111827;
@@ -995,9 +996,4 @@
   color: #60a5fa !important;
 }
 
-/* ── wlTh: top上書き可能に ──────────────────────── */
-.wlTh {
-  position: sticky !important;
-  z-index: 10 !important;
-  background: #0d1219 !important;
-}
+

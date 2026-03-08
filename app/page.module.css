@@ -162,12 +162,15 @@
 /* thead: topはJS inline styleで渡す */
 .table thead th {
   background: #111827;
-  padding: 0 10px;
+  padding: 0 8px;
   height: 36px;
   font-size: 11px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   color: #4e6280;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
   position: sticky;
   top: 96px;
   z-index: 10;

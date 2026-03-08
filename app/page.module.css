@@ -794,3 +794,168 @@
 .genreTagGrid {
   display: flex; flex-wrap: wrap; gap: 4px;
 }
+
+/* ══ 銘柄管理 新UI ══════════════════════════════════════════════ */
+.wlManager {
+  padding: 0 0 40px;
+}
+.wlHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px 12px;
+  border-bottom: 1px solid #1f2d40;
+}
+.wlTitle {
+  font-size: 15px; font-weight: 700; color: #e8eef8;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; gap: 10px;
+}
+.wlCount {
+  font-size: 11px; color: #4e6280; font-weight: 400;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid #1f2d40;
+  border-radius: 10px; padding: 2px 8px;
+}
+
+/* ジャンルバー */
+.wlGenreBar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  padding: 10px 24px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid #1f2d40;
+}
+.wlGenreLabel {
+  font-size: 10px; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap; margin-right: 4px;
+}
+.genreRemoveBtn {
+  background: none; border: none; cursor: pointer;
+  color: #f87171; font-size: 10px; padding: 0 0 0 3px;
+  line-height: 1; opacity: 0.6;
+}
+.genreRemoveBtn:hover { opacity: 1; }
+.genreNewInput {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid #2a3a52;
+  color: #e8eef8; padding: 3px 8px; border-radius: 4px;
+  font-size: 11px; width: 90px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.genreNewInput:focus { outline: none; border-color: #3b82f6; }
+.genreAddBtn {
+  padding: 3px 10px; border-radius: 4px;
+  border: 1px solid #3b82f6;
+  background: rgba(59,130,246,0.12);
+  color: #60a5fa; font-size: 11px; cursor: pointer;
+  transition: background .12s;
+}
+.genreAddBtn:hover { background: rgba(59,130,246,0.25); }
+
+/* 検索 */
+.wlSearchRow {
+  padding: 12px 24px;
+  border-bottom: 1px solid #1f2d40;
+}
+.wlSearchWrap {
+  position: relative; max-width: 420px;
+}
+.wlSearchInput {
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1px solid #2a3a52; color: #e8eef8;
+  padding: 8px 12px; border-radius: 8px;
+  font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
+  box-sizing: border-box;
+}
+.wlSearchInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
+.searchDropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #111827; border: 1px solid #2a3a52;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 200; overflow: hidden;
+}
+.searchDropdownItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; cursor: pointer;
+  transition: background .1s; border-bottom: 1px solid #1f2d40;
+}
+.searchDropdownItem:last-child { border-bottom: none; }
+.searchDropdownItem:hover { background: rgba(59,130,246,0.1); }
+.searchItemCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; color: #60a5fa;
+  min-width: 44px;
+}
+.searchItemName {
+  flex: 1; font-size: 13px; color: #e8eef8;
+}
+.searchItemAdded {
+  font-size: 10px; color: #34d399;
+  border: 1px solid #34d399; border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* テーブル */
+.wlTable {
+  overflow-x: auto;
+}
+.wlTableInner {
+  width: 100%; border-collapse: collapse;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.wlTh {
+  padding: 8px 12px; text-align: left;
+  font-size: 10px; font-weight: 600; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  background: #0d1219;
+  border-bottom: 1px solid #1f2d40;
+  position: sticky; top: 96px; z-index: 5;
+}
+.wlTr {
+  border-bottom: 1px solid #111827;
+  transition: background .1s;
+}
+.wlTr:hover { background: rgba(255,255,255,0.03); }
+.wlTd {
+  padding: 7px 12px; vertical-align: middle;
+}
+.wlTdName {
+  font-size: 13px; color: #c8d8e8;
+}
+.wlChipCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 700; color: #60a5fa;
+}
+
+/* ジャンルタグ（テーブル内） */
+.wlGenreCell {
+  display: flex; flex-wrap: wrap; gap: 3px; align-items: center;
+}
+.genreTag {
+  padding: 2px 8px; border-radius: 3px;
+  border: 1px solid #1f2d40;
+  background: rgba(255,255,255,0.03);
+  color: #4e6280; font-size: 11px; cursor: pointer;
+  transition: all .1s; white-space: nowrap;
+}
+.genreTag:hover { border-color: #3b82f6; color: #8fa3be; }
+.genreTagOn {
+  border-color: #3b82f6 !important;
+  background: rgba(59,130,246,0.18) !important;
+  color: #60a5fa !important; font-weight: 600;
+}
+.genreResetBtn {
+  padding: 2px 6px; border-radius: 3px;
+  border: 1px solid #2a3a52;
+  background: none; color: #4e6280;
+  font-size: 11px; cursor: pointer;
+  transition: all .1s;
+}
+.genreResetBtn:hover { border-color: #f87171; color: #f87171; }
+.wlRemoveBtn {
+  background: none; border: none; cursor: pointer;
+  color: #4e6280; font-size: 13px;
+  padding: 3px 6px; border-radius: 4px;
+  transition: all .1s;
+}
+.wlRemoveBtn:hover { color: #f87171; background: rgba(248,113,113,0.1); }

@@ -342,7 +342,7 @@
 .chartLoading { height: 110px; display: flex; align-items: center; justify-content: center; color: #4e6280; font-size: 11px; }
 
 /* ── WATCHLIST ───────────────────────────────────── */
-.wlManager { padding: 24px; max-width: 860px; }
+
 .wlTitle { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: #e8eef8; }
 .wlAddRow { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .wlInput {
@@ -797,7 +797,7 @@
 
 /* ══ 銘柄管理 新UI ══════════════════════════════════════════════ */
 .wlManager {
-  padding: 0 0 40px;
+  padding: 0; width: 100%;
 }
 .wlHeader {
   display: flex; align-items: center; justify-content: space-between;
@@ -896,11 +896,12 @@
 
 /* テーブル */
 .wlTable {
-  overflow-x: auto;
+  overflow-x: auto; width: 100%;
 }
 .wlTableInner {
   width: 100%; border-collapse: collapse;
   font-family: 'Noto Sans JP', sans-serif;
+  table-layout: fixed;
 }
 .wlTh {
   padding: 8px 12px; text-align: left;
@@ -917,7 +918,7 @@
 }
 .wlTr:hover { background: rgba(255,255,255,0.03); }
 .wlTd {
-  padding: 7px 12px; vertical-align: middle;
+  padding: 5px 12px; vertical-align: middle;
 }
 .wlTdName {
   font-size: 13px; color: #c8d8e8;
@@ -959,3 +960,25 @@
   transition: all .1s;
 }
 .wlRemoveBtn:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+
+/* ── ジャンル編集展開パネル ───────────────────────── */
+.genreEditToggleBtn {
+  padding: 2px 8px; border-radius: 3px;
+  border: 1px dashed #2a3a52;
+  background: none; color: #4e6280;
+  font-size: 10px; cursor: pointer;
+  transition: all .1s; white-space: nowrap;
+}
+.genreEditToggleBtn:hover { border-color: #3b82f6; color: #60a5fa; }
+.genreEditToggleBtnOn {
+  border-color: #3b82f6 !important; color: #60a5fa !important;
+  background: rgba(59,130,246,0.08) !important;
+}
+.wlEditRow { background: rgba(59,130,246,0.04); }
+.wlEditTd {
+  padding: 8px 16px 10px 100px !important;
+  border-bottom: 2px solid #1f2d40;
+}
+.wlGenreEditPanel {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}

@@ -244,8 +244,11 @@ export default function Page() {
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
           />
-          <button className={styles.btnPrimary} onClick={fetchAll} disabled={loading}>
-            {loading ? '取得中...' : '全更新'}
+          <button
+            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''}`}
+            onClick={fetchAll} disabled={loading}
+          >
+            {loading ? '取得中...' : lastUpdate ? '更新済み ↺' : '全更新'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
         </div>
@@ -543,12 +546,13 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
     let from: Date
     if (mode === 'daily') {
-      from = new Date(today); from.setMonth(from.getMonth() - 6)
+      from = new Date(today); from.setFullYear(from.getFullYear() - 1)
     } else {
       from = new Date(today); from.setFullYear(from.getFullYear() - 5)
     }
 
-    const url = `/api/jquants?path=/v2/equities/bars/daily&code=${code}&dateFrom=${fmt(from)}&dateTo=${fmt(today)}`
+    const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fmt(from)}&dateTo=${fmt(today)}`)
+    const url = `/api/jquants?path=${path}`
     fetch(url, { headers: { 'x-api-key': apiKey } })
       .then(r => r.json())
       .then(json => {
@@ -627,7 +631,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
             className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
             onClick={e => { e.stopPropagation(); setMode(m) }}
           >
-            {m === 'daily' ? '日足(6ヶ月)' : '月足(5年)'}
+            {m === 'daily' ? '日足(1年)' : '月足(5年)'}
           </button>
         ))}
       </div>
@@ -683,7 +687,7 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期の1ヶ月前成長率', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。セルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
+    { label: 'PER今期の1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。セルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
     { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
     { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },

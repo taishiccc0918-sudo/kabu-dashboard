@@ -156,7 +156,7 @@
   min-width: 2086px;
   border-collapse: collapse;
   background: #0d1219;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 /* thead: topはJS inline styleで渡す */
@@ -901,7 +901,7 @@
 .wlTableInner {
   width: 100%; border-collapse: collapse;
   font-family: 'Noto Sans JP', sans-serif;
-  table-layout: fixed;
+  table-layout: auto;
 }
 .wlTh {
   padding: 8px 12px; text-align: left;
@@ -981,4 +981,23 @@
 }
 .wlGenreEditPanel {
   display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+
+/* ── ツールバー非表示（銘柄管理時） ─────────────── */
+.toolbarHidden {
+  display: none !important;
+}
+
+/* ── 銘柄管理ボタンのアクティブ状態 ─────────────── */
+.btnSecondaryActive {
+  background: rgba(59,130,246,0.15) !important;
+  border-color: #3b82f6 !important;
+  color: #60a5fa !important;
+}
+
+/* ── wlTh: top上書き可能に ──────────────────────── */
+.wlTh {
+  position: sticky !important;
+  z-index: 10 !important;
+  background: #0d1219 !important;
 }

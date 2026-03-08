@@ -88,8 +88,8 @@ export async function fetchPrices(
   // 過去データ取得: 指定日にデータがない場合は前後3営業日を探す（祝日・休場対応）
   async function fetchPastDate(baseDays: number): Promise<Map<string, number>> {
     const map = new Map<string, number>()
-    for (let offset = 0; offset <= 4; offset++) {
-      for (const sign of [0, -1, 1, -2, 2]) {
+    for (let offset = 0; offset <= 6; offset++) {
+      for (const sign of [0, -1, 1, -2, 2, -3, 3]) {
         const actualDays = baseDays + sign + offset
         if (actualDays < 0) continue
         try {
@@ -158,7 +158,7 @@ export async function fetchFinancials(
 
   async function fetchOne(code: string): Promise<boolean> {
     try {
-      await new Promise(r => setTimeout(r, 120))
+      await new Promise(r => setTimeout(r, 80))
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string, string>[] = data.data ?? []
       if (stmts.length === 0) return false
@@ -219,9 +219,9 @@ export async function fetchFinancials(
     const ok = await fetchOne(code)
     if (!ok) failed.push(code)
   }
-  // 失敗分を段階的にリトライ（最大3回）
+  // 失敗分を段階的にリトライ（最大5回・確実取得優先）
   let remaining = failed
-  for (const waitMs of [600, 1200, 2000]) {
+  for (const waitMs of [800, 1500, 2500, 4000, 6000]) {
     if (remaining.length === 0) break
     await new Promise(r => setTimeout(r, waitMs))
     const stillFailed: string[] = []
@@ -230,6 +230,12 @@ export async function fetchFinancials(
       if (!ok) stillFailed.push(code)
     }
     remaining = stillFailed
+    if (remaining.length > 0) {
+      console.warn(`[fetchFinancials] retry: ${remaining.length} codes still failing: ${remaining.join(',')}`)
+    }
+  }
+  if (remaining.length > 0) {
+    console.error(`[fetchFinancials] gave up on: ${remaining.join(',')}`)
   }
 
   return { finDB, shOutDB }

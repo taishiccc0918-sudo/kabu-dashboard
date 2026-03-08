@@ -222,6 +222,8 @@
 .table tbody tr:hover .tdStar,
 .table tbody tr:hover .tdCode,
 .table tbody tr:hover .tdName { background: #1a2235 !important; }
+/* 偶数行など他の背景上書きも保証 */
+.tdStar, .tdCode, .tdName { isolation: isolate; }
 .emptyCell { text-align: center; padding: 60px; color: #4e6280; font-size: 13px; }
 
 /* sticky td */
@@ -231,6 +233,7 @@
   width: 32px; min-width: 32px;
   position: sticky; left: 0; z-index: 5;
   text-align: center;
+  background: #111827;
 }
 .tdCode {
   padding: 0 8px;
@@ -238,6 +241,7 @@
   color: #4e6280;
   width: 60px; min-width: 60px; max-width: 60px;
   position: sticky; left: 32px; z-index: 5;
+  background: #111827;
 }
 .tdName {
   padding: 0 10px;
@@ -246,6 +250,7 @@
   color: #e8eef8;
   position: sticky; left: 92px; z-index: 5;
   border-right: 1px solid #2a3a52;
+  background: #111827;
 }
 .tdNum {
   padding: 0 10px; text-align: right;
@@ -582,6 +587,7 @@
 .stickyCol1 { position: sticky !important; left: 92px !important; z-index: 4 !important; }
 
 /* 情報サイトリンクボタン */
+.tdInfoCenter { text-align: center !important; }
 .infoLinkBtn {
   display: inline-block;
   padding: 3px 8px;
@@ -994,9 +1000,10 @@
 
 /* ── 銘柄管理ボタンのアクティブ状態 ─────────────── */
 .btnSecondaryActive {
-  background: rgba(59,130,246,0.15) !important;
-  border-color: #3b82f6 !important;
-  color: #60a5fa !important;
+  background: #1d4ed8 !important;
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 
@@ -1019,3 +1026,16 @@
   transition: all .12s; white-space: nowrap;
 }
 .genreRestoreBtn:hover { background: rgba(251,191,36,0.18); }
+
+/* ── 更新済みボタン ───────────────────────────────── */
+.btnDone {
+  background: #374151 !important;
+  border-color: #4b5563 !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+}
+.btnDone:hover {
+  background: #1d4ed8 !important;
+  border-color: #3b82f6 !important;
+  color: #fff !important;
+}

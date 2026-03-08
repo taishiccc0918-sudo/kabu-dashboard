@@ -930,6 +930,7 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
 }) {
   const [editing, setEditing] = useState(false)
   const selected = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
+  const isModified = currentGenre !== (DEFAULT_GENRES[code] ?? 'その他')
 
   function toggle(tag: string) {
     const next = selected.includes(tag)
@@ -939,30 +940,50 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
   }
 
   return (
-    <tr className={styles.wlTr}>
-      <td className={styles.wlTd}>
-        <span className={styles.wlChipCode}>{code}</span>
-      </td>
-      <td className={styles.wlTd}>
-        <span className={styles.wlTdName}>{name || '—'}</span>
-      </td>
-      <td className={styles.wlTd}>
-        <div className={styles.wlGenreCell}>
-          {allGenreOptions.map(g => (
-            <button key={g}
-              className={`${styles.genreTag} ${selected.includes(g) ? styles.genreTagOn : ''}`}
-              onClick={() => toggle(g)}
-            >{g}</button>
-          ))}
-          {currentGenre !== (DEFAULT_GENRES[code] ?? 'その他') && (
-            <button className={styles.genreResetBtn} onClick={() => onReset(code)}>↩</button>
-          )}
-        </div>
-      </td>
-      <td className={styles.wlTd} style={{textAlign:'center'}}>
-        <button className={styles.wlRemoveBtn} onClick={() => onRemove(code)}>✕</button>
-      </td>
-    </tr>
+    <>
+      <tr className={styles.wlTr}>
+        <td className={styles.wlTd}>
+          <span className={styles.wlChipCode}>{code}</span>
+        </td>
+        <td className={styles.wlTd}>
+          <span className={styles.wlTdName}>{name || '—'}</span>
+        </td>
+        <td className={styles.wlTd}>
+          <div className={styles.wlGenreCell}>
+            {/* 選択済みタグを表示 */}
+            {selected.map(g => (
+              <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>
+            ))}
+            {/* 編集ボタン */}
+            <button
+              className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
+              onClick={() => setEditing(e => !e)}
+            >{editing ? '▲ 閉じる' : '✏️ 編集'}</button>
+            {isModified && !editing && (
+              <button className={styles.genreResetBtn} onClick={() => onReset(code)} title="デフォルトに戻す">↩</button>
+            )}
+          </div>
+        </td>
+        <td className={styles.wlTd} style={{textAlign:'center'}}>
+          <button className={styles.wlRemoveBtn} onClick={() => onRemove(code)}>✕</button>
+        </td>
+      </tr>
+      {editing && (
+        <tr className={styles.wlEditRow}>
+          <td colSpan={4} className={styles.wlEditTd}>
+            <div className={styles.wlGenreEditPanel}>
+              {allGenreOptions.map(g => (
+                <button key={g}
+                  className={`${styles.genreTag} ${selected.includes(g) ? styles.genreTagOn : ''}`}
+                  onClick={() => toggle(g)}
+                >{g}</button>
+              ))}
+              <button className={styles.genreResetBtn} onClick={() => { onReset(code); setEditing(false) }} title="デフォルトに戻す">↩ リセット</button>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 

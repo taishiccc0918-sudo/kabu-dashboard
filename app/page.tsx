@@ -5,7 +5,7 @@ import {
   TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
 } from './lib/types'
 import {
-  findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements,
+  findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements, fetchFinancialOne,
 } from './lib/api'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, marketShort } from './lib/format'
 import styles from './page.module.css'
@@ -22,6 +22,7 @@ function lsSet(key: string, val: unknown) {
 export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
   const [watchlist,  setWatchlist]  = useState<string[]>(() => ls('watchlist', DEFAULT_WATCHLIST))
+  const watchlistRef = useRef<string[]>([])
   const [memos,      setMemos]      = useState<Record<string,string>>(() => ls('memos', {}))
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
@@ -54,6 +55,9 @@ export default function Page() {
   const theadTop = 96  // header(52px) + toolbar(44px)
   const [forcePc, setForcePc] = useState(false)
 
+  // watchlistの最新値を常にrefで追跡（stale closure防止）
+  useEffect(() => { watchlistRef.current = watchlist }, [watchlist])
+
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
     if (loading) return
@@ -62,27 +66,86 @@ export default function Page() {
     try {
       st('最新営業日を確認中...', 5)
       const { dateStr, dateDisp } = await findLatestBizDate(apiKey)
-      st('銘柄マスタを取得中...', 15)
-      const master = await fetchMaster(apiKey)
+
+      // マスタと株価を並列取得
+      st('銘柄マスタ・株価を取得中...', 15)
+      const [master, prices] = await Promise.all([
+        fetchMaster(apiKey),
+        fetchPrices(apiKey, dateStr),
+      ])
       setMasterDB(master)
-      st(`株価取得中 (${dateDisp})...`, 30)
-      const prices = await fetchPrices(apiKey, dateStr)
-      setPriceDB(prices)
-      st('財務データ取得中...', 55)
-      const { finDB: fins, shOutDB } = await fetchFinancials(apiKey, watchlist)
-      for (const [code, sh] of Object.entries(shOutDB)) {
-        if (prices[code]?.close) {
-          prices[code].mcap = Math.round(prices[code].close * sh / 1e8)
+      setPriceDB({ ...prices })
+
+      // 常に最新watchlistを使う
+      const currentWatchlist = watchlistRef.current.length > 0 ? watchlistRef.current : watchlist
+      const total = currentWatchlist.length
+      const fins: Record<string, FinRecord> = {}
+      const localShOut: Record<string, number> = {}
+      const BATCH = 8
+      let done = 0
+      const allFailed: string[] = []
+
+      st(`財務データ取得中... (0/${total})`, 40)
+
+      // 1パス目: 並列バッチ取得
+      for (let i = 0; i < currentWatchlist.length; i += BATCH) {
+        const batch = currentWatchlist.slice(i, i + BATCH)
+        const results = await Promise.allSettled(
+          batch.map(code => fetchFinancialOne(apiKey, code))
+        )
+        results.forEach((r, j) => {
+          const code = batch[j]
+          if (r.status === 'fulfilled' && r.value) {
+            fins[code] = r.value.fin
+            if (r.value.shOut > 0) localShOut[code] = r.value.shOut
+          } else {
+            allFailed.push(code)
+          }
+        })
+        done += batch.length
+        st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
+        setFinDB({ ...fins })
+        if (i + BATCH < currentWatchlist.length) await new Promise(r => setTimeout(r, 150))
+      }
+
+      // リトライ（最大4回）
+      let remaining = [...allFailed]
+      for (const waitMs of [1000, 2000, 4000, 6000]) {
+        if (remaining.length === 0) break
+        st(`再取得中... (残${remaining.length}銘柄)`, 85)
+        await new Promise(r => setTimeout(r, waitMs))
+        const nextFailed: string[] = []
+        for (let i = 0; i < remaining.length; i += BATCH) {
+          const batch = remaining.slice(i, i + BATCH)
+          const results = await Promise.allSettled(batch.map(code => fetchFinancialOne(apiKey, code)))
+          results.forEach((r, j) => {
+            const code = batch[j]
+            if (r.status === 'fulfilled' && r.value) {
+              fins[code] = r.value.fin
+              if (r.value.shOut > 0) localShOut[code] = r.value.shOut
+            } else {
+              nextFailed.push(code)
+            }
+          })
         }
+        remaining = nextFailed
+        setFinDB({ ...fins })
+      }
+
+      // mcap計算
+      for (const [code, sh] of Object.entries(localShOut)) {
+        if (prices[code]?.close) prices[code].mcap = Math.round(prices[code].close * sh / 1e8)
       }
       setPriceDB({ ...prices })
-      st('決算予定日取得中...', 90)
+
+      st('決算予定日取得中...', 92)
       await fetchAnnouncements(apiKey, fins)
-      setFinDB(fins)
+      setFinDB({ ...fins })
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
-      st(`完了 — 基準日: ${dateDisp}`, 100)
+      const failMsg = remaining.length > 0 ? ` (未取得${remaining.length}銘柄: ${remaining.join(',')})` : ''
+      st(`完了 — 基準日: ${dateDisp}${failMsg}`, 100)
       setStatus('ok')
       setTab('dashboard')
     } catch (e: unknown) {

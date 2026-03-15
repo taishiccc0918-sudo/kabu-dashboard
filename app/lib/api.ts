@@ -137,6 +137,69 @@ export async function fetchPrices(
   return db
 }
 
+
+export interface FinResult { fin: FinRecord; shOut: number }
+
+export async function fetchFinancialOne(apiKey: string, code: string): Promise<FinResult | null> {
+  function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
+    for (const key of keys) {
+      for (let i = stmts.length - 1; i >= 0; i--) {
+        const v = n(stmts[i][key])
+        if (v !== 0) return v
+      }
+    }
+    return 0
+  }
+  try {
+    const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
+    const stmts: Record<string, string>[] = data.data ?? []
+    if (stmts.length === 0) return null
+
+    let latestFY: Record<string, string> | null = null
+    let latestNonFY: Record<string, string> | null = null
+    for (let j = stmts.length - 1; j >= 0; j--) {
+      const s = stmts[j]
+      if (s.CurPerType === 'FY' && !latestFY) latestFY = s
+      if (s.CurPerType !== 'FY' && s.CurPerType && !latestNonFY) latestNonFY = s
+      if (latestFY && latestNonFY) break
+    }
+    const fy  = latestFY  ?? stmts[stmts.length - 1]
+    const nfy = latestNonFY ?? fy
+    const all = stmts
+
+    const shOut = bestVal(all, 'ShOutFY', 'ShOut')
+    const equity = bestVal(all, 'Eq')
+    const assets = bestVal(all, 'TA')
+    const sales  = bestVal(all, 'Sales')
+    const op     = bestVal(all, 'OP')
+    const np     = bestVal(all, 'NP')
+    const eps    = bestVal(all, 'EPS')
+    const bps    = bestVal(all, 'BPS')
+    const feps   = n(nfy.FEPS) || n(fy.FEPS) || bestVal(all, 'FEPS')
+    const nyEPS  = n(fy.NxFEPS) || n(nfy.NxFEPS) || bestVal(all, 'NxFEPS')
+    const fsales = n(nfy.FSales) || n(fy.FSales) || bestVal(all, 'FSales')
+    const nySales= n(fy.NxFSales) || n(nfy.NxFSales) || bestVal(all, 'NxFSales')
+    const fdiv   = n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn) || bestVal(all, 'FDivAnn','DivAnn')
+    const fop    = n(nfy.FOP) || n(fy.FOP) || bestVal(all, 'FOP')
+    const nyOP   = n(fy.NxFOP) || n(nfy.NxFOP) || bestVal(all, 'NxFOP')
+
+    const fin: FinRecord = {
+      sales, op, odp: bestVal(all, 'OdP'), np, eps, feps, nyEPS, bps,
+      equity, assets, divAnn: bestVal(all, 'DivAnn'),
+      fdiv, shOut,
+      discDate: fy.DiscDate ?? '',
+      perType: fy.CurPerType ?? '',
+      fsales, fop, nySales, nyOP,
+      roe:      equity ? np / equity : 0,
+      eqRat:    assets ? equity / assets : 0,
+      opMgn:    sales  ? op / sales : 0,
+      salesGr:  (sales && fsales) ? fsales / sales - 1 : 0,
+      nySalesGr:(fsales && nySales) ? nySales / fsales - 1 : 0,
+    }
+    return { fin, shOut }
+  } catch { return null }
+}
+
 export async function fetchFinancials(
   apiKey: string,
   watchlist: string[]
@@ -144,7 +207,6 @@ export async function fetchFinancials(
   const finDB: Record<string, FinRecord> = {}
   const shOutDB: Record<string, number> = {}
 
-  // 最大2回リトライ
   // 全stmtから最善の値を拾う汎用関数
   function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
     for (const key of keys) {
@@ -158,7 +220,6 @@ export async function fetchFinancials(
 
   async function fetchOne(code: string): Promise<boolean> {
     try {
-      await new Promise(r => setTimeout(r, 80))
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string, string>[] = data.data ?? []
       if (stmts.length === 0) return false
@@ -213,29 +274,51 @@ export async function fetchFinancials(
     } catch { return false }
   }
 
-  // 全銘柄取得（失敗したものはリトライ）
-  const failed: string[] = []
-  for (const code of watchlist) {
-    const ok = await fetchOne(code)
-    if (!ok) failed.push(code)
+  // 並列バッチ取得（BATCH_SIZE件ずつ同時リクエスト）
+  const BATCH_SIZE = 8
+
+  async function fetchBatch(codes: string[]): Promise<string[]> {
+    const results = await Promise.allSettled(codes.map(code => fetchOne(code)))
+    const failed: string[] = []
+    results.forEach((r, i) => {
+      if (r.status === 'rejected' || (r.status === 'fulfilled' && !r.value)) {
+        failed.push(codes[i])
+      }
+    })
+    return failed
   }
-  // 失敗分を段階的にリトライ（最大5回・確実取得優先）
-  let remaining = failed
-  for (const waitMs of [800, 1500, 2500, 4000, 6000]) {
+
+  // 全銘柄を並列バッチで取得
+  let remaining: string[] = []
+  for (let i = 0; i < watchlist.length; i += BATCH_SIZE) {
+    const batch = watchlist.slice(i, i + BATCH_SIZE)
+    const batchFailed = await fetchBatch(batch)
+    remaining.push(...batchFailed)
+    // バッチ間に少し待機（レート制限対策）
+    if (i + BATCH_SIZE < watchlist.length) {
+      await new Promise(r => setTimeout(r, 200))
+    }
+  }
+
+  // 失敗分を段階的にリトライ（最大5回）
+  for (const waitMs of [1000, 2000, 3000, 5000, 8000]) {
     if (remaining.length === 0) break
+    console.warn(`[fetchFinancials] retry ${remaining.length} codes after ${waitMs}ms: ${remaining.join(',')}`)
     await new Promise(r => setTimeout(r, waitMs))
     const stillFailed: string[] = []
-    for (const code of remaining) {
-      const ok = await fetchOne(code)
-      if (!ok) stillFailed.push(code)
+    for (let i = 0; i < remaining.length; i += BATCH_SIZE) {
+      const batch = remaining.slice(i, i + BATCH_SIZE)
+      const batchFailed = await fetchBatch(batch)
+      stillFailed.push(...batchFailed)
+      if (i + BATCH_SIZE < remaining.length) {
+        await new Promise(r => setTimeout(r, 300))
+      }
     }
     remaining = stillFailed
-    if (remaining.length > 0) {
-      console.warn(`[fetchFinancials] retry: ${remaining.length} codes still failing: ${remaining.join(',')}`)
-    }
   }
+
   if (remaining.length > 0) {
-    console.error(`[fetchFinancials] gave up on: ${remaining.join(',')}`)
+    console.error(`[fetchFinancials] FINAL FAIL: ${remaining.join(',')}`)
   }
 
   return { finDB, shOutDB }

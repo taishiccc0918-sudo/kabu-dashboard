@@ -1,4 +1,4 @@
-import { StockRow, PriceRecord, FinRecord, MasterRecord } from './types'
+import { StockRow, PriceRecord, FinRecord, MasterRecord, DEFAULT_GENRES } from './types'
 
 export function fmtN(v: number | null | undefined, dec = 1): string {
   if (v == null || v === 0) return '—'
@@ -24,12 +24,9 @@ export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('グロース'))     return { label: 'Growth',   cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
-
-// 判定ロジック: PER今期の1ヶ月前比
 export function getJudgment(perFChg1m: number | null | undefined): string {
   if (perFChg1m == null) return ''
-  if (perFChg1m <= -0.10) return '買い'
-  if (perFChg1m <= -0.05) return '様子見'
+  if (perFChg1m <= -0.05) return '買い'
   return ''
 }
 
@@ -37,7 +34,8 @@ export function buildStockRow(
   code: string,
   priceDB: Record<string, PriceRecord>,
   finDB: Record<string, FinRecord>,
-  masterDB: Record<string, MasterRecord>
+  masterDB: Record<string, MasterRecord>,
+  customGenres: Record<string, string>
 ): StockRow {
   const p = priceDB[code] ?? { close: 0 }
   const f = finDB[code]
@@ -58,36 +56,41 @@ export function buildStockRow(
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
 
-  // PER今期の変化率: 過去株価でPERを計算して比較
   function perFAt(pastClose: number | undefined): number | null {
-    if (!pastClose || !feps) return null
-    const pastPer = pastClose / feps
-    if (!perF || !pastPer) return null
-    return perF / pastPer - 1
+    if (!pastClose || !close || !feps) return null
+    return close / pastClose - 1
   }
-  const perFChg1w = perFAt(p.prev1w)
-  const perFChg1m = perFAt(p.prev1m)
-  const perFChg3m = perFAt(p.prev3m)
-  const perFChg1y = perFAt(p.prev1y)
+  const prev1m = (p as { prev1m?: number }).prev1m
+  const perFChg1mPrev = (prev1m && feps) ? prev1m / feps : null
+
+  // ジャンル: カスタム優先、なければデフォルト、なければ「その他」
+  const genreStr = customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'
+  const genres = genreStr.split(',').map(g => g.trim()).filter(Boolean)
 
   return {
     code,
-    name:      m?.name   ?? '',
-    market:    m?.market ?? '',
+    name:       m?.name   ?? '',
+    market:     m?.market ?? '',
+    genres,
     close,
-    chg1d:     p.chg1d ?? null,
-    chg1w:     p.chg1w ?? null,
-    chg3m:     p.chg3m ?? null,
-    chg1y:     p.chg1y ?? null,
-    mcap:      p.mcap  ?? 0,
+    chg1d:      p.chg1d ?? null,
+    chg1w:      p.chg1w ?? null,
+    chg3m:      p.chg3m ?? null,
+    chg1y:      p.chg1y ?? null,
+    mcap:       p.mcap  ?? 0,
     perA, perF, perN,
-    perFChg1w, perFChg1m, perFChg3m, perFChg1y,
+    perFChg1w:  perFAt(p.prev1w),
+    perFChg1m:  perFAt(prev1m),
+    perFChg1mPrev,
+    perFChg3m:  perFAt(p.prev3m),
+    perFChg1y:  perFAt(p.prev1y),
     pbr,
-    roe:       f?.roe  ?? null,
+    roe:        f?.roe    ?? null,
     divY,
     epsGr,
     peg,
-    nySalesGr: f?.nySalesGr ?? null,
-    judgment:  getJudgment(perFChg1m),
+    opMgn:      f?.opMgn  ?? null,
+    nySalesGr:  f?.nySalesGr ?? null,
+    judgment:   getJudgment(perFAt(prev1m)),
   }
 }

@@ -260,6 +260,9 @@ export async function fetchAllFinancials(
   return { finDB, shOutDB }
 }
 
+export interface FinResult { fin: FinRecord; shOut: number }
+
+// 1銘柄の財務データを取得（リトライ内蔵）
 export async function fetchFinancialOne(apiKey: string, code: string): Promise<FinResult | null> {
   function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
     for (const key of keys) {
@@ -270,55 +273,173 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
     }
     return 0
   }
-  try {
-    const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
-    const stmts: Record<string, string>[] = data.data ?? []
-    if (stmts.length === 0) return null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt)))
+      const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
+      const stmts: Record<string, string>[] = data.data ?? []
+      if (stmts.length === 0) return null
+      let latestFY: Record<string,string>|null = null
+      let latestNonFY: Record<string,string>|null = null
+      for (let j = stmts.length - 1; j >= 0; j--) {
+        const s = stmts[j]
+        if (s.CurPerType === 'FY' && !latestFY) latestFY = s
+        if (s.CurPerType !== 'FY' && s.CurPerType && !latestNonFY) latestNonFY = s
+        if (latestFY && latestNonFY) break
+      }
+      const fy = latestFY ?? stmts[stmts.length - 1]
+      const nfy = latestNonFY ?? fy
+      const all = stmts
+      const shOut = bestVal(all, 'ShOutFY', 'ShOut')
+      const equity = bestVal(all,'Eq'), assets = bestVal(all,'TA')
+      const sales = bestVal(all,'Sales'), op = bestVal(all,'OP'), np = bestVal(all,'NP')
+      const feps = n(nfy.FEPS)||n(fy.FEPS)||bestVal(all,'FEPS')
+      const fsales = n(nfy.FSales)||n(fy.FSales)||bestVal(all,'FSales')
+      const nySales = n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
+      const fdiv = n(nfy.FDivAnn)||n(nfy.DivAnn)||n(fy.FDivAnn)||n(fy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+      return {
+        fin: {
+          sales, op, odp: bestVal(all,'OdP'), np,
+          eps: bestVal(all,'EPS'), feps,
+          nyEPS: n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
+          bps: bestVal(all,'BPS'),
+          equity, assets, divAnn: bestVal(all,'DivAnn'),
+          fdiv, shOut,
+          discDate: fy.DiscDate??'', perType: fy.CurPerType??'',
+          fsales, fop: n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
+          nySales, nyOP: n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
+          roe:      equity ? np/equity : 0,
+          eqRat:    assets ? equity/assets : 0,
+          opMgn:    sales  ? op/sales : 0,
+          salesGr:  (sales&&fsales) ? fsales/sales-1 : 0,
+          nySalesGr:(fsales&&nySales) ? nySales/fsales-1 : 0,
+        },
+        shOut,
+      }
+    } catch(e: unknown) {
+      const status = (e instanceof Error && e.message.includes('429')) ? 429 : 0
+      if (status === 429) await new Promise(r => setTimeout(r, 1500 * Math.pow(2, attempt)))
+    }
+  }
+  return null
+}
 
-    let latestFY: Record<string, string> | null = null
-    let latestNonFY: Record<string, string> | null = null
+// ─────────────────────────────────────────────────────────────────────
+// fetchAllFinancials: 全銘柄を確実に取得
+// 戦略1: /fins/summary 一括取得（プレミアムプランのみ）
+// 戦略2: 個別直列取得（間隔制御でレート制限回避）
+// ─────────────────────────────────────────────────────────────────────
+export async function fetchAllFinancials(
+  apiKey: string,
+  watchlist: string[],
+  onProgress?: (done: number, total: number) => void
+): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
+  const finDB: Record<string, FinRecord> = {}
+  const shOutDB: Record<string, number> = {}
+
+  function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
+    for (const key of keys) {
+      for (let i = stmts.length - 1; i >= 0; i--) {
+        const v = n(stmts[i][key])
+        if (v !== 0) return v
+      }
+    }
+    return 0
+  }
+
+  function processStmts(code: string, stmts: Record<string,string>[]) {
+    if (!stmts || stmts.length === 0) return
+    let latestFY: Record<string,string>|null = null
+    let latestNonFY: Record<string,string>|null = null
     for (let j = stmts.length - 1; j >= 0; j--) {
       const s = stmts[j]
-      if (s.CurPerType === 'FY' && !latestFY) latestFY = s
-      if (s.CurPerType !== 'FY' && s.CurPerType && !latestNonFY) latestNonFY = s
+      if (s.CurPerType==='FY' && !latestFY) latestFY = s
+      if (s.CurPerType!=='FY' && s.CurPerType && !latestNonFY) latestNonFY = s
       if (latestFY && latestNonFY) break
     }
-    const fy  = latestFY  ?? stmts[stmts.length - 1]
+    const fy = latestFY ?? stmts[stmts.length-1]
     const nfy = latestNonFY ?? fy
     const all = stmts
-
-    const shOut = bestVal(all, 'ShOutFY', 'ShOut')
-    const equity = bestVal(all, 'Eq')
-    const assets = bestVal(all, 'TA')
-    const sales  = bestVal(all, 'Sales')
-    const op     = bestVal(all, 'OP')
-    const np     = bestVal(all, 'NP')
-    const eps    = bestVal(all, 'EPS')
-    const bps    = bestVal(all, 'BPS')
-    const feps   = n(nfy.FEPS) || n(fy.FEPS) || bestVal(all, 'FEPS')
-    const nyEPS  = n(fy.NxFEPS) || n(nfy.NxFEPS) || bestVal(all, 'NxFEPS')
-    const fsales = n(nfy.FSales) || n(fy.FSales) || bestVal(all, 'FSales')
-    const nySales= n(fy.NxFSales) || n(nfy.NxFSales) || bestVal(all, 'NxFSales')
-    const fdiv   = n(nfy.FDivAnn) || n(nfy.DivAnn) || n(fy.FDivAnn) || n(fy.DivAnn) || bestVal(all, 'FDivAnn','DivAnn')
-    const fop    = n(nfy.FOP) || n(fy.FOP) || bestVal(all, 'FOP')
-    const nyOP   = n(fy.NxFOP) || n(nfy.NxFOP) || bestVal(all, 'NxFOP')
-
-    const fin: FinRecord = {
-      sales, op, odp: bestVal(all, 'OdP'), np, eps, feps, nyEPS, bps,
-      equity, assets, divAnn: bestVal(all, 'DivAnn'),
-      fdiv, shOut,
-      discDate: fy.DiscDate ?? '',
-      perType: fy.CurPerType ?? '',
-      fsales, fop, nySales, nyOP,
-      roe:      equity ? np / equity : 0,
-      eqRat:    assets ? equity / assets : 0,
-      opMgn:    sales  ? op / sales : 0,
-      salesGr:  (sales && fsales) ? fsales / sales - 1 : 0,
-      nySalesGr:(fsales && nySales) ? nySales / fsales - 1 : 0,
+    const shOut = bestVal(all,'ShOutFY','ShOut')
+    if (shOut > 0) shOutDB[code] = shOut
+    const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
+    const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
+    const feps=n(nfy.FEPS)||n(fy.FEPS)||bestVal(all,'FEPS')
+    const fsales=n(nfy.FSales)||n(fy.FSales)||bestVal(all,'FSales')
+    const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
+    const fdiv=n(nfy.FDivAnn)||n(nfy.DivAnn)||n(fy.FDivAnn)||n(fy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+    finDB[code] = {
+      sales,op,odp:bestVal(all,'OdP'),np,
+      eps:bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
+      bps:bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
+      fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
+      fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
+      nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
+      roe:      equity ? np/equity : 0,
+      eqRat:    assets ? equity/assets : 0,
+      opMgn:    sales  ? op/sales : 0,
+      salesGr:  (sales&&fsales) ? fsales/sales-1 : 0,
+      nySalesGr:(fsales&&nySales) ? nySales/fsales-1 : 0,
     }
-    return { fin, shOut }
-  } catch { return null }
+  }
+
+  // ── 戦略1: 一括取得（paginationKey で全ページ）──
+  let bulkSuccess = false
+  try {
+    const wlSet = new Set(watchlist)
+    const grouped: Record<string, Record<string,string>[]> = {}
+    let paginationKey: string|null = null
+    for (let page = 0; page < 30; page++) {
+      const path = paginationKey
+        ? `/fins/summary?paginationKey=${encodeURIComponent(paginationKey)}`
+        : `/fins/summary`
+      const res = await jqFetch(path, apiKey)
+      const batch: Record<string,string>[] = res.data ?? []
+      for (const s of batch) {
+        const raw = s.Code ?? ''
+        const code = raw.length===5 && raw.endsWith('0') ? raw.slice(0,4) : raw
+        if (!wlSet.has(code)) continue
+        if (!grouped[code]) grouped[code] = []
+        grouped[code].push(s)
+      }
+      paginationKey = res.pagination_key ?? null
+      if (!paginationKey || batch.length === 0) break
+      await new Promise(r => setTimeout(r, 200))
+    }
+    for (const code of watchlist) {
+      if (grouped[code]?.length > 0) processStmts(code, grouped[code])
+    }
+    bulkSuccess = Object.keys(finDB).length > watchlist.length * 0.5 // 50%以上取れたら成功とみなす
+  } catch(e) {
+    console.warn('[fetchAllFinancials] bulk failed:', e)
+  }
+
+  // ── 戦略2: 未取得銘柄を個別直列取得 ──
+  const needIndividual = watchlist.filter(c => !finDB[c])
+  if (needIndividual.length > 0) {
+    if (!bulkSuccess) {
+      console.log('[fetchAllFinancials] bulk unavailable, using individual for all', needIndividual.length, 'codes')
+    } else {
+      console.log('[fetchAllFinancials] individual fetch for missing', needIndividual.length, 'codes')
+    }
+    let done = watchlist.length - needIndividual.length
+    for (const code of needIndividual) {
+      // 1件ずつ確実に（失敗したらfetchFinancialOne内でリトライ済み）
+      const result = await fetchFinancialOne(apiKey, code)
+      if (result) {
+        finDB[code] = result.fin
+        if (result.shOut > 0) shOutDB[code] = result.shOut
+      }
+      done++
+      onProgress?.(done, watchlist.length)
+      // レート制限対策: 1件ごとに300ms待機
+      await new Promise(r => setTimeout(r, 300))
+    }
+  }
+
+  return { finDB, shOutDB }
 }
+
 
 export async function fetchFinancials(
   apiKey: string,

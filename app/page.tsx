@@ -58,6 +58,13 @@ export default function Page() {
   // watchlistの最新値を常にrefで追跡（stale closure防止）
   useEffect(() => { watchlistRef.current = watchlist }, [watchlist])
 
+  // watchlist更新ヘルパー: state・ref・localStorageを同時更新
+  function updateWatchlist(next: string[]) {
+    watchlistRef.current = next  // ref を即座に更新（stale closure防止）
+    setWatchlist(next)
+    lsSet('watchlist', next)
+  }
+
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
     if (loading) return
@@ -77,12 +84,19 @@ export default function Page() {
       setPriceDB({ ...prices })
 
       // 常に最新watchlistを使う
-      const currentWatchlist = watchlistRef.current.length > 0 ? watchlistRef.current : watchlist
+      const currentWatchlist = watchlistRef.current.length > 0 ? [...watchlistRef.current] : [...watchlist]
       const total = currentWatchlist.length
 
       // 一括取得（全銘柄を1〜数リクエストで取得、レート制限回避）
       st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)
-      const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(apiKey, currentWatchlist)
+      const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(
+        apiKey,
+        currentWatchlist,
+        (done, total) => {
+          st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
+          setFinDB(prev => ({ ...prev })) // 随時UI更新
+        }
+      )
 
       // 取得できた数を確認
       const gotCount = Object.keys(fins).length
@@ -216,7 +230,7 @@ export default function Page() {
   function addStockFromSearch(code: string) {
     if (!watchlist.includes(code)) {
       const next = [...watchlist, code]
-      setWatchlist(next); lsSet('watchlist', next)
+      updateWatchlist(next)
     }
     setSearchQuery(''); setSearchResults([]); setSearchOpen(false)
   }
@@ -236,13 +250,13 @@ export default function Page() {
     if (!code) return
     if (!watchlist.includes(code)) {
       const next = [...watchlist, code]
-      setWatchlist(next); lsSet('watchlist', next)
+      updateWatchlist(next)
     }
     setAddCode('')
   }
   function removeStock(code: string) {
     const next = watchlist.filter(c => c !== code)
-    setWatchlist(next); lsSet('watchlist', next)
+    updateWatchlist(next)
   }
   function saveMemo(code: string, text: string) {
     const next = { ...memos, [code]: text }
@@ -438,7 +452,7 @@ export default function Page() {
                   if (!text) return
                   const codes = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
                   const next = Array.from(new Set([...watchlist, ...codes]))
-                  setWatchlist(next); lsSet('watchlist', next)
+                  updateWatchlist(next)
                 }}>インポート</button>
               </div>
             </div>

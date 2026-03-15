@@ -22,7 +22,7 @@ function lsSet(key: string, val: unknown) {
 export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
   const [watchlist,  setWatchlist]  = useState<string[]>(() => ls('watchlist', DEFAULT_WATCHLIST))
-  const watchlistRef = useRef<string[]>([])
+  const watchlistRef = useRef<string[]>(ls('watchlist', DEFAULT_WATCHLIST))
   const [memos,      setMemos]      = useState<Record<string,string>>(() => ls('memos', {}))
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
@@ -91,13 +91,14 @@ export default function Page() {
       st('銘柄マスタ・株価を取得中...', 15)
       const [master, prices] = await Promise.all([
         fetchMaster(apiKey),
-        fetchPrices(apiKey, dateStr),
+        fetchPrices(apiKey, watchlistRef.current, dateStr, (msg) => st(msg, 20)),
       ])
       setMasterDB(master)
       setPriceDB({ ...prices })
 
       // 常に最新watchlistを使う
-      const currentWatchlist = watchlistRef.current.length > 0 ? [...watchlistRef.current] : [...watchlist]
+      // watchlistRef.currentは常に最新（updateWatchlistで即時同期）
+      const currentWatchlist = [...watchlistRef.current]
       const total = currentWatchlist.length
 
       // 一括取得（全銘柄を1〜数リクエストで取得、レート制限回避）
@@ -133,7 +134,9 @@ export default function Page() {
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
       const failMsg = missing.length > 0 ? ` (未取得${missing.length}銘柄)` : ''
-      st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg}`, 100)
+      const elapsedSec = Math.round((Date.now() - startTime) / 1000)
+      const elapsedStr = elapsedSec < 60 ? `${elapsedSec}秒` : `${Math.floor(elapsedSec/60)}分${elapsedSec%60}秒`
+      st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg} (所要${elapsedStr})`, 100)
       setStatus('ok')
       setTab('dashboard')
     } catch (e: unknown) {
@@ -144,7 +147,7 @@ export default function Page() {
       setLoading(false)
       setTimeout(() => setProgress(0), 1200)
     }
-  }, [apiKey, loading, watchlist])
+  }, [apiKey, loading])
 
   const allRows = useMemo(
     () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB, customGenres)),

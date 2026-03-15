@@ -5,7 +5,7 @@ import {
   TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
 } from './lib/types'
 import {
-  findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements, fetchFinancialOne,
+  findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements, fetchFinancialOne, fetchAllFinancials,
 } from './lib/api'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, marketShort } from './lib/format'
 import styles from './page.module.css'
@@ -79,58 +79,19 @@ export default function Page() {
       // 常に最新watchlistを使う
       const currentWatchlist = watchlistRef.current.length > 0 ? watchlistRef.current : watchlist
       const total = currentWatchlist.length
-      const fins: Record<string, FinRecord> = {}
-      const localShOut: Record<string, number> = {}
-      const BATCH = 8
-      let done = 0
-      const allFailed: string[] = []
 
-      st(`財務データ取得中... (0/${total})`, 40)
+      // 一括取得（全銘柄を1〜数リクエストで取得、レート制限回避）
+      st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)
+      const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(apiKey, currentWatchlist)
 
-      // 1パス目: 並列バッチ取得
-      for (let i = 0; i < currentWatchlist.length; i += BATCH) {
-        const batch = currentWatchlist.slice(i, i + BATCH)
-        const results = await Promise.allSettled(
-          batch.map(code => fetchFinancialOne(apiKey, code))
-        )
-        results.forEach((r, j) => {
-          const code = batch[j]
-          if (r.status === 'fulfilled' && r.value) {
-            fins[code] = r.value.fin
-            if (r.value.shOut > 0) localShOut[code] = r.value.shOut
-          } else {
-            allFailed.push(code)
-          }
-        })
-        done += batch.length
-        st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
-        setFinDB({ ...fins })
-        if (i + BATCH < currentWatchlist.length) await new Promise(r => setTimeout(r, 150))
+      // 取得できた数を確認
+      const gotCount = Object.keys(fins).length
+      const missing = currentWatchlist.filter(c => !fins[c])
+      if (missing.length > 0) {
+        st(`財務データ補完中... (残${missing.length}銘柄)`, 82)
       }
 
-      // リトライ（最大4回）
-      let remaining = [...allFailed]
-      for (const waitMs of [1000, 2000, 4000, 6000]) {
-        if (remaining.length === 0) break
-        st(`再取得中... (残${remaining.length}銘柄)`, 85)
-        await new Promise(r => setTimeout(r, waitMs))
-        const nextFailed: string[] = []
-        for (let i = 0; i < remaining.length; i += BATCH) {
-          const batch = remaining.slice(i, i + BATCH)
-          const results = await Promise.allSettled(batch.map(code => fetchFinancialOne(apiKey, code)))
-          results.forEach((r, j) => {
-            const code = batch[j]
-            if (r.status === 'fulfilled' && r.value) {
-              fins[code] = r.value.fin
-              if (r.value.shOut > 0) localShOut[code] = r.value.shOut
-            } else {
-              nextFailed.push(code)
-            }
-          })
-        }
-        remaining = nextFailed
-        setFinDB({ ...fins })
-      }
+      setFinDB({ ...fins })
 
       // mcap計算
       for (const [code, sh] of Object.entries(localShOut)) {
@@ -144,8 +105,8 @@ export default function Page() {
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
-      const failMsg = remaining.length > 0 ? ` (未取得${remaining.length}銘柄: ${remaining.join(',')})` : ''
-      st(`完了 — 基準日: ${dateDisp}${failMsg}`, 100)
+      const failMsg = missing.length > 0 ? ` (未取得${missing.length}銘柄)` : ''
+      st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg}`, 100)
       setStatus('ok')
       setTab('dashboard')
     } catch (e: unknown) {

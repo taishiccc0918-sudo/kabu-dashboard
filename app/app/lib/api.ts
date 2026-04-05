@@ -75,9 +75,14 @@ async function fetchPastDate(baseDate: string, daysBack: number, rangeDays: numb
 }
 
 export async function fetchPrices(
-  apiKey: string, watchlist: string[], latestDate: string,
+  apiKey: string,
+  watchlistOrDate: string[] | string,
+  latestDateArg?: string,
   onProgress?: (msg: string) => void
 ): Promise<Record<string, PriceRecord>> {
+  // Support both fetchPrices(apiKey, dateStr) and fetchPrices(apiKey, watchlist, dateStr)
+  const watchlist: string[] = Array.isArray(watchlistOrDate) ? watchlistOrDate : []
+  const latestDate: string = Array.isArray(watchlistOrDate) ? (latestDateArg ?? '') : watchlistOrDate
   const db: Record<string, PriceRecord> = {}
   const wlSet = new Set(watchlist)
   onProgress?.('株価データ取得中...')

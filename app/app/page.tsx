@@ -813,7 +813,7 @@ function DashboardTable({
     { label: 'PEG',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other' },
-    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: 'PER今期の1ヶ月前比 ≤ −5% のとき「買い」。市場が1ヶ月前より将来利益を安く評価している（割安化シグナル）' },
+    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。\n\n計算式: 現在株価÷予想EPS vs 1ヶ月前株価÷予想EPS\n変化率が−5%以下なら「買い」と判定' },
     { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'YF',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },

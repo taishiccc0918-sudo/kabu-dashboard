@@ -50,7 +50,6 @@ export async function fetchMaster(apiKey: string): Promise<Record<string, Master
       db[code] = {
         name:   row.CompanyNameEn ?? row.CompanyName ?? '',
         market: row.MarketCode ?? row.Market ?? '',
-        sector: row.Sector17CodeName ?? '',
       }
     }
   } catch(e) { console.warn('[fetchMaster] failed:', e) }
@@ -179,10 +178,11 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const shOut = bestVal(all,'ShOutFY','ShOut')
       const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
       const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
-      const feps=n(nfy.FEPS)||n(fy.FEPS)||bestVal(all,'FEPS')
-      const fsales=n(nfy.FSales)||n(fy.FSales)||bestVal(all,'FSales')
+      // FEPSはFY（通期）のものを優先、FSalesも同様
+      const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
+      const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
-      const fdiv=n(nfy.FDivAnn)||n(nfy.DivAnn)||n(fy.FDivAnn)||n(fy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+      const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
       return {
         fin: {
           sales,op,odp:bestVal(all,'OdP'),np,eps:bestVal(all,'EPS'),feps,
@@ -239,10 +239,11 @@ export async function fetchAllFinancials(
     if (shOut > 0) shOutDB[code] = shOut
     const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
     const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
-    const feps=n(nfy.FEPS)||n(fy.FEPS)||bestVal(all,'FEPS')
-    const fsales=n(nfy.FSales)||n(fy.FSales)||bestVal(all,'FSales')
+    // FEPSはFY（通期）のものを優先
+    const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
+    const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
-    const fdiv=n(nfy.FDivAnn)||n(nfy.DivAnn)||n(fy.FDivAnn)||n(fy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+    const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
       eps:bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),

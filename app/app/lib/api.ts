@@ -116,7 +116,7 @@ export async function fetchPrices(
     const prev1m = d1m ? (byDate[d1m]?.[code] ?? 0) : 0
     const prev3m = d3m ? (byDate[d3m]?.[code] ?? 0) : 0
     const prev1y = d1y ? (byDate[d1y]?.[code] ?? 0) : 0
-    const chg = (a: number, b: number) => (a > 0 && b > 0) ? (a/b - 1) : null
+    const chg = (a: number, b: number): number | undefined => (a > 0 && b > 0) ? (a/b - 1) : undefined
     db[code] = {
       close, mcap: 0,
       chg1d: chg(close, prev1d), chg1w: chg(close, prev1w),

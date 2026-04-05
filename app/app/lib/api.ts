@@ -89,7 +89,7 @@ export async function fetchPrices(
     fetchPastDate(latestDate, 1, 5, apiKey),
   ])
   const allDates = [latestDate, prevDate, d1w, d1m, d3m, d1y].filter(Boolean) as string[]
-  const uniqueDates = [...new Set(allDates)]
+  const uniqueDates = Array.from(new Set(allDates))
   const results = await Promise.all(
     uniqueDates.map(async (date) => {
       try {

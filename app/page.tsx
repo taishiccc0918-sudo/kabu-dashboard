@@ -22,7 +22,7 @@ function lsSet(key: string, val: unknown) {
 export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
   const [watchlist,  setWatchlist]  = useState<string[]>(() => ls('watchlist', DEFAULT_WATCHLIST))
-  const watchlistRef = useRef<string[]>([])
+  const watchlistRef = useRef<string[]>(ls('watchlist', DEFAULT_WATCHLIST))
   const [memos,      setMemos]      = useState<Record<string,string>>(() => ls('memos', {}))
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
@@ -52,53 +52,60 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
-  const theadTop = 96  // header(52px) + toolbar(44px)
+  const theadTop = 96
   const [forcePc, setForcePc] = useState(false)
 
-  // watchlistの最新値を常にrefで追跡（stale closure防止）
   useEffect(() => { watchlistRef.current = watchlist }, [watchlist])
 
-  // watchlist更新ヘルパー: state・ref・localStorageを同時更新
-  function updateWatchlist(next: string[]) {
-    watchlistRef.current = next  // ref を即座に更新（stale closure防止）
+  const updateWatchlist = useCallback((next: string[]) => {
+    watchlistRef.current = next
     setWatchlist(next)
     lsSet('watchlist', next)
-  }
+    console.log('[watchlist] updated:', next.length, 'codes')
+  }, [])
 
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
     if (loading) return
     setLoading(true); setStatus('loading')
-    const st = (msg: string, pct: number) => { setStatusMsg(msg); setProgress(pct) }
+    const startTime = Date.now()
+    const st = (msg: string, pct: number) => {
+      if (pct > 5 && pct < 100) {
+        const elapsed = (Date.now() - startTime) / 1000
+        const estimated = elapsed / (pct / 100)
+        const remaining = Math.ceil(estimated - elapsed)
+        const remStr = remaining > 3 ? ` (残約${remaining < 60 ? remaining + '秒' : Math.ceil(remaining/60) + '分'})` : ''
+        setStatusMsg(msg + remStr)
+      } else {
+        setStatusMsg(msg)
+      }
+      setProgress(pct)
+    }
     try {
       st('最新営業日を確認中...', 5)
       const { dateStr, dateDisp } = await findLatestBizDate(apiKey)
 
-      // マスタと株価を並列取得
       st('銘柄マスタ・株価を取得中...', 15)
       const [master, prices] = await Promise.all([
         fetchMaster(apiKey),
-        fetchPrices(apiKey, dateStr),
+        fetchPrices(apiKey, watchlistRef.current, dateStr, (msg) => st(msg, 20)),
       ])
       setMasterDB(master)
       setPriceDB({ ...prices })
 
-      // 常に最新watchlistを使う
-      const currentWatchlist = watchlistRef.current.length > 0 ? [...watchlistRef.current] : [...watchlist]
+      const currentWatchlist = [...watchlistRef.current]
       const total = currentWatchlist.length
 
-      // 一括取得（全銘柄を1〜数リクエストで取得、レート制限回避）
       st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)
       const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(
         apiKey,
         currentWatchlist,
         (done, total) => {
           st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
-          setFinDB(prev => ({ ...prev })) // 随時UI更新
+          setFinDB(prev => ({ ...prev }))
         }
       )
 
-      // 取得できた数を確認
       const gotCount = Object.keys(fins).length
       const missing = currentWatchlist.filter(c => !fins[c])
       if (missing.length > 0) {
@@ -107,20 +114,21 @@ export default function Page() {
 
       setFinDB({ ...fins })
 
-      // mcap計算
       for (const [code, sh] of Object.entries(localShOut)) {
         if (prices[code]?.close) prices[code].mcap = Math.round(prices[code].close * sh / 1e8)
       }
       setPriceDB({ ...prices })
 
       st('決算予定日取得中...', 92)
-      await fetchAnnouncements(apiKey, fins)
+      await fetchAnnouncements(apiKey, currentWatchlist)
       setFinDB({ ...fins })
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
       const failMsg = missing.length > 0 ? ` (未取得${missing.length}銘柄)` : ''
-      st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg}`, 100)
+      const elapsedSec = Math.round((Date.now() - startTime) / 1000)
+      const elapsedStr = elapsedSec < 60 ? `${elapsedSec}秒` : `${Math.floor(elapsedSec/60)}分${elapsedSec%60}秒`
+      st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg} (所要${elapsedStr})`, 100)
       setStatus('ok')
       setTab('dashboard')
     } catch (e: unknown) {
@@ -131,7 +139,7 @@ export default function Page() {
       setLoading(false)
       setTimeout(() => setProgress(0), 1200)
     }
-  }, [apiKey, loading, watchlist])
+  }, [apiKey, loading])
 
   const allRows = useMemo(
     () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB, customGenres)),
@@ -202,7 +210,6 @@ export default function Page() {
       const next = customGenreOptions.filter(g => g !== name)
       setCustomGenreOptions(next); lsSet('customGenreOptions', next)
     } else {
-      // デフォルトジャンルは「削除済み」として記録
       const next = [...removedDefaultGenres, name]
       setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
     }
@@ -211,7 +218,6 @@ export default function Page() {
     setRemovedDefaultGenres([]); lsSet('removedDefaultGenres', [])
   }
 
-  // masterDBから銘柄検索
   function searchMaster(q: string) {
     setSearchQuery(q)
     if (!q.trim()) { setSearchResults([]); setSearchOpen(false); return }
@@ -291,7 +297,6 @@ export default function Page() {
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
         </div>
       </header>
-
 
       <div className={`${styles.toolbar} ${tab === 'watchlist' ? styles.toolbarHidden : ''}`} data-toolbar="">
         <div className={styles.searchWrap}>
@@ -405,17 +410,16 @@ export default function Page() {
       <main className={styles.main}>
         {tab === 'dashboard' && (
           <>
-            {/* PC: フルテーブル */}
             <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
               <DashboardTable
                 filteredRows={filteredRows}
+                finDB={finDB}
                 sortKey={sortKey}
                 sortDir={sortDir}
                 handleSort={handleSort}
                 onRowClick={(code) => setDetailCode(code)}
               />
             </div>
-            {/* スマホ: コンパクトリスト */}
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
               <div className={styles.mobileList}>
                 {filteredRows.length === 0
@@ -439,7 +443,6 @@ export default function Page() {
 
         {tab === 'watchlist' && (
           <div className={styles.wlManager}>
-            {/* ── ヘッダー ── */}
             <div className={styles.wlHeader}>
               <div className={styles.wlTitle}>銘柄管理 <span className={styles.wlCount}>{watchlist.length}銘柄</span></div>
               <div style={{display:'flex', gap:8}}>
@@ -457,7 +460,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* ── ジャンル管理 ── */}
             <div className={styles.wlGenreBar}>
               <span className={styles.wlGenreLabel}>ジャンル:</span>
               {allGenreOptions.map(g => (
@@ -474,7 +476,6 @@ export default function Page() {
               )}
             </div>
 
-            {/* ── 銘柄検索・追加 ── */}
             <div className={styles.wlSearchRow}>
               <div className={styles.wlSearchWrap}>
                 <input
@@ -503,7 +504,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* ── 銘柄テーブル ── */}
             <table className={styles.wlTableInner}>
                 <thead>
                   <tr>
@@ -572,9 +572,7 @@ type ChartMode = 'daily' | 'monthly'
 
 interface SeriesData { prices: number[]; label: string; color: string }
 
-// 指数はstooq.com CSV経由（CORSなし・公開API）
 async function fetchIndex(stooqSymbol: string, from: string, to: string): Promise<number[]> {
-  // from/to: YYYYMMDD → YYYY-MM-DD
   const fd = `${from.slice(0,4)}-${from.slice(4,6)}-${from.slice(6,8)}`
   const td = `${to.slice(0,4)}-${to.slice(4,6)}-${to.slice(6,8)}`
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&d1=${fd.replace(/-/g,'')}&d2=${td.replace(/-/g,'')}&i=d`
@@ -582,11 +580,11 @@ async function fetchIndex(stooqSymbol: string, from: string, to: string): Promis
     const r = await fetch(url)
     const text = await r.text()
     if (!text || text.includes('No data') || text.trim().length < 20) return []
-    const lines = text.trim().split('\n').slice(1) // ヘッダースキップ
+    const lines = text.trim().split('\n').slice(1)
     const closes: number[] = []
     for (const line of lines) {
       const cols = line.split(',')
-      const c = parseFloat(cols[4] ?? '') // Close列
+      const c = parseFloat(cols[4] ?? '')
       if (!isNaN(c) && c > 0) closes.push(c)
     }
     return closes
@@ -601,7 +599,6 @@ function normalizeSeries(prices: number[]): number[] {
 
 function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   const [mode, setMode] = useState<ChartMode>('daily')
-  // モードごとにデータをキャッシュ
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, monthly: null })
   const [chartLoading, setChartLoading] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -610,7 +607,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
   useEffect(() => {
     if (!apiKey || !code) return
-    if (cachedData[mode] !== null) return  // キャッシュあれば再取得しない
+    if (cachedData[mode] !== null) return
 
     setChartLoading(true)
     const today = new Date()
@@ -656,7 +653,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     }).finally(() => setChartLoading(false))
   }, [code, apiKey, mode])
 
-  // キャンバス描画
   useEffect(() => {
     const draw = () => {
     const canvas = canvasRef.current
@@ -668,7 +664,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // 幅取得: 非表示時は親要素から取得
     const w = canvas.clientWidth || canvas.offsetWidth ||
       (canvas.parentElement?.clientWidth ?? 280)
     const h = 140
@@ -676,7 +671,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     canvas.height = h
     ctx.clearRect(0, 0, w, h)
 
-    // 全系列のmin/maxで正規化表示
     const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
     const min = Math.min(...allValues) * 0.98
     const max = Math.max(...allValues) * 1.02
@@ -685,7 +679,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     const toX = (i: number, len: number) => (i / (len - 1)) * w
     const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
 
-    // 株価のグラデーション塗りつぶし
     const stockColor = series[0].color
     const grad = ctx.createLinearGradient(0, 0, 0, h)
     grad.addColorStop(0, stockColor.includes('34d') ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)')
@@ -696,7 +689,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
     ctx.fillStyle = grad; ctx.fill()
 
-    // 各系列のライン描画
     for (const s of series) {
       if (s.prices.length < 2) continue
       ctx.beginPath()
@@ -706,7 +698,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
       ctx.stroke()
     }
 
-    // 凡例
     const legends = series.filter(s => s.prices.length > 1)
     legends.forEach((s, i) => {
       ctx.fillStyle = s.color
@@ -715,8 +706,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
       ctx.font = '10px JetBrains Mono, monospace'
       ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
     })
-    } // end draw
-    // canvasが非表示の場合でもrAFで1フレーム後に描画
+    }
     requestAnimationFrame(draw)
   }, [cachedData, mode, code])
 
@@ -735,7 +725,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
           </button>
         ))}
       </div>
-      {/* canvasは常にDOMに存在させ、refを維持 */}
       <canvas
         ref={canvasRef}
         className={styles.chartCanvas}
@@ -748,12 +737,11 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 }
 
 // ─── DashboardTable ──────────────────────────────────────────────────
-// theadとtbodyを別コンテナに分離し、横スクロールをJS同期することで
-// 縦スクロール時のheader固定と横スクロールを両立する
 function DashboardTable({
-  filteredRows, sortKey, sortDir, handleSort, onRowClick
+  filteredRows, finDB, sortKey, sortDir, handleSort, onRowClick
 }: {
   filteredRows: StockRow[]
+  finDB: Record<string, import('./lib/types').FinRecord>
   sortKey: keyof StockRow | null
   sortDir: 1 | -1
   handleSort: (k: keyof StockRow) => void
@@ -762,7 +750,6 @@ function DashboardTable({
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  // 横スクロール同期
   const onBodyScroll = () => {
     if (headRef.current && bodyRef.current)
       headRef.current.scrollLeft = bodyRef.current.scrollLeft
@@ -795,7 +782,7 @@ function DashboardTable({
     { label: 'PEG',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other' },
-    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other' },
+    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。\n\n計算式: 現在株価÷予想EPS vs 1ヶ月前株価÷予想EPS\n変化率が−5%以下なら「買い」と判定' },
     { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'YF',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
@@ -803,7 +790,6 @@ function DashboardTable({
 
   return (
     <div className={styles.dashWrap}>
-      {/* 固定ヘッダー行 */}
       <div className={styles.theadOuter} ref={headRef}>
         <table className={`${styles.table} ${styles.theadTable}`}>
             <colgroup>
@@ -851,7 +837,6 @@ function DashboardTable({
           </thead>
         </table>
       </div>
-      {/* スクロールするボディ */}
       <div className={styles.tbodyOuter} ref={bodyRef} onScroll={onBodyScroll}>
         <table className={styles.table}>
             <colgroup>
@@ -886,7 +871,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} onClick={() => onRowClick(r.code)} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} onClick={() => onRowClick(r.code)} />
             ))}
           </tbody>
         </table>
@@ -896,7 +881,7 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClick: () => void }) {
+function TableRow({ row: r, idx, fin, onClick }: { row: StockRow; idx: number; fin?: import('./lib/types').FinRecord; onClick: () => void }) {
   const stickyBg = idx % 2 === 0 ? '#0d1219' : 'rgba(17,24,37,0.9)'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -912,9 +897,15 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
         <td key={i} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
           style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
       ))}
-      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perA ? fmtN(r.perA) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perF ? fmtN(r.perF) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}>{r.perN ? fmtN(r.perN) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
+        title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
+      >{r.perA ? fmtN(r.perA) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''}`}
+        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : undefined}
+      >{r.perF ? fmtN(r.perF) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
+        title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : undefined}
+      >{r.perN ? fmtN(r.perN) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup} ${styles.hasTooltip}`}
         style={{background: pctBg(r.perFChg1m)}}
         title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
@@ -926,8 +917,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
       <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={`${styles.tdNum} ${r.opMgn && r.opMgn > 0.15 ? styles.up : ''}`}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-
-      <td><JudgmentBadge j={r.judgment} /></td>
+      <td className={styles.hasTooltip} title="PER今期の1ヶ月前比が−5%以下のとき「買い」\n= 市場がこの銘柄の将来利益を1ヶ月前より安く評価している（割安化シグナル）"><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>YF</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
@@ -935,8 +925,7 @@ function TableRow({ row: r, idx, onClick }: { row: StockRow; idx: number; onClic
   )
 }
 
-
-// ─── MobileRow (スマホ専用コンパクトリスト) ──────────────────────────
+// ─── MobileRow ───────────────────────────────────────────────────────
 function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -967,7 +956,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
   )
 }
 
-// ─── StockCard (チャート付き) ─────────────────────────────────────────
+// ─── StockCard ───────────────────────────────────────────────────────
 function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   const [showChart, setShowChart] = useState(false)
@@ -1013,8 +1002,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
   )
 }
 
-
-// ─── InlineGenreAdd ─────────────────────────────────────────────────
+// ─── InlineGenreAdd ──────────────────────────────────────────────────
 function InlineGenreAdd({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState('')
   const [open, setOpen] = useState(false)
@@ -1045,7 +1033,7 @@ function InlineGenreAdd({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-// ─── AddGenreInput ──────────────────────────────────────────────────
+// ─── AddGenreInput ───────────────────────────────────────────────────
 function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState('')
   return (
@@ -1098,16 +1086,13 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
         </td>
         <td className={styles.wlTd}>
           <div className={styles.wlGenreCell}>
-            {/* 選択済みタグを表示 */}
             {selected.map(g => (
               <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>
             ))}
-            {/* 編集ボタン */}
             <button
               className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
               onClick={() => setEditing(e => !e)}
             >{editing ? '▲ 閉じる' : '✏️ 編集'}</button>
-
           </div>
         </td>
         <td className={styles.wlTd} style={{textAlign:'center'}}>

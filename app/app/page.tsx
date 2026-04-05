@@ -128,7 +128,7 @@ export default function Page() {
       setPriceDB({ ...prices })
 
       st('決算予定日取得中...', 92)
-      await fetchAnnouncements(apiKey, fins)
+      await fetchAnnouncements(apiKey, currentWatchlist)
       setFinDB({ ...fins })
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)

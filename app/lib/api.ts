@@ -89,7 +89,7 @@ export async function fetchPrices(
     fetchPastDate(latestDate, 1, 5, apiKey),
   ])
   const allDates = [latestDate, prevDate, d1w, d1m, d3m, d1y].filter(Boolean) as string[]
-  const uniqueDates = [...new Set(allDates)]
+  const uniqueDates = Array.from(new Set(allDates))
   const results = await Promise.all(
     uniqueDates.map(async (date) => {
       try {
@@ -116,11 +116,13 @@ export async function fetchPrices(
     const prev1m = d1m ? (byDate[d1m]?.[code] ?? 0) : 0
     const prev3m = d3m ? (byDate[d3m]?.[code] ?? 0) : 0
     const prev1y = d1y ? (byDate[d1y]?.[code] ?? 0) : 0
-    const chg = (a: number, b: number) => (a > 0 && b > 0) ? (a/b - 1) : null
+    const chg = (a: number, b: number): number | undefined => (a > 0 && b > 0) ? (a/b - 1) : undefined
     db[code] = {
       close, mcap: 0,
-      chg1d: chg(close, prev1d), chg1w: chg(close, prev1w),
-      chg1m: chg(close, prev1m), chg3m: chg(close, prev3m), chg1y: chg(close, prev1y),
+      chg1d: chg(close, prev1d),
+      chg1w: chg(close, prev1w),
+      chg3m: chg(close, prev3m),
+      chg1y: chg(close, prev1y),
       prev1m, prev1w, prev3m, prev1y,
     }
   }

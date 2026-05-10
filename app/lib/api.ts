@@ -47,18 +47,34 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
 
 export async function fetchMaster(apiKey: string): Promise<Record<string, MasterRecord>> {
   const db: Record<string, MasterRecord> = {}
-  try {
-    const data = await jqFetch('/equities/master', apiKey) as { equities?: Record<string, string>[] }
-    for (const row of data.equities ?? []) {
+  function processRows(rows: Record<string, string>[]) {
+    for (const row of rows) {
       const raw = row.Code ?? ''
       const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0, 4) : raw
       if (!code) continue
-      const rawMarket = row.Market ?? row.MarketCode ?? ''
+      const rawMarket = String(row.MarketCode ?? row.Market ?? '')
       db[code] = {
-        name:   row.CompanyNameEn ?? row.CompanyName ?? '',
+        name:   row.CompanyNameEnglish ?? row.CompanyNameEn ?? row.CompanyName ?? '',
         market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
       }
     }
+  }
+  try {
+    let paginationKey: string | null = null
+    for (let page = 0; page < 10; page++) {
+      const path = paginationKey
+        ? `/listed/info?paginationKey=${encodeURIComponent(paginationKey)}`
+        : '/listed/info'
+      const data = await jqFetch(path, apiKey)
+      const rows = (data as { info?: Record<string, string>[] }).info
+                ?? (data as { listed_info?: Record<string, string>[] }).listed_info
+                ?? (data as { equities?: Record<string, string>[] }).equities
+                ?? []
+      processRows(rows as Record<string, string>[])
+      paginationKey = (data as { pagination_key?: string }).pagination_key ?? null
+      if (!paginationKey || rows.length === 0) break
+    }
+    console.log(`[fetchMaster] loaded ${Object.keys(db).length} companies`)
   } catch(e) { console.warn('[fetchMaster] failed:', e) }
   return db
 }
@@ -337,6 +353,14 @@ export async function fetchAllFinancials(
       }
       if (i + CONCURRENCY < stillMissing.length) await new Promise(r => setTimeout(r, 200))
     }
+  }
+
+  const finalMissing = watchlist.filter(c => !finDB[c])
+  if (finalMissing.length > 0) {
+    console.warn(`[fetchAllFinancials] 最終的に取得できなかった銘柄 (${finalMissing.length}件): ${finalMissing.join(', ')}`)
+    console.warn('[fetchAllFinancials] 上記銘柄はJ-Quants APIから財務データが返らなかったため未取得です。')
+  } else {
+    console.log('[fetchAllFinancials] 全銘柄の財務データ取得完了')
   }
 
   return { finDB, shOutDB }

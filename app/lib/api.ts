@@ -1,332 +1,224 @@
-import { MasterRecord, PriceRecord, FinRecord } from './types'
+export const DEFAULT_WATCHLIST = [
+  '290A','8729','4902','7003','7014','3635','6590','3010','7729','7832',
+  '6137','4980','6758','6637','9722','7721','4204','5644','6016','8111',
+  '4107','3433','7760','6565','6643','6331','3088','6273','7552','6023',
+  '6890','6762','4043','9616','8306','5253','6113','7453','6814','3542',
+  '7906','6954','6861','6368','6469','3697','6503','8136','7245','4062',
+  '4046','9684','3563','5032','6332','7011','9766','5857','7550','5016',
+  '6269','6701','4186','6383','6501','7974','3993','7018','4011','1663',
+  '4180','7936','285A','6946','9468','5803','268A','5136','6524',
+]
 
-const PROXY = 'https://api.jquants.com/v2'
-
-async function jqFetch(path: string, apiKey: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${PROXY}${path}`, {
-    headers: { 'x-api-key': apiKey }
-  })
-  if (!res.ok) throw new Error(`${res.status}: ${path}`)
-  return res.json()
+// デフォルトジャンルマップ（複数タグ対応: カンマ区切り文字列）
+export const DEFAULT_GENRES: Record<string, string> = {
+  '290A': '宇宙',
+  '6946': '宇宙',
+  '7003': '防衛,造船',
+  '7014': '防衛,造船',
+  '7011': '防衛,機械',
+  '7018': '防衛,造船',
+  '6332': '防衛',
+  '6758': '半導体,機械',
+  '6590': '半導体',
+  '6137': '半導体,機械',
+  '7729': '半導体,機械',
+  '7760': '半導体,機械',
+  '6861': '半導体',
+  '6273': '半導体,機械',
+  '6524': '半導体,機械',
+  '5136': '半導体',
+  '7832': 'IP',
+  '7974': 'IP',
+  '9684': 'IT,IP',
+  '3635': 'IT,IP',
+  '285A': 'IT,IP',
+  '9766': 'スポーツ',
+  '7936': 'スポーツ',
+  '8729': '保険',
+  '8306': '銀行',
+  '5253': '保険',
+  '4204': '素材',
+  '5644': '素材',
+  '3433': '素材',
+  '5803': '素材',
+  '4107': '化学',
+  '4043': '化学',
+  '4980': '化学',
+  '4186': '化学',
+  '4046': '化学',
+  '4062': '化学',
+  '6016': '機械',
+  '6023': '機械',
+  '6331': '機械',
+  '6368': '機械',
+  '6469': '機械',
+  '6503': '機械',
+  '6501': '機械,半導体',
+  '6701': '機械,IT',
+  '4902': '機械',
+  '6113': '機械',
+  '6637': '機械',
+  '6643': '機械',
+  '6762': '機械,半導体',
+  '7721': '機械',
+  '7245': '機械',
+  '6890': '機械',
+  '6814': '機械',
+  '6565': '機械',
+  '7906': '機械',
+  '6954': '機械,半導体',
+  '6383': '機械',
+  '6269': '機械',
+  '268A': '機械',
+  '3697': 'IT',
+  '4011': 'IT',
+  '4180': 'IT',
+  '3993': 'IT',
+  '5032': 'IT',
+  '3542': 'サービス',
+  '3088': 'サービス',
+  '9722': 'サービス',
+  '9616': 'サービス',
+  '8136': 'サービス',
+  '7453': '小売',
+  '3563': '小売',
+  '5016': 'エネルギー',
+  '1663': 'エネルギー',
+  '5857': 'エネルギー',
+  '7550': '自動車',
+  '9468': 'サービス',
+  '9416': '宇宙',
 }
 
-function n(v: unknown): number {
-  if (v === null || v === undefined || v === '') return 0
-  const num = Number(v)
-  return isNaN(num) ? 0 : num
+export const ALL_GENRE_OPTIONS = [
+  '宇宙','防衛','造船','半導体','機械','IT','IP','スポーツ',
+  '保険','銀行','素材','化学','サービス','小売','エネルギー','自動車','その他'
+]
+
+export interface PriceRecord {
+  close: number
+  open?: number
+  high?: number
+  low?: number
+  vol?: number
+  mcap?: number
+  prev1d?: number
+  prev1w?: number
+  prev1m?: number
+  prev3m?: number
+  prev1y?: number
+  chg1d?: number
+  chg1w?: number
+  chg3m?: number
+  chg1y?: number
+}
+export interface FinRecord {
+  sales: number
+  op: number
+  odp: number
+  np: number
+  eps: number
+  feps: number
+  nyEPS: number
+  bps: number
+  equity: number
+  assets: number
+  divAnn: number
+  fdiv: number
+  shOut: number
+  nextAnnouncementDate?: string   // ← 追加: 次回決算予定日 (YYYY-MM-DD)
+  discDate: string
+  perType: string
+  roe: number
+  eqRat: number
+  opMgn: number
+  salesGr: number
+  nySalesGr: number
+  fsales: number
+  fop: number
+  nySales: number
+  nyOP: number
+}
+export interface MasterRecord {
+  name: string
+  market: string
+}
+export interface StockRow {
+  code: string
+  name: string
+  market: string
+  genres: string[]       // 複数タグ
+  close: number
+  chg1d: number | null
+  chg1w: number | null
+  chg3m: number | null
+  chg1y: number | null
+  mcap: number
+  perA: number | null
+  perF: number | null
+  perN: number | null
+  perFChg1w: number | null
+  perFChg1m: number | null
+  perFChg1mPrev: number | null
+  perFChg3m: number | null
+  perFChg1y: number | null
+  pbr: number | null
+  roe: number | null
+  divY: number | null
+  epsGr: number | null
+  peg: number | null
+  opMgn: number | null
+  nySalesGr: number | null
+  judgment: string
+}
+export type SortKey = keyof StockRow
+export type FilterKey = 'all' | 'buy'
+export type TabKey = 'dashboard' | 'card' | 'watchlist'
+export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
+
+// ─── KSF記録 ─────────────────────────────────────────────────────────
+// 投資指針シートのKSF①②を銘柄ごとに記録するための型
+export interface KSFRecord {
+  code: string
+
+  // KSF①「良い会社を選ぶ」- 手入力メモ
+  ksf1_product: string        // Q1: 商品（何を売ってる）
+  ksf1_customer: string       // Q1: 顧客（誰に売れてる）
+  ksf1_profitNote: string     // Q1: 利益率（どのくらい儲かる）
+
+  // KSF②「買い時」- 手入力部分
+  ksf2b_industryPer: number | null    // 業界平均PER
+  ksf2b_per5yMin: number | null       // 過去5年PER最低
+  ksf2b_per5yMax: number | null       // 過去5年PER最高
+  ksf2b_finalCheck: boolean           // 1時間考えた
+
+  // KSF②「売り時」- 手入力部分
+  ksf2s_industryAvgRich: 'high' | 'normal' | null  // A判定: 業界平均より高い側に振れた?
+
+  // 保有情報
+  holding: boolean             // 保有中フラグ
+  buyPrice: number | null      // 買値
+  buyDate: string | null       // 購入日 (YYYY-MM-DD)
+
+  // 更新日時
+  updatedAt: string            // ISO8601文字列
 }
 
-export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: string; dateDisp: string }> {
-  const today = new Date()
-  for (let i = 0; i < 10; i++) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    const day = d.getDay()
-    if (day === 0 || day === 6) continue
-    const yyyymmdd = d.toISOString().slice(0, 10).replace(/-/g, '')
-    try {
-      const data = await jqFetch(`/equities/bars/daily?date=${yyyymmdd}&includeAUSession=false`, apiKey)
-      const rows = (data as { data?: unknown[] }).data ?? []
-      if (Array.isArray(rows) && rows.length > 0) {
-        const disp = `${yyyymmdd.slice(0,4)}-${yyyymmdd.slice(4,6)}-${yyyymmdd.slice(6,8)}`
-        return { dateStr: yyyymmdd, dateDisp: disp }
-      }
-    } catch { continue }
+// KSFRecordのデフォルト値生成関数
+export function emptyKSF(code: string): KSFRecord {
+  return {
+    code,
+    ksf1_product: '',
+    ksf1_customer: '',
+    ksf1_profitNote: '',
+    ksf2b_industryPer: null,
+    ksf2b_per5yMin: null,
+    ksf2b_per5yMax: null,
+    ksf2b_finalCheck: false,
+    ksf2s_industryAvgRich: null,
+    holding: false,
+    buyPrice: null,
+    buyDate: null,
+    updatedAt: new Date().toISOString(),
   }
-  const fallback = new Date(today)
-  fallback.setDate(fallback.getDate() - 2)
-  const s = fallback.toISOString().slice(0, 10).replace(/-/g, '')
-  return { dateStr: s, dateDisp: `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` }
-}
-
-export async function fetchMaster(apiKey: string): Promise<Record<string, MasterRecord>> {
-  const db: Record<string, MasterRecord> = {}
-  try {
-    const data = await jqFetch('/equities/master', apiKey) as { equities?: Record<string, string>[] }
-    for (const row of data.equities ?? []) {
-      const raw = row.Code ?? ''
-      const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0, 4) : raw
-      if (!code) continue
-      db[code] = {
-        name:   row.CompanyNameEn ?? row.CompanyName ?? '',
-        market: row.MarketCode ?? row.Market ?? '',
-      }
-    }
-  } catch(e) { console.warn('[fetchMaster] failed:', e) }
-  return db
-}
-
-async function fetchPastDate(baseDate: string, daysBack: number, rangeDays: number, apiKey: string): Promise<string | null> {
-  const base = new Date(parseInt(baseDate.slice(0,4)), parseInt(baseDate.slice(4,6))-1, parseInt(baseDate.slice(6,8)))
-  const target = new Date(base)
-  target.setDate(target.getDate() - daysBack)
-  for (let offset = 0; offset <= rangeDays; offset++) {
-    const d = new Date(target)
-    d.setDate(d.getDate() - offset)
-    if (d.getDay() === 0 || d.getDay() === 6) continue
-    const yyyymmdd = d.toISOString().slice(0,10).replace(/-/g,'')
-    try {
-      const data = await jqFetch(`/equities/bars/daily?date=${yyyymmdd}&includeAUSession=false`, apiKey)
-      const rows = (data as { data?: unknown[] }).data ?? []
-      if (Array.isArray(rows) && rows.length > 0) return yyyymmdd
-    } catch { continue }
-  }
-  return null
-}
-
-export async function fetchPrices(
-  apiKey: string, watchlist: string[], latestDate: string,
-  onProgress?: (msg: string) => void
-): Promise<Record<string, PriceRecord>> {
-  const db: Record<string, PriceRecord> = {}
-  const wlSet = new Set(watchlist)
-  onProgress?.('株価データ取得中...')
-  const [d1w, d1m, d3m, d1y, prevDate] = await Promise.all([
-    fetchPastDate(latestDate, 7, 7, apiKey),
-    fetchPastDate(latestDate, 30, 7, apiKey),
-    fetchPastDate(latestDate, 90, 7, apiKey),
-    fetchPastDate(latestDate, 365, 7, apiKey),
-    fetchPastDate(latestDate, 1, 5, apiKey),
-  ])
-  const allDates = [latestDate, prevDate, d1w, d1m, d3m, d1y].filter(Boolean) as string[]
-  const uniqueDates = Array.from(new Set(allDates))
-  const results = await Promise.all(
-    uniqueDates.map(async (date) => {
-      try {
-        const data = await jqFetch(`/equities/bars/daily?date=${date}&includeAUSession=false`, apiKey)
-        const rows = (data as { data?: Record<string,string>[] }).data ?? []
-        const map: Record<string, number> = {}
-        for (const row of rows) {
-          const raw = row.Code ?? ''
-          const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
-          if (!wlSet.has(code)) continue
-          const close = n(row.Close) || n(row.AdjustmentClose)
-          if (close > 0) map[code] = close
-        }
-        return { date, map }
-      } catch { return { date, map: {} } }
-    })
-  )
-  const byDate: Record<string, Record<string, number>> = {}
-  for (const r of results) byDate[r.date] = r.map
-  for (const code of watchlist) {
-    const close = byDate[latestDate]?.[code] ?? 0
-    const prev1d = prevDate ? (byDate[prevDate]?.[code] ?? 0) : 0
-    const prev1w = d1w ? (byDate[d1w]?.[code] ?? 0) : 0
-    const prev1m = d1m ? (byDate[d1m]?.[code] ?? 0) : 0
-    const prev3m = d3m ? (byDate[d3m]?.[code] ?? 0) : 0
-    const prev1y = d1y ? (byDate[d1y]?.[code] ?? 0) : 0
-    const chg = (a: number, b: number): number | undefined => (a > 0 && b > 0) ? (a/b - 1) : undefined
-    db[code] = {
-      close, mcap: 0,
-      chg1d: chg(close, prev1d),
-      chg1w: chg(close, prev1w),
-      chg3m: chg(close, prev3m),
-      chg1y: chg(close, prev1y),
-      prev1m, prev1w, prev3m, prev1y,
-    }
-  }
-  return db
-}
-
-export async function fetchAnnouncements(apiKey: string, watchlist: string[]): Promise<Record<string, string>> {
-  const db: Record<string, string> = {}
-  const wlSet = new Set(watchlist)
-  try {
-    const data = await jqFetch('/fins/announcement', apiKey) as { announcement?: Record<string,string>[] }
-    for (const row of data.announcement ?? []) {
-      const raw = row.Code ?? ''
-      const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
-      if (!wlSet.has(code)) continue
-      const date = row.AnnouncementDate ?? row.Date ?? ''
-      if (date) db[code] = date
-    }
-  } catch { /* ignore */ }
-  return db
-}
-
-type FinResult = { fin: FinRecord; shOut: number }
-
-export async function fetchFinancialOne(apiKey: string, code: string): Promise<FinResult | null> {
-  function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
-    for (const key of keys) {
-      for (let i = stmts.length - 1; i >= 0; i--) {
-        const v = n(stmts[i][key]); if (v !== 0) return v
-      }
-    }
-    return 0
-  }
-  const delays = [0, 1000, 2000, 4000, 8000]
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, delays[attempt]))
-    try {
-      const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
-      const stmts: Record<string,string>[] = (data as { data?: Record<string,string>[] }).data ?? []
-      if (stmts.length === 0) {
-        if (attempt < delays.length - 1) continue
-        return null
-      }
-      let latestFY: Record<string,string>|null = null
-      let latestNonFY: Record<string,string>|null = null
-      for (let j = stmts.length - 1; j >= 0; j--) {
-        const s = stmts[j]
-        if (s.CurPerType==='FY' && !latestFY) latestFY = s
-        if (s.CurPerType!=='FY' && s.CurPerType && !latestNonFY) latestNonFY = s
-        if (latestFY && latestNonFY) break
-      }
-      const fy = latestFY ?? stmts[stmts.length-1]
-      const nfy = latestNonFY ?? fy
-      const all = stmts
-      const shOut = bestVal(all,'ShOutFY','ShOut')
-      const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
-      const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
-      // FEPSはFY（通期）のものを優先、FSalesも同様
-      const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
-      const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
-      const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
-      const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
-      return {
-        fin: {
-          sales,op,odp:bestVal(all,'OdP'),np,eps:bestVal(all,'EPS'),feps,
-          nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
-          bps:bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
-          fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
-          fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
-          nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
-          roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
-          opMgn:sales?op/sales:0,
-          salesGr:(sales&&fsales)?fsales/sales-1:0,
-          nySalesGr:(fsales&&nySales)?nySales/fsales-1:0,
-        },
-        shOut,
-      }
-    } catch(e: unknown) {
-      const msg = e instanceof Error ? e.message : ''
-      console.warn(`[fetchFinancialOne] ${code} attempt${attempt} failed: ${msg}`)
-    }
-  }
-  return null
-}
-
-export async function fetchAllFinancials(
-  apiKey: string, watchlist: string[],
-  onProgress?: (done: number, total: number) => void
-): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
-  const finDB: Record<string, FinRecord> = {}
-  const shOutDB: Record<string, number> = {}
-
-  function bestVal(stmts: Record<string,string>[], ...keys: string[]): number {
-    for (const key of keys) {
-      for (let i = stmts.length - 1; i >= 0; i--) {
-        const v = n(stmts[i][key]); if (v !== 0) return v
-      }
-    }
-    return 0
-  }
-
-  function processStmts(code: string, stmts: Record<string,string>[]) {
-    if (!stmts || stmts.length === 0) return
-    let latestFY: Record<string,string>|null = null
-    let latestNonFY: Record<string,string>|null = null
-    for (let j = stmts.length - 1; j >= 0; j--) {
-      const s = stmts[j]
-      if (s.CurPerType==='FY' && !latestFY) latestFY = s
-      if (s.CurPerType!=='FY' && s.CurPerType && !latestNonFY) latestNonFY = s
-      if (latestFY && latestNonFY) break
-    }
-    const fy = latestFY ?? stmts[stmts.length-1]
-    const nfy = latestNonFY ?? fy
-    const all = stmts
-    const shOut = bestVal(all,'ShOutFY','ShOut')
-    if (shOut > 0) shOutDB[code] = shOut
-    const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
-    const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
-    // FEPSはFY（通期）のものを優先
-    const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
-    const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
-    const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
-    const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
-    finDB[code] = {
-      sales,op,odp:bestVal(all,'OdP'),np,
-      eps:bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
-      bps:bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
-      fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
-      fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
-      nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
-      roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
-      opMgn:sales?op/sales:0,
-      salesGr:(sales&&fsales)?fsales/sales-1:0,
-      nySalesGr:(fsales&&nySales)?nySales/fsales-1:0,
-    }
-  }
-
-  // 戦略1: 一括取得
-  let bulkSuccess = false
-  try {
-    const wlSet = new Set(watchlist)
-    const grouped: Record<string, Record<string,string>[]> = {}
-    let paginationKey: string|null = null
-    for (let page = 0; page < 30; page++) {
-      const path = paginationKey
-        ? `/fins/summary?paginationKey=${encodeURIComponent(paginationKey)}`
-        : `/fins/summary`
-      const res = await jqFetch(path, apiKey)
-      const batch: Record<string,string>[] = (res as { data?: Record<string,string>[] }).data ?? []
-      for (const s of batch) {
-        const raw = s.Code ?? ''
-        const code = raw.length===5 && raw.endsWith('0') ? raw.slice(0,4) : raw
-        if (!wlSet.has(code)) continue
-        if (!grouped[code]) grouped[code] = []
-        grouped[code].push(s)
-      }
-      paginationKey = (res as { pagination_key?: string }).pagination_key ?? null
-      if (!paginationKey || batch.length === 0) break
-      await new Promise(r => setTimeout(r, 200))
-    }
-    for (const code of watchlist) {
-      if (grouped[code]?.length > 0) processStmts(code, grouped[code])
-    }
-    bulkSuccess = Object.keys(finDB).length > watchlist.length * 0.5
-  } catch(e) { console.warn('[fetchAllFinancials] bulk failed:', e) }
-
-  // 戦略2: 個別取得
-  const needIndividual = watchlist.filter(c => !finDB[c])
-  if (needIndividual.length > 0) {
-    console.log(`[fetchAllFinancials] individual: ${needIndividual.length} codes (bulk=${bulkSuccess})`)
-    let done = watchlist.length - needIndividual.length
-    for (const code of needIndividual) {
-      const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
-      }
-      done++
-      onProgress?.(done, watchlist.length)
-      await new Promise(r => setTimeout(r, 600))
-    }
-  }
-
-  // 戦略3: 最終リトライ
-  const stillMissing = watchlist.filter(c => !finDB[c])
-  if (stillMissing.length > 0) {
-    console.warn(`[fetchAllFinancials] final retry: ${stillMissing.join(',')}`)
-    await new Promise(r => setTimeout(r, 10000))
-    for (const code of stillMissing) {
-      const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
-      }
-      await new Promise(r => setTimeout(r, 800))
-    }
-  }
-
-  return { finDB, shOutDB }
-}
-
-export async function fetchFinancials(
-  apiKey: string, watchlist: string[],
-  onProgress?: (done: number, total: number) => void
-): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
-  return fetchAllFinancials(apiKey, watchlist, onProgress)
 }

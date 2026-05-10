@@ -85,16 +85,18 @@ export default function Page() {
       st('最新営業日を確認中...', 5)
       const { dateStr, dateDisp } = await findLatestBizDate(apiKey)
 
-      st('銘柄マスタ・株価を取得中...', 15)
-      const [master, prices] = await Promise.all([
-        fetchMaster(apiKey, watchlistRef.current),
-        fetchPrices(apiKey, watchlistRef.current, dateStr, (msg) => st(msg, 20)),
-      ])
-      setMasterDB(master)
-      setPriceDB({ ...prices })
-
       const currentWatchlist = [...watchlistRef.current]
       const total = currentWatchlist.length
+
+      st('株価データ取得中...', 10)
+      const prices = await fetchPrices(apiKey, currentWatchlist, dateStr, (msg) => st(msg, 15))
+      setPriceDB({ ...prices })
+
+      st(`銘柄マスタ取得中... (0/${total})`, 28)
+      const master = await fetchMaster(apiKey, currentWatchlist, (done, t) => {
+        st(`銘柄マスタ取得中... (${done}/${t})`, 28 + Math.round((done / t) * 10))
+      })
+      setMasterDB(master)
 
       st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)
       const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(

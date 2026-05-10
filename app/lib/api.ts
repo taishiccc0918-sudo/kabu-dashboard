@@ -45,57 +45,65 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
   return { dateStr: s, dateDisp: `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` }
 }
 
-export async function fetchMaster(apiKey: string, watchlistForDebug?: string[]): Promise<Record<string, MasterRecord>> {
+export async function fetchMaster(
+  apiKey: string,
+  watchlist: string[],
+  onProgress?: (done: number, total: number) => void
+): Promise<Record<string, MasterRecord>> {
   const db: Record<string, MasterRecord> = {}
-  function processRows(rows: Record<string, string>[]) {
-    for (const row of rows) {
-      const raw = row.Code ?? ''
-      const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0, 4) : raw
-      if (!code) continue
-      const rawMarket = String(row.MarketCode ?? row.Market ?? '')
-      const name = row.CompanyName ?? row.CompanyNameEnglish ?? row.CompanyNameEn ?? ''
-      db[code] = {
-        name,
-        market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
+  const retryWaits429 = [2000, 5000, 10000]
+
+  async function fetchOne(code: string): Promise<void> {
+    // J-Quantsは5桁コード形式: 4桁コードに'0'を付与
+    const apiCode = code.length === 4 ? code + '0' : code
+    let retry429 = 0
+    for (;;) {
+      try {
+        const data = await jqFetch(`/listed/info?code=${apiCode}`, apiKey)
+        const rows = (data as { info?: Record<string, string>[] }).info ?? []
+        if (rows.length > 0) {
+          const row = rows[0]
+          const rawMarket = String(row.MarketCode ?? row.Market ?? '')
+          db[code] = {
+            name:   row.CompanyName ?? row.CompanyNameEnglish ?? '',
+            market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
+          }
+        }
+        return
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : ''
+        if (msg.startsWith('429') && retry429 < retryWaits429.length) {
+          const wait = retryWaits429[retry429]
+          console.warn(`[fetchMaster] ${code} 429 → ${wait / 1000}s wait`)
+          await new Promise(r => setTimeout(r, wait))
+          retry429++
+          continue
+        }
+        if (!msg.startsWith('403')) {
+          console.warn(`[fetchMaster] ${code} failed: ${msg}`)
+        }
+        return
       }
     }
   }
-  try {
-    let paginationKey: string | null = null
-    for (let page = 0; page < 20; page++) {
-      const path = paginationKey
-        ? `/listed/info?paginationKey=${encodeURIComponent(paginationKey)}`
-        : '/listed/info'
-      const data = await jqFetch(path, apiKey)
 
-      // 診断ログ (ページ0のみ)
-      if (page === 0) {
-        const responseKeys = Object.keys(data as object)
-        console.log('[fetchMaster] page0 responseKeys:', responseKeys)
-        const anyRows = (data as Record<string, unknown[]>)[responseKeys[0]] ?? []
-        if (Array.isArray(anyRows) && anyRows.length > 0) {
-          const firstRow = anyRows[0] as Record<string, unknown>
-          console.log('[fetchMaster] page0 firstRow keys:', Object.keys(firstRow))
-          console.log('[fetchMaster] page0 firstRow sample:', JSON.stringify(firstRow).slice(0, 300))
-        } else {
-          console.warn('[fetchMaster] page0 rows empty! raw response:', JSON.stringify(data).slice(0, 500))
-        }
-      }
-
-      const rows = (data as { info?: Record<string, string>[] }).info
-                ?? (data as { listed_info?: Record<string, string>[] }).listed_info
-                ?? (data as { equities?: Record<string, string>[] }).equities
-                ?? []
-      processRows(rows as Record<string, string>[])
-      paginationKey = (data as { pagination_key?: string }).pagination_key ?? null
-      if (!paginationKey || rows.length === 0) break
+  const CONCURRENCY = 3
+  let done = 0
+  for (let i = 0; i < watchlist.length; i += CONCURRENCY) {
+    const batch = watchlist.slice(i, i + CONCURRENCY)
+    await Promise.all(batch.map(code => fetchOne(code)))
+    done = Math.min(done + batch.length, watchlist.length)
+    onProgress?.(done, watchlist.length)
+    if (i + CONCURRENCY < watchlist.length) {
+      await new Promise(r => setTimeout(r, 500))
     }
+  }
 
-    const sampleCodes = watchlistForDebug?.slice(0, 5) ?? ['8729', '7003', '290A', '6758', '7974']
-    const sampleOut: Record<string, string> = {}
-    for (const c of sampleCodes) if (db[c]) sampleOut[c] = db[c].name
-    console.log(`[fetchMaster] loaded ${Object.keys(db).length} companies | watchlist samples:`, sampleOut)
-  } catch(e) { console.warn('[fetchMaster] failed:', e) }
+  const missing = watchlist.filter(c => !db[c])
+  console.log(`[fetchMaster] ${Object.keys(db).length}/${watchlist.length} loaded`)
+  if (missing.length > 0) {
+    console.warn(`[fetchMaster] missing (${missing.length}): ${missing.join(', ')}`)
+  }
   return db
 }
 

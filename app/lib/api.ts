@@ -1,5 +1,13 @@
 import { MasterRecord, PriceRecord, FinRecord } from './types'
 
+// J-Quants MarketCode → 日本語市場名
+const MARKET_CODE_MAP: Record<string, string> = {
+  '111': 'プライム市場', '0111': 'プライム市場',
+  '121': 'スタンダード市場', '0121': 'スタンダード市場',
+  '131': 'グロース市場', '0131': 'グロース市場',
+  '1':   'プライム市場', '2': 'スタンダード市場', '3': 'グロース市場',
+}
+
 async function jqFetch(path: string, apiKey: string): Promise<Record<string, unknown>> {
   const res = await fetch(`/api/jquants?path=${encodeURIComponent(path)}`, {
     headers: { 'x-api-key': apiKey }
@@ -45,9 +53,10 @@ export async function fetchMaster(apiKey: string): Promise<Record<string, Master
       const raw = row.Code ?? ''
       const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0, 4) : raw
       if (!code) continue
+      const rawMarket = row.Market ?? row.MarketCode ?? ''
       db[code] = {
         name:   row.CompanyNameEn ?? row.CompanyName ?? '',
-        market: row.MarketCode ?? row.Market ?? '',
+        market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
       }
     }
   } catch(e) { console.warn('[fetchMaster] failed:', e) }
@@ -102,7 +111,7 @@ export async function fetchPrices(
           const raw = row.Code ?? ''
           const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
           if (!wlSet.has(code)) continue
-          const close = n(row.Close) || n(row.AdjustmentClose)
+          const close = n(row.AdjC) || n(row.C) || n(row.Close) || n(row.AdjustmentClose)
           if (close > 0) map[code] = close
         }
         return { date, map }
@@ -158,7 +167,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
     }
     return 0
   }
-  const delays = [0, 2000]
+  const delays = [0, 2000, 4000]
   for (let attempt = 0; attempt < delays.length; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, delays[attempt]))
     try {

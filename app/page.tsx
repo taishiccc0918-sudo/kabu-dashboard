@@ -120,7 +120,10 @@ export default function Page() {
       setPriceDB({ ...prices })
 
       st('決算予定日取得中...', 92)
-      await fetchAnnouncements(apiKey, currentWatchlist)
+      const announcements = await fetchAnnouncements(apiKey, currentWatchlist)
+      for (const [code, date] of Object.entries(announcements)) {
+        if (fins[code]) fins[code] = { ...fins[code], nextAnnouncementDate: date }
+      }
       setFinDB({ ...fins })
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)

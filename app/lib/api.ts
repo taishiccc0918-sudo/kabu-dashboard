@@ -160,7 +160,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
     }
     return 0
   }
-  const delays = [0, 1000, 2000, 4000, 8000]
+  const delays = [0, 2000]
   for (let attempt = 0; attempt < delays.length; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, delays[attempt]))
     try {
@@ -291,35 +291,44 @@ export async function fetchAllFinancials(
     bulkSuccess = Object.keys(finDB).length > watchlist.length * 0.5
   } catch(e) { console.warn('[fetchAllFinancials] bulk failed:', e) }
 
-  // 戦略2: 個別取得
+  // 戦略2: 個別取得（5並列）
+  const CONCURRENCY = 5
   const needIndividual = watchlist.filter(c => !finDB[c])
   if (needIndividual.length > 0) {
     console.log(`[fetchAllFinancials] individual: ${needIndividual.length} codes (bulk=${bulkSuccess})`)
     let done = watchlist.length - needIndividual.length
-    for (const code of needIndividual) {
-      const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
+    for (let i = 0; i < needIndividual.length; i += CONCURRENCY) {
+      const batch = needIndividual.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
+      for (let j = 0; j < batch.length; j++) {
+        const result = results[j]
+        if (result) {
+          finDB[batch[j]] = result.fin
+          if (result.shOut > 0) shOutDB[batch[j]] = result.shOut
+        }
+        done++
+        onProgress?.(done, watchlist.length)
       }
-      done++
-      onProgress?.(done, watchlist.length)
-      await new Promise(r => setTimeout(r, 600))
+      if (i + CONCURRENCY < needIndividual.length) await new Promise(r => setTimeout(r, 100))
     }
   }
 
-  // 戦略3: 最終リトライ
+  // 戦略3: 最終リトライ（2秒待機後に5並列）
   const stillMissing = watchlist.filter(c => !finDB[c])
   if (stillMissing.length > 0) {
     console.warn(`[fetchAllFinancials] final retry: ${stillMissing.join(',')}`)
-    await new Promise(r => setTimeout(r, 10000))
-    for (const code of stillMissing) {
-      const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
+    await new Promise(r => setTimeout(r, 2000))
+    for (let i = 0; i < stillMissing.length; i += CONCURRENCY) {
+      const batch = stillMissing.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
+      for (let j = 0; j < batch.length; j++) {
+        const result = results[j]
+        if (result) {
+          finDB[batch[j]] = result.fin
+          if (result.shOut > 0) shOutDB[batch[j]] = result.shOut
+        }
       }
-      await new Promise(r => setTimeout(r, 800))
+      if (i + CONCURRENCY < stillMissing.length) await new Promise(r => setTimeout(r, 200))
     }
   }
 

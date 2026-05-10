@@ -168,7 +168,14 @@ export async function fetchAnnouncements(apiKey: string, watchlist: string[]): P
       const date = row.AnnouncementDate ?? row.Date ?? ''
       if (date) db[code] = date
     }
-  } catch { /* ignore */ }
+  } catch(e: unknown) {
+    const msg = e instanceof Error ? e.message : ''
+    if (msg.startsWith('403')) {
+      console.warn('⚠️ J-Quants Lightプランでは決算予定日(announcement)が取得できません。次決算日のチェックは手動で行ってください。')
+    } else if (msg) {
+      console.warn('[fetchAnnouncements] failed:', msg)
+    }
+  }
   return db
 }
 
@@ -183,16 +190,14 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
     }
     return 0
   }
-  const delays = [0, 2000, 4000]
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, delays[attempt]))
+  // 429専用バックオフ: 2秒→5秒→10秒→20秒
+  const retryWaits429 = [2000, 5000, 10000, 20000]
+  let retry429 = 0
+  for (;;) {
     try {
       const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
       const stmts: Record<string,string>[] = (data as { data?: Record<string,string>[] }).data ?? []
-      if (stmts.length === 0) {
-        if (attempt < delays.length - 1) continue
-        return null
-      }
+      if (stmts.length === 0) return null
       let latestFY: Record<string,string>|null = null
       let latestNonFY: Record<string,string>|null = null
       for (let j = stmts.length - 1; j >= 0; j--) {
@@ -228,15 +233,23 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       }
     } catch(e: unknown) {
       const msg = e instanceof Error ? e.message : ''
-      console.warn(`[fetchFinancialOne] ${code} attempt${attempt} failed: ${msg}`)
+      if (msg.startsWith('429') && retry429 < retryWaits429.length) {
+        const wait = retryWaits429[retry429]
+        console.warn(`[fetchFinancialOne] ${code} 429レート制限 → ${wait/1000}秒待機 (${retry429+1}/${retryWaits429.length}回目)`)
+        await new Promise(r => setTimeout(r, wait))
+        retry429++
+        continue
+      }
+      console.warn(`[fetchFinancialOne] ${code} 取得失敗: ${msg}`)
+      return null
     }
   }
-  return null
 }
 
 export async function fetchAllFinancials(
   apiKey: string, watchlist: string[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  onStatus?: (msg: string) => void
 ): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
   const finDB: Record<string, FinRecord> = {}
   const shOutDB: Record<string, number> = {}
@@ -306,7 +319,7 @@ export async function fetchAllFinancials(
       }
       paginationKey = (res as { pagination_key?: string }).pagination_key ?? null
       if (!paginationKey || batch.length === 0) break
-      await new Promise(r => setTimeout(r, 200))
+      await new Promise(r => setTimeout(r, 500))  // Lightプラン向け: ページ間500ms待機
     }
     for (const code of watchlist) {
       if (grouped[code]?.length > 0) processStmts(code, grouped[code])
@@ -314,51 +327,63 @@ export async function fetchAllFinancials(
     bulkSuccess = Object.keys(finDB).length > watchlist.length * 0.5
   } catch(e) { console.warn('[fetchAllFinancials] bulk failed:', e) }
 
-  // 戦略2: 個別取得（5並列）
-  const CONCURRENCY = 5
+  // 戦略2: 個別取得（逐次・1件ずつ・1秒間隔 ← 429対策）
   const needIndividual = watchlist.filter(c => !finDB[c])
   if (needIndividual.length > 0) {
-    console.log(`[fetchAllFinancials] individual: ${needIndividual.length} codes (bulk=${bulkSuccess})`)
+    console.log(`[fetchAllFinancials] 個別取得: ${needIndividual.length}件 (bulk=${bulkSuccess})`)
     let done = watchlist.length - needIndividual.length
-    for (let i = 0; i < needIndividual.length; i += CONCURRENCY) {
-      const batch = needIndividual.slice(i, i + CONCURRENCY)
-      const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
-      for (let j = 0; j < batch.length; j++) {
-        const result = results[j]
-        if (result) {
-          finDB[batch[j]] = result.fin
-          if (result.shOut > 0) shOutDB[batch[j]] = result.shOut
-        }
-        done++
-        onProgress?.(done, watchlist.length)
+    for (let i = 0; i < needIndividual.length; i++) {
+      const code = needIndividual[i]
+      const result = await fetchFinancialOne(apiKey, code)
+      if (result) {
+        finDB[code] = result.fin
+        if (result.shOut > 0) shOutDB[code] = result.shOut
       }
-      if (i + CONCURRENCY < needIndividual.length) await new Promise(r => setTimeout(r, 100))
+      done++
+      onProgress?.(done, watchlist.length)
+      if (i + 1 < needIndividual.length) await new Promise(r => setTimeout(r, 1000))
     }
   }
 
-  // 戦略3: 最終リトライ（2秒待機後に5並列）
+  // 戦略3: リトライ（20秒待機後・逐次・2秒間隔）
   const stillMissing = watchlist.filter(c => !finDB[c])
   if (stillMissing.length > 0) {
-    console.warn(`[fetchAllFinancials] final retry: ${stillMissing.join(',')}`)
-    await new Promise(r => setTimeout(r, 2000))
-    for (let i = 0; i < stillMissing.length; i += CONCURRENCY) {
-      const batch = stillMissing.slice(i, i + CONCURRENCY)
-      const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
-      for (let j = 0; j < batch.length; j++) {
-        const result = results[j]
-        if (result) {
-          finDB[batch[j]] = result.fin
-          if (result.shOut > 0) shOutDB[batch[j]] = result.shOut
-        }
+    console.warn(`[fetchAllFinancials] リトライ対象: ${stillMissing.join(', ')}`)
+    onStatus?.(`⏳ リトライ中 (残${stillMissing.length}銘柄)… 20秒待機します`)
+    await new Promise(r => setTimeout(r, 20000))
+    for (let i = 0; i < stillMissing.length; i++) {
+      const code = stillMissing[i]
+      onStatus?.(`⏳ リトライ中 (残${stillMissing.length - i}銘柄)`)
+      const result = await fetchFinancialOne(apiKey, code)
+      if (result) {
+        finDB[code] = result.fin
+        if (result.shOut > 0) shOutDB[code] = result.shOut
       }
-      if (i + CONCURRENCY < stillMissing.length) await new Promise(r => setTimeout(r, 200))
+      if (i + 1 < stillMissing.length) await new Promise(r => setTimeout(r, 2000))
     }
   }
 
-  const finalMissing = watchlist.filter(c => !finDB[c])
-  if (finalMissing.length > 0) {
-    console.warn(`[fetchAllFinancials] 最終的に取得できなかった銘柄 (${finalMissing.length}件): ${finalMissing.join(', ')}`)
-    console.warn('[fetchAllFinancials] 上記銘柄はJ-Quants APIから財務データが返らなかったため未取得です。')
+  // 戦略4: 最終リトライ（30秒待機後・逐次・3秒間隔）
+  const finalRetry = watchlist.filter(c => !finDB[c])
+  if (finalRetry.length > 0) {
+    console.warn(`[fetchAllFinancials] 最終リトライ対象: ${finalRetry.join(', ')}`)
+    onStatus?.(`⏳ 最終リトライ中 (残${finalRetry.length}銘柄)… 30秒待機します`)
+    await new Promise(r => setTimeout(r, 30000))
+    for (let i = 0; i < finalRetry.length; i++) {
+      const code = finalRetry[i]
+      onStatus?.(`⏳ 最終リトライ中 (残${finalRetry.length - i}銘柄)`)
+      const result = await fetchFinancialOne(apiKey, code)
+      if (result) {
+        finDB[code] = result.fin
+        if (result.shOut > 0) shOutDB[code] = result.shOut
+      }
+      if (i + 1 < finalRetry.length) await new Promise(r => setTimeout(r, 3000))
+    }
+  }
+
+  const ultimateMissing = watchlist.filter(c => !finDB[c])
+  if (ultimateMissing.length > 0) {
+    console.warn(`[fetchAllFinancials] 最終的に取得できなかった銘柄 (${ultimateMissing.length}件): ${ultimateMissing.join(', ')}`)
   } else {
     console.log('[fetchAllFinancials] 全銘柄の財務データ取得完了')
   }
@@ -368,7 +393,8 @@ export async function fetchAllFinancials(
 
 export async function fetchFinancials(
   apiKey: string, watchlist: string[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  onStatus?: (msg: string) => void
 ): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
-  return fetchAllFinancials(apiKey, watchlist, onProgress)
+  return fetchAllFinancials(apiKey, watchlist, onProgress, onStatus)
 }

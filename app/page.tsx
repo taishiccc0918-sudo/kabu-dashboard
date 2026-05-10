@@ -103,7 +103,8 @@ export default function Page() {
         (done, total) => {
           st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
           setFinDB(prev => ({ ...prev }))
-        }
+        },
+        (msg) => setStatusMsg(msg)
       )
 
       const gotCount = Object.keys(fins).length

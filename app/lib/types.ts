@@ -126,6 +126,7 @@ export interface FinRecord {
   divAnn: number
   fdiv: number
   shOut: number
+  nextAnnouncementDate?: string  // 次回決算予定日 (YYYY-MM-DD)
   discDate: string
   perType: string
   roe: number
@@ -174,3 +175,37 @@ export type SortKey = keyof StockRow
 export type FilterKey = 'all' | 'buy'
 export type TabKey = 'dashboard' | 'card' | 'watchlist'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
+
+export interface KSFRecord {
+  code: string
+  ksf1_product: string        // KSF①Q1: 商品（何を売ってる）
+  ksf1_customer: string       // KSF①Q1: 顧客（誰に売れてる）
+  ksf1_profitNote: string     // KSF①Q1: 利益率（どのくらい儲かる）
+  ksf2b_industryPer: number | null   // KSF②買い時: 業界平均PER
+  ksf2b_per5yMin: number | null      // KSF②買い時: 過去5年PER最低
+  ksf2b_per5yMax: number | null      // KSF②買い時: 過去5年PER最高
+  ksf2b_finalCheck: boolean          // KSF②買い時: 1時間考えた
+  ksf2s_industryAvgRich: 'high' | 'normal' | null  // KSF②売り時: 業界平均より高い側に振れた?
+  holding: boolean            // 保有中フラグ
+  buyPrice: number | null     // 買値
+  buyDate: string | null      // 購入日 (YYYY-MM-DD)
+  updatedAt: string           // ISO8601文字列
+}
+
+export function emptyKSF(code: string): KSFRecord {
+  return {
+    code,
+    ksf1_product: '',
+    ksf1_customer: '',
+    ksf1_profitNote: '',
+    ksf2b_industryPer: null,
+    ksf2b_per5yMin: null,
+    ksf2b_per5yMax: null,
+    ksf2b_finalCheck: false,
+    ksf2s_industryAvgRich: null,
+    holding: false,
+    buyPrice: null,
+    buyDate: null,
+    updatedAt: new Date().toISOString(),
+  }
+}

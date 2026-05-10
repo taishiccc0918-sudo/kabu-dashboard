@@ -1,9 +1,7 @@
 import { MasterRecord, PriceRecord, FinRecord } from './types'
 
-const PROXY = 'https://api.jquants.com/v2'
-
 async function jqFetch(path: string, apiKey: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${PROXY}${path}`, {
+  const res = await fetch(`/api/jquants?path=${encodeURIComponent(path)}`, {
     headers: { 'x-api-key': apiKey }
   })
   if (!res.ok) throw new Error(`${res.status}: ${path}`)

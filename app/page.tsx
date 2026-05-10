@@ -87,7 +87,7 @@ export default function Page() {
 
       st('銘柄マスタ・株価を取得中...', 15)
       const [master, prices] = await Promise.all([
-        fetchMaster(apiKey),
+        fetchMaster(apiKey, watchlistRef.current),
         fetchPrices(apiKey, watchlistRef.current, dateStr, (msg) => st(msg, 20)),
       ])
       setMasterDB(master)

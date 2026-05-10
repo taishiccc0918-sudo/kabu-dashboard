@@ -45,7 +45,7 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
   return { dateStr: s, dateDisp: `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` }
 }
 
-export async function fetchMaster(apiKey: string): Promise<Record<string, MasterRecord>> {
+export async function fetchMaster(apiKey: string, watchlistForDebug?: string[]): Promise<Record<string, MasterRecord>> {
   const db: Record<string, MasterRecord> = {}
   function processRows(rows: Record<string, string>[]) {
     for (const row of rows) {
@@ -53,19 +53,35 @@ export async function fetchMaster(apiKey: string): Promise<Record<string, Master
       const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0, 4) : raw
       if (!code) continue
       const rawMarket = String(row.MarketCode ?? row.Market ?? '')
+      const name = row.CompanyName ?? row.CompanyNameEnglish ?? row.CompanyNameEn ?? ''
       db[code] = {
-        name:   row.CompanyNameEnglish ?? row.CompanyNameEn ?? row.CompanyName ?? '',
+        name,
         market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
       }
     }
   }
   try {
     let paginationKey: string | null = null
-    for (let page = 0; page < 10; page++) {
+    for (let page = 0; page < 20; page++) {
       const path = paginationKey
         ? `/listed/info?paginationKey=${encodeURIComponent(paginationKey)}`
         : '/listed/info'
       const data = await jqFetch(path, apiKey)
+
+      // 診断ログ (ページ0のみ)
+      if (page === 0) {
+        const responseKeys = Object.keys(data as object)
+        console.log('[fetchMaster] page0 responseKeys:', responseKeys)
+        const anyRows = (data as Record<string, unknown[]>)[responseKeys[0]] ?? []
+        if (Array.isArray(anyRows) && anyRows.length > 0) {
+          const firstRow = anyRows[0] as Record<string, unknown>
+          console.log('[fetchMaster] page0 firstRow keys:', Object.keys(firstRow))
+          console.log('[fetchMaster] page0 firstRow sample:', JSON.stringify(firstRow).slice(0, 300))
+        } else {
+          console.warn('[fetchMaster] page0 rows empty! raw response:', JSON.stringify(data).slice(0, 500))
+        }
+      }
+
       const rows = (data as { info?: Record<string, string>[] }).info
                 ?? (data as { listed_info?: Record<string, string>[] }).listed_info
                 ?? (data as { equities?: Record<string, string>[] }).equities
@@ -74,7 +90,11 @@ export async function fetchMaster(apiKey: string): Promise<Record<string, Master
       paginationKey = (data as { pagination_key?: string }).pagination_key ?? null
       if (!paginationKey || rows.length === 0) break
     }
-    console.log(`[fetchMaster] loaded ${Object.keys(db).length} companies`)
+
+    const sampleCodes = watchlistForDebug?.slice(0, 5) ?? ['8729', '7003', '290A', '6758', '7974']
+    const sampleOut: Record<string, string> = {}
+    for (const c of sampleCodes) if (db[c]) sampleOut[c] = db[c].name
+    console.log(`[fetchMaster] loaded ${Object.keys(db).length} companies | watchlist samples:`, sampleOut)
   } catch(e) { console.warn('[fetchMaster] failed:', e) }
   return db
 }
@@ -298,7 +318,7 @@ export async function fetchAllFinancials(
     }
   }
 
-  // 戦略1: 一括取得
+  // 戦略1: 一括取得 (J-Quants Lightプランではcodeなし呼び出しが400になる場合あり → 失敗しても続行)
   let bulkSuccess = false
   try {
     const wlSet = new Set(watchlist)
@@ -319,13 +339,20 @@ export async function fetchAllFinancials(
       }
       paginationKey = (res as { pagination_key?: string }).pagination_key ?? null
       if (!paginationKey || batch.length === 0) break
-      await new Promise(r => setTimeout(r, 500))  // Lightプラン向け: ページ間500ms待機
+      await new Promise(r => setTimeout(r, 500))
     }
     for (const code of watchlist) {
       if (grouped[code]?.length > 0) processStmts(code, grouped[code])
     }
     bulkSuccess = Object.keys(finDB).length > watchlist.length * 0.5
-  } catch(e) { console.warn('[fetchAllFinancials] bulk failed:', e) }
+  } catch(e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.startsWith('400')) {
+      console.info('[fetchAllFinancials] 一括取得(codeなし)は非対応 → 個別取得に切替')
+    } else {
+      console.warn('[fetchAllFinancials] bulk failed:', e)
+    }
+  }
 
   // 戦略2: 個別取得（逐次・1件ずつ・1秒間隔 ← 429対策）
   const needIndividual = watchlist.filter(c => !finDB[c])

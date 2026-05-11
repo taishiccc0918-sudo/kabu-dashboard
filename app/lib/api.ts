@@ -46,64 +46,29 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
 }
 
 export async function fetchMaster(
-  apiKey: string,
+  apiKey: string,         // 互換性のため残す（JPX方式では未使用）
   watchlist: string[],
   onProgress?: (done: number, total: number) => void
 ): Promise<Record<string, MasterRecord>> {
   const db: Record<string, MasterRecord> = {}
-  const retryWaits429 = [2000, 5000, 10000]
-
-  async function fetchOne(code: string): Promise<void> {
-    // J-Quantsは5桁コード形式: 4桁コードに'0'を付与
-    const apiCode = code.length === 4 ? code + '0' : code
-    let retry429 = 0
-    for (;;) {
-      try {
-        const data = await jqFetch(`/listed/info?code=${apiCode}`, apiKey)
-        const rows = (data as { info?: Record<string, string>[] }).info ?? []
-        if (rows.length > 0) {
-          const row = rows[0]
-          const rawMarket = String(row.MarketCode ?? row.Market ?? '')
-          db[code] = {
-            name:   row.CompanyName ?? row.CompanyNameEnglish ?? '',
-            market: MARKET_CODE_MAP[rawMarket] ?? rawMarket,
-          }
-        }
-        return
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : ''
-        if (msg.startsWith('429') && retry429 < retryWaits429.length) {
-          const wait = retryWaits429[retry429]
-          console.warn(`[fetchMaster] ${code} 429 → ${wait / 1000}s wait`)
-          await new Promise(r => setTimeout(r, wait))
-          retry429++
-          continue
-        }
-        if (!msg.startsWith('403')) {
-          console.warn(`[fetchMaster] ${code} failed: ${msg}`)
-        }
-        return
-      }
+  try {
+    onProgress?.(0, watchlist.length)
+    const res = await fetch('/api/listed-info')
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string }
+      throw new Error(`/api/listed-info: ${res.status} ${body.error ?? ''}`)
     }
-  }
-
-  const CONCURRENCY = 3
-  let done = 0
-  for (let i = 0; i < watchlist.length; i += CONCURRENCY) {
-    const batch = watchlist.slice(i, i + CONCURRENCY)
-    await Promise.all(batch.map(code => fetchOne(code)))
-    done = Math.min(done + batch.length, watchlist.length)
-    onProgress?.(done, watchlist.length)
-    if (i + CONCURRENCY < watchlist.length) {
-      await new Promise(r => setTimeout(r, 500))
+    const data = await res.json() as Record<string, { name: string; market: string }>
+    for (const [code, rec] of Object.entries(data)) {
+      if (rec.name && rec.market) db[code] = { name: rec.name, market: rec.market }
     }
+    const missing = watchlist.filter(c => !db[c])
+    console.log(`[fetchMaster] JPX: ${Object.keys(db).length} companies loaded, missing: ${missing.length}`)
+    if (missing.length > 0) console.warn(`[fetchMaster] not in JPX: ${missing.join(', ')}`)
+  } catch (e) {
+    console.warn('[fetchMaster] failed:', e)
   }
-
-  const missing = watchlist.filter(c => !db[c])
-  console.log(`[fetchMaster] ${Object.keys(db).length}/${watchlist.length} loaded`)
-  if (missing.length > 0) {
-    console.warn(`[fetchMaster] missing (${missing.length}): ${missing.join(', ')}`)
-  }
+  onProgress?.(watchlist.length, watchlist.length)
   return db
 }
 

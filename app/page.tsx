@@ -92,10 +92,8 @@ export default function Page() {
       const prices = await fetchPrices(apiKey, currentWatchlist, dateStr, (msg) => st(msg, 15))
       setPriceDB({ ...prices })
 
-      st(`銘柄マスタ取得中... (0/${total})`, 28)
-      const master = await fetchMaster(apiKey, currentWatchlist, (done, t) => {
-        st(`銘柄マスタ取得中... (${done}/${t})`, 28 + Math.round((done / t) * 10))
-      })
+      st('銘柄マスタ取得中 (JPX)...', 28)
+      const master = await fetchMaster(apiKey, currentWatchlist)
       setMasterDB(master)
 
       st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)

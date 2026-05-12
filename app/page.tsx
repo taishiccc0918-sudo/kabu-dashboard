@@ -37,7 +37,6 @@ export default function Page() {
   const [genreFilter, setGenreFilter] = useState<string>('all')
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
-  const [divYMin,    setDivYMin]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
   const [customGenres, setCustomGenres] = useState<Record<string,string>>(() => ls('customGenres', {}))
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
@@ -48,7 +47,6 @@ export default function Page() {
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
-  const [sortSel,    setSortSel]    = useState('default')
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -160,24 +158,9 @@ export default function Page() {
       if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
       if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
       if (perFMax !== '' && (r.perF == null || r.perF > parseFloat(perFMax))) return false
-      if (divYMin !== '' && (r.divY == null || r.divY * 100 < parseFloat(divYMin))) return false
       return true
     })
-    const sortMap: Record<string, (a: StockRow, b: StockRow) => number> = {
-      price_asc:  (a,b) => a.close - b.close,
-      price_desc: (a,b) => b.close - a.close,
-      chg1d_desc: (a,b) => (a.chg1d??0) - (b.chg1d??0),
-      chg1d_asc:  (a,b) => (b.chg1d??0) - (a.chg1d??0),
-      chg3m_asc:  (a,b) => (a.chg3m??0) - (b.chg3m??0),
-      chg3m_desc: (a,b) => (b.chg3m??0) - (a.chg3m??0),
-      per_asc:    (a,b) => (a.perF??999) - (b.perF??999),
-      per_desc:   (a,b) => (b.perF??0)   - (a.perF??0),
-      mcap_desc:  (a,b) => b.mcap - a.mcap,
-      div_desc:   (a,b) => (b.divY??0) - (a.divY??0),
-      peg_asc:    (a,b) => (a.peg??999) - (b.peg??999),
-    }
-    if (sortSel !== 'default' && sortMap[sortSel]) rows = [...rows].sort(sortMap[sortSel])
-    else if (sortKey) {
+    if (sortKey) {
       rows = [...rows].sort((a, b) => {
         const av = a[sortKey]
         const bv = b[sortKey]
@@ -188,7 +171,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, divYMin, sortKey, sortDir, sortSel])
+  }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
   const stats = useMemo(() => ({
     total: allRows.length,
@@ -199,7 +182,6 @@ export default function Page() {
   function handleSort(key: keyof StockRow) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
-    setSortSel('default')
   }
 
   const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
@@ -345,27 +327,15 @@ export default function Page() {
             </button>
           ))}
         </div>
-        <select className={styles.sortSelect} value={sortSel} onChange={e => setSortSel(e.target.value)}>
-          <option value="default">並び順: デフォルト</option>
-          <option value="chg1d_desc">前日比 ↓</option>
-          <option value="chg1d_asc">前日比 ↑</option>
-          <option value="chg3m_asc">3ヶ月比 ↑</option>
-          <option value="chg3m_desc">3ヶ月比 ↓</option>
-          <option value="per_asc">PER今期 ↑</option>
-          <option value="per_desc">PER今期 ↓</option>
-          <option value="mcap_desc">時価総額 ↓</option>
-          <option value="div_desc">配当利回り ↓</option>
-          <option value="peg_asc">PEG ↑</option>
-        </select>
-        <div className={styles.spacer} />
-        <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
-          {forcePc ? '📱 最適化' : '🖥 PC表示'}
-        </button>
         <button
           className={`${styles.filterToggleBtn} ${showFilter ? styles.filterToggleBtnActive : ''}`}
           onClick={() => setShowFilter(s => !s)}
         >
-          ▼ 絞り込み{(mcapMin||perFMax||divYMin||genreFilter!=='all') ? ' ●' : ''}
+          ▼ 絞り込み{(mcapMin||perFMax||genreFilter!=='all') ? ' ●' : ''}
+        </button>
+        <div className={styles.spacer} />
+        <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
+          {forcePc ? '📱 最適化' : '🖥 PC表示'}
         </button>
         <div className={styles.tabGroup}>
           {(['dashboard','card'] as TabKey[]).map(t => (
@@ -404,14 +374,9 @@ export default function Page() {
               <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
                 value={perFMax} onChange={e => setPerFMax(e.target.value)} />
             </div>
-            <div className={styles.filterPanelGroup}>
-              <label className={styles.filterPanelLabel}>配当利回り（%）以上</label>
-              <input type="number" className={styles.filterPanelInput} placeholder="例: 2"
-                value={divYMin} onChange={e => setDivYMin(e.target.value)} />
-            </div>
           </div>
           <button className={styles.filterPanelClear}
-            onClick={() => { setMcapMin(''); setPerFMax(''); setDivYMin(''); setGenreFilter('all') }}>
+            onClick={() => { setMcapMin(''); setPerFMax(''); setGenreFilter('all') }}>
             条件をクリア
           </button>
         </div>
@@ -903,7 +868,7 @@ function DashboardTable({
 
 // ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: { row: StockRow; idx: number; fin?: import('./lib/types').FinRecord; earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void }) {
-  const stickyBg = idx % 2 === 0 ? '#0d1219' : 'rgba(17,24,37,0.9)'
+  const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -1015,16 +980,18 @@ function EarningsDateCell({ code, date, onSave, fin }: {
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
-        color: getColor(displayDate) || (displayDate ? '#94a3b8' : '#475569'),
+        color: displayDate ? (getColor(displayDate) || '#94a3b8') : '#60a5fa',
         cursor: 'pointer',
-        padding: '1px 3px',
+        padding: '2px 5px',
         borderRadius: 3,
-        border: '1px solid transparent',
+        border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
+        background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',
         whiteSpace: 'nowrap',
+        display: 'inline-block',
       }}
       onClick={() => { setVal(date); setEditing(true) }}
     >
-      {formatShort(displayDate)}
+      {displayDate ? formatShort(displayDate) : '+'}
     </span>
   )
 }

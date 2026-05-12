@@ -206,6 +206,10 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
       const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
       const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
+      if (['8306','285A','6758','6861'].includes(code)) {
+        console.log(`[fins/summary:${code}] stmts=${stmts.length} perType=${fy.CurPerType} FEPS=${fy.FEPS} EPS=${fy.EPS} Sales=${fy.Sales} discDate=${fy.DiscDate}`)
+        console.log(`[fins/summary:${code}] keys:`, Object.keys(fy).join(','))
+      }
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
       const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
@@ -327,57 +331,52 @@ export async function fetchAllFinancials(
     }
   }
 
-  // 戦略2: 個別取得（逐次・1件ずつ・1秒間隔 ← 429対策）
+  // 戦略2: 並列個別取得（2件並列・500ms間隔）
   const needIndividual = watchlist.filter(c => !finDB[c])
   if (needIndividual.length > 0) {
-    console.log(`[fetchAllFinancials] 個別取得: ${needIndividual.length}件 (bulk=${bulkSuccess})`)
+    console.log(`[fetchAllFinancials] 個別取得: ${needIndividual.length}件 (並列2, bulk=${bulkSuccess})`)
     let done = watchlist.length - needIndividual.length
-    for (let i = 0; i < needIndividual.length; i++) {
-      const code = needIndividual[i]
-      const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
+    const CONCURRENCY = 2
+    for (let i = 0; i < needIndividual.length; i += CONCURRENCY) {
+      const batch = needIndividual.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
+      for (let j = 0; j < batch.length; j++) {
+        const r = results[j]
+        if (r) { finDB[batch[j]] = r.fin; if (r.shOut > 0) shOutDB[batch[j]] = r.shOut }
       }
-      done++
+      done += batch.length
       onProgress?.(done, watchlist.length)
-      if (i + 1 < needIndividual.length) await new Promise(r => setTimeout(r, 1000))
+      if (i + CONCURRENCY < needIndividual.length) await new Promise(r => setTimeout(r, 500))
     }
   }
 
-  // 戦略3: リトライ（20秒待機後・逐次・2秒間隔）
+  // 戦略3: リトライ（8秒待機後・逐次・1.5秒間隔）
   const stillMissing = watchlist.filter(c => !finDB[c])
   if (stillMissing.length > 0) {
     console.warn(`[fetchAllFinancials] リトライ対象: ${stillMissing.join(', ')}`)
-    onStatus?.(`⏳ リトライ中 (残${stillMissing.length}銘柄)… 20秒待機します`)
-    await new Promise(r => setTimeout(r, 20000))
+    onStatus?.(`⏳ リトライ中 (残${stillMissing.length}銘柄)… 8秒待機`)
+    await new Promise(r => setTimeout(r, 8000))
     for (let i = 0; i < stillMissing.length; i++) {
       const code = stillMissing[i]
       onStatus?.(`⏳ リトライ中 (残${stillMissing.length - i}銘柄)`)
       const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
-      }
-      if (i + 1 < stillMissing.length) await new Promise(r => setTimeout(r, 2000))
+      if (result) { finDB[code] = result.fin; if (result.shOut > 0) shOutDB[code] = result.shOut }
+      if (i + 1 < stillMissing.length) await new Promise(r => setTimeout(r, 1500))
     }
   }
 
-  // 戦略4: 最終リトライ（30秒待機後・逐次・3秒間隔）
+  // 戦略4: 最終リトライ（12秒待機後・逐次・2秒間隔）
   const finalRetry = watchlist.filter(c => !finDB[c])
   if (finalRetry.length > 0) {
     console.warn(`[fetchAllFinancials] 最終リトライ対象: ${finalRetry.join(', ')}`)
-    onStatus?.(`⏳ 最終リトライ中 (残${finalRetry.length}銘柄)… 30秒待機します`)
-    await new Promise(r => setTimeout(r, 30000))
+    onStatus?.(`⏳ 最終リトライ (残${finalRetry.length}銘柄)… 12秒待機`)
+    await new Promise(r => setTimeout(r, 12000))
     for (let i = 0; i < finalRetry.length; i++) {
       const code = finalRetry[i]
-      onStatus?.(`⏳ 最終リトライ中 (残${finalRetry.length - i}銘柄)`)
+      onStatus?.(`⏳ 最終リトライ (残${finalRetry.length - i}銘柄)`)
       const result = await fetchFinancialOne(apiKey, code)
-      if (result) {
-        finDB[code] = result.fin
-        if (result.shOut > 0) shOutDB[code] = result.shOut
-      }
-      if (i + 1 < finalRetry.length) await new Promise(r => setTimeout(r, 3000))
+      if (result) { finDB[code] = result.fin; if (result.shOut > 0) shOutDB[code] = result.shOut }
+      if (i + 1 < finalRetry.length) await new Promise(r => setTimeout(r, 2000))
     }
   }
 

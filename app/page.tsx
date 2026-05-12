@@ -54,6 +54,7 @@ export default function Page() {
   const [loading,    setLoading]    = useState(false)
   const theadTop = 96
   const [forcePc, setForcePc] = useState(false)
+  const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
 
   useEffect(() => { watchlistRef.current = watchlist }, [watchlist])
 
@@ -272,6 +273,10 @@ export default function Page() {
     const next = { ...memos, [code]: text }
     setMemos(next); lsSet('memos', next)
   }
+  function saveEarningsDate(code: string, date: string) {
+    const next = { ...earningsDates, [code]: date }
+    setEarningsDates(next); lsSet('earningsDates', next)
+  }
 
   const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, customGenres) : null
   const detailFin = detailCode ? finDB[detailCode] : null
@@ -418,6 +423,8 @@ export default function Page() {
               <DashboardTable
                 filteredRows={filteredRows}
                 finDB={finDB}
+                earningsDates={earningsDates}
+                onSaveEarningsDate={saveEarningsDate}
                 sortKey={sortKey}
                 sortDir={sortDir}
                 handleSort={handleSort}
@@ -547,6 +554,8 @@ export default function Page() {
               memo={memos[detailCode] ?? ''}
               onSaveMemo={text => saveMemo(detailCode, text)}
               apiKey={apiKey}
+              earningsDate={earningsDates[detailCode] ?? ''}
+              onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
             />
           </div>
         </div>
@@ -742,10 +751,12 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, sortKey, sortDir, handleSort, onRowClick
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
+  earningsDates: Record<string, string>
+  onSaveEarningsDate: (code: string, date: string) => void
   sortKey: keyof StockRow | null
   sortDir: 1 | -1
   handleSort: (k: keyof StockRow) => void
@@ -769,27 +780,29 @@ function DashboardTable({
     { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
     { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, group: '' },
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
-    { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '' },
+    { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '', tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
-    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price' },
-    { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price' },
-    { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price' },
-    { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price' },
-    { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per' },
-    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per' },
-    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per' },
-    { label: 'PER今期の1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。セルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
-    { label: 'PBR',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other' },
-    { label: 'ROE',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other' },
-    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other' },
-    { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other' },
-    { label: 'PEG',        cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other' },
-    { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other' },
-    { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other' },
-    { label: '判定',       cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。\n\n計算式: 現在株価÷予想EPS vs 1ヶ月前株価÷予想EPS\n変化率が−5%以下なら「買い」と判定' },
-    { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'YF',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率。\n短期の値動きトレンドの確認に使う。' },
+    { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price', tooltip: '約5営業日前の終値からの変化率。\n短〜中期トレンドの確認に使う。' },
+    { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price', tooltip: '約65営業日前の終値からの変化率。\n中期トレンドや季節性の確認に使う。' },
+    { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
+    { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
+    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
+    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per', tooltip: '株価÷来期予想EPS。\n来期の成長性を加味した割安度。\n来期の業績改善が見込まれるか確認できる。' },
+    { label: 'PER今期の1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
+    { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
+    { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
+    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
+    { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other', tooltip: 'EPS（1株あたり利益）の成長率（今期予想÷直近実績−1）。\n高成長の目安は15%超。' },
+    { label: 'PEG', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other', tooltip: 'PER÷EPS成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
+    { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
+    { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
+    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。\n\n計算式: 現在株価÷予想EPS vs 1ヶ月前株価÷予想EPS\n変化率が−5%以下なら「買い」と判定' },
+    { label: '四季報',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'YF',       cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'かぶたん', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '公式HP',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '次決算',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
 
   return (
@@ -823,6 +836,8 @@ function DashboardTable({
               <col style={{width:72, minWidth:72}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:80, minWidth:80}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:76, minWidth:76}} />
             </colgroup>
           <thead>
             <tr>
@@ -870,12 +885,14 @@ function DashboardTable({
               <col style={{width:72, minWidth:72}} />
               <col style={{width:60, minWidth:60}} />
               <col style={{width:80, minWidth:80}} />
+              <col style={{width:72, minWidth:72}} />
+              <col style={{width:76, minWidth:76}} />
             </colgroup>
           <tbody>
             {filteredRows.length === 0 ? (
-              <tr><td colSpan={24} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} onClick={() => onRowClick(r.code)} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} />
             ))}
           </tbody>
         </table>
@@ -885,7 +902,7 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, onClick }: { row: StockRow; idx: number; fin?: import('./lib/types').FinRecord; onClick: () => void }) {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: { row: StockRow; idx: number; fin?: import('./lib/types').FinRecord; earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void }) {
   const stickyBg = idx % 2 === 0 ? '#0d1219' : 'rgba(17,24,37,0.9)'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -925,7 +942,90 @@ function TableRow({ row: r, idx, fin, onClick }: { row: StockRow; idx: number; f
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>YF</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>公式HP</a></td>
+      <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
+        <EarningsDateCell code={r.code} date={earningsDates[r.code] ?? ''} onSave={onSaveEarningsDate} fin={fin} />
+      </td>
     </tr>
+  )
+}
+
+// ─── EarningsDateCell ────────────────────────────────────────────────
+function EarningsDateCell({ code, date, onSave, fin }: {
+  code: string
+  date: string
+  onSave: (code: string, date: string) => void
+  fin?: import('./lib/types').FinRecord
+}) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(date)
+
+  // Prefer API-fetched nextAnnouncementDate, fall back to manual entry
+  const displayDate = fin?.nextAnnouncementDate || date
+
+  function getDaysUntil(d: string): number | null {
+    if (!d) return null
+    const diff = (new Date(d).getTime() - Date.now()) / 86400000
+    return diff
+  }
+
+  function getColor(d: string): string {
+    const days = getDaysUntil(d)
+    if (days === null) return ''
+    if (days < 0) return 'rgba(100,100,100,0.6)'
+    if (days <= 7) return '#f87171'
+    if (days <= 14) return '#fbbf24'
+    return ''
+  }
+
+  function formatShort(d: string): string {
+    if (!d) return '—'
+    const days = getDaysUntil(d)
+    const m = d.slice(5, 7).replace(/^0/, '')
+    const day = d.slice(8, 10).replace(/^0/, '')
+    const label = `${m}/${day}`
+    if (days !== null && days >= 0 && days <= 3) return `${label}(${Math.ceil(days)}d)`
+    return label
+  }
+
+  if (editing) {
+    return (
+      <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
+        <input
+          type="date"
+          autoFocus
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { onSave(code, val); setEditing(false) }
+            if (e.key === 'Escape') { setVal(date); setEditing(false) }
+          }}
+        />
+        <button onClick={() => { onSave(code, val); setEditing(false) }}
+          style={{fontSize:10, padding:'1px 4px', background:'#3b82f6', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
+        <button onClick={() => { setVal(date); setEditing(false) }}
+          style={{fontSize:10, padding:'1px 4px', background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}>✕</button>
+      </span>
+    )
+  }
+
+  return (
+    <span
+      title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
+      style={{
+        fontSize: 11,
+        color: getColor(displayDate) || (displayDate ? '#94a3b8' : '#475569'),
+        cursor: 'pointer',
+        padding: '1px 3px',
+        borderRadius: 3,
+        border: '1px solid transparent',
+        whiteSpace: 'nowrap',
+      }}
+      onClick={() => { setVal(date); setEditing(true) }}
+    >
+      {formatShort(displayDate)}
+    </span>
   )
 }
 
@@ -1002,6 +1102,10 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
           <MiniChart code={r.code} apiKey={apiKey} />
         </div>
       )}
+      <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
+        <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
+        <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
+      </div>
     </div>
   )
 }
@@ -1131,16 +1235,20 @@ function JudgmentBadge({ j }: { j: string }) {
 }
 
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo, apiKey,
+  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate,
 }: {
   row: StockRow
   fin: FinRecord | null | undefined
   memo: string
   onSaveMemo: (t: string) => void
   apiKey: string
+  earningsDate: string
+  onSaveEarningsDate: (date: string) => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
+  const [editingDate, setEditingDate] = useState(false)
+  const [dateVal, setDateVal] = useState(earningsDate)
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
 
   function save() {
@@ -1221,10 +1329,61 @@ function DetailPanel({
         </button>
       </Section>
 
+      <Section title="次回決算予定日">
+        {(() => {
+          const displayDate = f?.nextAnnouncementDate || earningsDate
+          const diff = displayDate ? (new Date(displayDate).getTime() - Date.now()) / 86400000 : null
+          const color = diff === null ? '' : diff < 0 ? 'rgba(100,100,100,0.7)' : diff <= 7 ? '#f87171' : diff <= 14 ? '#fbbf24' : '#34d399'
+          return (
+            <div style={{display:'flex', flexDirection:'column', gap:6}}>
+              {displayDate && !editingDate && (
+                <div style={{fontSize:16, fontWeight:600, color}}>
+                  {displayDate}
+                  {diff !== null && diff >= 0 && <span style={{fontSize:12, marginLeft:8, color: 'rgba(200,220,255,0.6)'}}>あと{Math.ceil(diff)}日</span>}
+                  {diff !== null && diff < 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(100,100,100,0.7)'}}>終了</span>}
+                </div>
+              )}
+              {!displayDate && !editingDate && (
+                <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>
+              )}
+              {editingDate ? (
+                <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+                  <input
+                    type="date"
+                    autoFocus
+                    value={dateVal}
+                    onChange={e => setDateVal(e.target.value)}
+                    style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { onSaveEarningsDate(dateVal); setEditingDate(false) }
+                      if (e.key === 'Escape') { setDateVal(earningsDate); setEditingDate(false) }
+                    }}
+                  />
+                  <button className={styles.btnPrimary} style={{padding:'4px 12px', fontSize:13}}
+                    onClick={() => { onSaveEarningsDate(dateVal); setEditingDate(false) }}>保存</button>
+                  <button className={styles.btnSecondary} style={{padding:'4px 10px', fontSize:13}}
+                    onClick={() => { setDateVal(earningsDate); setEditingDate(false) }}>キャンセル</button>
+                </div>
+              ) : (
+                <button className={styles.btnSecondary} style={{padding:'4px 12px', fontSize:12, alignSelf:'flex-start'}}
+                  onClick={() => { setDateVal(earningsDate); setEditingDate(true) }}>
+                  {earningsDate ? '✏️ 編集' : '＋ 手動入力'}
+                </button>
+              )}
+              {f?.nextAnnouncementDate && (
+                <div style={{fontSize:11, color:'#64748b'}}>APIから自動取得済み</div>
+              )}
+            </div>
+          )
+        })()}
+      </Section>
+
       <Section title="リンク">
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank">四季報オンライン</a>
           <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank">IRBank</a>
+          <a className={styles.detailLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank">かぶたん</a>
+          <a className={styles.detailLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank">公式HP</a>
         </div>
       </Section>
     </>

@@ -957,18 +957,29 @@ function DashboardTable({
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '', tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
-    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率。' },
+    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率（J-Quants生値・スプリット調整なし）。\n週末を挟む場合は前金曜日との比較。' },
     { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price', tooltip: '約5営業日前の終値からの変化率。' },
     { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price', tooltip: '約65営業日前の終値からの変化率。' },
     { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。' },
-    { label: 'PER今期', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
+    { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n同業界平均と比較して割安かを判断する。' },
+    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。\n右の●はデータの古さを示します。' },
+    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per', tooltip: '株価÷来期予想EPS。\n来期の業績改善が見込まれるか確認できる。' },
+    { label: 'PER今期の\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細表示。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n10%超で優良、15%超で高収益企業。' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\n3%超で高配当株とされる。' },
+    { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other', tooltip: 'EPS成長率（今期予想÷直近実績−1）。\n高成長の目安は15%超。' },
+    { label: 'PEG', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other', tooltip: 'PER÷EPS成長率（%）。\n1未満=成長率に対して割安。' },
+    { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n15%超で高収益、20%超は非常に優秀。' },
+    { label: '来期売上成長', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n15%超で高成長企業の目安。' },
     { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: 'PER今期の1ヶ月前比 ≤ −5% → 「買い」\n市場が割安と評価し始めたシグナル。' },
-    { label: '次決算', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集。\n7日以内:黄色で警告、過去日:赤。' },
+    { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'Yahoo\nFinance', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集。\n7日以内:黄色、過去日:赤。' },
   ]
-  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,64,64,88,64,80]
+  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1001,7 +1012,7 @@ function DashboardTable({
           {colGroup}
           <tbody>
             {filteredRows.length === 0 ? (
-              <tr><td colSpan={17} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
               <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} />
             ))}
@@ -1017,8 +1028,8 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
 }) {
-  const stickyBg = idx % 2 === 0 ? '#0a0e15' : '#0f1520'
-  const stickyNameBg = idx % 2 === 0 ? '#0d1320' : '#121928'
+  const stickyBg = `var(--sticky-col-${idx % 2 === 0 ? 'even' : 'odd'})`
+  const stickyNameBg = `var(--sticky-name-${idx % 2 === 0 ? 'even' : 'odd'})`
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -1032,6 +1043,13 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
         <td key={i} className={styles.tdPct} style={{ background: pctBg(v), color: pctCellColor(v) }}>{fmtPct(v)}</td>
       ))}
+      <td className={`${styles.tdNum} ${styles.tdPerGroup}`}
+        title={fin?.discDate ? `実績EPS基準 / 開示: ${fin.discDate}\n${getFreshLabel(fin.discDate)}` : undefined}
+        style={{display:'flex', alignItems:'center', justifyContent:'flex-end', height:'100%'}}
+      >
+        <span style={{fontFeatureSettings:'"tnum"'}}>{r.perA ? fmtN(r.perA) : '—'}</span>
+        <FreshDot discDate={fin?.discDate} />
+      </td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''}`}
         title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}\n${getFreshLabel(fin.discDate)}` : undefined}
         style={{display:'flex', alignItems:'center', justifyContent:'flex-end', height:'100%'}}
@@ -1039,10 +1057,35 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         <span style={{fontFeatureSettings:'"tnum"'}}>{r.perF ? fmtN(r.perF) : '—'}</span>
         <FreshDot discDate={fin?.discDate} />
       </td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup}`} style={{fontFeatureSettings:'"tnum"', textAlign:'right'}}>
+        {r.perN ? fmtN(r.perN) : '—'}
+      </td>
+      <td className={`${styles.tdPct} ${styles.tdPerGroup}`}
+        title={r.perFChg1mPrev ? `1M前PER今期: ${fmtN(r.perFChg1mPrev)} → 現在: ${r.perF ? fmtN(r.perF) : '—'}` : undefined}
+        style={{ background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m) }}
+      >
+        {fmtPct(r.perFChg1m)}
+      </td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe >= 0.15 ? 'var(--green)' : r.roe && r.roe > 0.1 ? 'var(--green)' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? 'var(--green)' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
+      <td className={styles.tdPct} style={{color: pctCellColor(r.epsGr)}}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? 'var(--green)' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
+      <td className={styles.tdPct} style={{color: r.opMgn && r.opMgn >= 0.15 ? 'var(--green)' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
+      <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
       <td title="PER今期の1ヶ月前比が−5%以下のとき「買い」"><JudgmentBadge j={r.judgment} /></td>
+      <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
+        <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
+      </td>
+      <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
+        <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
+      </td>
+      <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
+        <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
+      </td>
+      <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
+        <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
+      </td>
       <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
         <EarningsDateCell code={r.code} date={earningsDates[r.code] ?? ''} onSave={onSaveEarningsDate} fin={fin} />
       </td>

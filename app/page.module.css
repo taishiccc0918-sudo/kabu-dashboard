@@ -43,8 +43,12 @@
   --table-bg:     #0f1419;
   --row-alt:      rgba(26,31,46,0.7);
   --row-hover:    #1d2540;
-  --sticky-col:   #0f1419;
-  --sticky-name:  #131926;
+  --sticky-col:        #0f1419;
+  --sticky-name:       #131926;
+  --sticky-col-even:   #0a0e15;
+  --sticky-col-odd:    #0f1520;
+  --sticky-name-even:  #0d1320;
+  --sticky-name-odd:   #121928;
   /* radius */
   --r-sm: 4px;
   --r:    8px;
@@ -84,8 +88,12 @@
   --table-bg:     #f4f7fb;
   --row-alt:      rgba(241,245,249,0.9);
   --row-hover:    #e8eef6;
-  --sticky-col:   #f4f7fb;
-  --sticky-name:  #edf1f7;
+  --sticky-col:        #f4f7fb;
+  --sticky-name:       #edf1f7;
+  --sticky-col-even:   #edf1f8;
+  --sticky-col-odd:    #f4f7fb;
+  --sticky-name-even:  #e4eaf3;
+  --sticky-name-odd:   #edf1f7;
 }
 
 /* ── ROOT ────────────────────────────────────────── */
@@ -237,8 +245,8 @@
 .tableScrollX { overflow-x: auto; }
 .tableWrap { overflow: visible; }
 .table {
-  width: 1330px;
-  min-width: 1330px;
+  width: 2270px;
+  min-width: 2270px;
   border-collapse: collapse;
   background: var(--table-bg);
   table-layout: fixed;

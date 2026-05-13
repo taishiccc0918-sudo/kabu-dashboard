@@ -1,4 +1,4 @@
-import { StockRow, PriceRecord, FinRecord, MasterRecord, DEFAULT_GENRES } from './types'
+import { StockRow, PriceRecord, FinRecord, MasterRecord, StockMeta, DEFAULT_GENRES } from './types'
 
 export function fmtN(v: number | null | undefined, dec = 1): string {
   if (v == null || v === 0) return '—'
@@ -35,7 +35,7 @@ export function buildStockRow(
   priceDB: Record<string, PriceRecord>,
   finDB: Record<string, FinRecord>,
   masterDB: Record<string, MasterRecord>,
-  customGenres: Record<string, string>
+  stockMeta: Record<string, StockMeta>
 ): StockRow {
   const p = priceDB[code] ?? { close: 0 }
   const f = finDB[code]
@@ -63,9 +63,11 @@ export function buildStockRow(
   const prev1m = (p as { prev1m?: number }).prev1m
   const perFChg1mPrev = (prev1m && feps) ? prev1m / feps : null
 
-  // ジャンル: カスタム優先、なければデフォルト、なければ「その他」
-  const genreStr = customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'
-  const genres = genreStr.split(',').map(g => g.trim()).filter(Boolean)
+  const meta = stockMeta[code]
+  const defaultGenres = DEFAULT_GENRES[code]
+    ? DEFAULT_GENRES[code].split(',').map(g => g.trim()).filter(Boolean)
+    : ['その他']
+  const genres = (meta?.genres?.length) ? meta.genres : defaultGenres
 
   return {
     code,

@@ -1061,3 +1061,80 @@
   border-color: #3b82f6 !important;
   color: #fff !important;
 }
+
+/* ── 中断ボタン ───────────────────────────────────── */
+.btnAbort {
+  background: #7f1d1d !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+}
+.btnAbort:hover {
+  background: #991b1b !important;
+  color: #fff !important;
+}
+
+/* ── お気に入りボタン ─────────────────────────────── */
+.favBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; padding: 2px 4px;
+  color: rgba(156,163,175,0.4);
+  transition: color .1s, transform .1s;
+  line-height: 1;
+}
+.favBtn:hover { color: #fbbf24; transform: scale(1.15); }
+.favBtnOn {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; padding: 2px 4px;
+  color: #fbbf24;
+  transition: color .1s, transform .1s;
+  line-height: 1;
+}
+.favBtnOn:hover { color: #f59e0b; transform: scale(1.1); }
+
+/* ── 銘柄管理フィルターバー ──────────────────────── */
+.wlFilterBar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 24px;
+  border-bottom: 1px solid #1f2d40;
+  background: rgba(255,255,255,0.01);
+}
+.wlResultCount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #4e6280;
+  margin-left: auto;
+}
+
+/* ── 銘柄管理テーブルスクロール ─────────────────── */
+.wlTableScroll {
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* ── ページネーション ─────────────────────────────── */
+.pagination {
+  display: flex; align-items: center; gap: 4px;
+  padding: 12px 24px;
+  border-top: 1px solid #1f2d40;
+  justify-content: center;
+}
+.pageBtn {
+  min-width: 32px; height: 30px; padding: 0 8px;
+  border-radius: 5px; border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #8fa3be; font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer; transition: all .1s;
+}
+.pageBtn:hover:not(:disabled) { border-color: #3b82f6; color: #60a5fa; background: rgba(59,130,246,0.1); }
+.pageBtn:disabled { color: #2a3a52; cursor: not-allowed; }
+.pageBtnActive {
+  border-color: #3b82f6 !important;
+  background: rgba(59,130,246,0.2) !important;
+  color: #93c5fd !important;
+  font-weight: 700;
+}
+.pageInfo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #4e6280;
+  margin-left: 8px;
+}

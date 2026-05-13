@@ -1,11 +1,11 @@
 'use client'
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
-  DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord,
+  DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord, StockMeta,
   TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
 } from './lib/types'
 import {
-  findLatestBizDate, fetchMaster, fetchPrices, fetchFinancials, fetchAnnouncements, fetchFinancialOne, fetchAllFinancials,
+  findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, marketShort } from './lib/format'
 import styles from './page.module.css'
@@ -19,11 +19,45 @@ function lsSet(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota */ }
 }
 
+// ── 初期化（マイグレーション含む）──────────────────────────────────────
+function initFavorites(): Set<string> {
+  if (typeof window === 'undefined') return new Set(DEFAULT_WATCHLIST)
+  const favArr = ls<string[] | null>('favorites', null)
+  if (favArr !== null) return new Set(favArr)
+  // 旧 watchlist から移行
+  const oldWl = ls<string[] | null>('watchlist', null)
+  if (oldWl !== null) {
+    const set = new Set<string>(oldWl)
+    lsSet('favorites', Array.from(set))
+    return set
+  }
+  return new Set(DEFAULT_WATCHLIST)
+}
+
+function initStockMeta(): Record<string, StockMeta> {
+  if (typeof window === 'undefined') return {}
+  const meta = ls<Record<string, StockMeta> | null>('stockMetadata', null)
+  if (meta !== null) return meta
+  // 旧 customGenres + memos から移行
+  const oldGenres = ls<Record<string, string>>('customGenres', {})
+  const oldMemos  = ls<Record<string, string>>('memos', {})
+  const result: Record<string, StockMeta> = {}
+  const allCodes = Array.from(new Set(Object.keys(oldGenres).concat(Object.keys(oldMemos))))
+  for (const code of allCodes) {
+    result[code] = {
+      genres: oldGenres[code] ? oldGenres[code].split(',').map(g => g.trim()).filter(Boolean) : [],
+      memo:   oldMemos[code] ?? '',
+    }
+  }
+  lsSet('stockMetadata', result)
+  return result
+}
+
 export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
-  const [watchlist,  setWatchlist]  = useState<string[]>(() => ls('watchlist', DEFAULT_WATCHLIST))
-  const watchlistRef = useRef<string[]>(ls('watchlist', DEFAULT_WATCHLIST))
-  const [memos,      setMemos]      = useState<Record<string,string>>(() => ls('memos', {}))
+  const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
+  const favoritesRef = useRef<Set<string>>(new Set())
+  const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>(initStockMeta)
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
@@ -38,35 +72,43 @@ export default function Page() {
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
-  const [customGenres, setCustomGenres] = useState<Record<string,string>>(() => ls('customGenres', {}))
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{code:string;name:string}[]>([])
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchSelectedIdx, setSearchSelectedIdx] = useState(-1)
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
-  const [addCode,    setAddCode]    = useState('')
   const [loading,    setLoading]    = useState(false)
-  const theadTop = 96
-  const [forcePc, setForcePc] = useState(false)
+  const [forcePc,    setForcePc]    = useState(false)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
+  const abortSignalRef = useRef({ aborted: false })
 
-  useEffect(() => { watchlistRef.current = watchlist }, [watchlist])
+  useEffect(() => { favoritesRef.current = favorites }, [favorites])
 
-  const updateWatchlist = useCallback((next: string[]) => {
-    watchlistRef.current = next
-    setWatchlist(next)
-    lsSet('watchlist', next)
-    console.log('[watchlist] updated:', next.length, 'codes')
-  }, [])
+  // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
+  useEffect(() => {
+    if (tab === 'watchlist' && Object.keys(masterDB).length === 0) {
+      fetch('/api/listed-info')
+        .then(r => r.json())
+        .then((data: Record<string, { name: string; market: string }>) => {
+          const db: Record<string, MasterRecord> = {}
+          for (const [code, rec] of Object.entries(data)) {
+            if (rec.name && rec.market) db[code] = rec
+          }
+          setMasterDB(db)
+        })
+        .catch(e => console.error('[listed-info]', e))
+    }
+  }, [tab])
 
+  // ── データ取得 ────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
-    if (loading) return
+    if (loading) {
+      abortSignalRef.current.aborted = true
+      return
+    }
+    abortSignalRef.current = { aborted: false }
     setLoading(true); setStatus('loading')
     const startTime = Date.now()
     const st = (msg: string, pct: number) => {
@@ -76,43 +118,45 @@ export default function Page() {
         const remaining = Math.ceil(estimated - elapsed)
         const remStr = remaining > 3 ? ` (残約${remaining < 60 ? remaining + '秒' : Math.ceil(remaining/60) + '分'})` : ''
         setStatusMsg(msg + remStr)
-      } else {
-        setStatusMsg(msg)
-      }
+      } else { setStatusMsg(msg) }
       setProgress(pct)
     }
     try {
       st('最新営業日を確認中...', 5)
       const { dateStr, dateDisp } = await findLatestBizDate(apiKey)
 
-      const currentWatchlist = [...watchlistRef.current]
-      const total = currentWatchlist.length
+      const currentFavorites = Array.from(favoritesRef.current)
+      const total = currentFavorites.length
 
       st('株価データ取得中...', 10)
-      const prices = await fetchPrices(apiKey, currentWatchlist, dateStr, (msg) => st(msg, 15))
+      const prices = await fetchPrices(apiKey, currentFavorites, dateStr, (msg) => st(msg, 15))
       setPriceDB({ ...prices })
 
       st('銘柄マスタ取得中 (JPX)...', 28)
-      const master = await fetchMaster(apiKey, currentWatchlist)
+      const master = await fetchMaster(apiKey, currentFavorites)
       setMasterDB(master)
 
-      st(`財務データ取得中... (全${total}銘柄・一括取得)`, 40)
-      const { finDB: fins, shOutDB: localShOut } = await fetchAllFinancials(
+      st(`財務データ取得中... (全${total}銘柄)`, 40)
+      const { finDB: fins, shOutDB: localShOut, aborted } = await fetchAllFinancials(
         apiKey,
-        currentWatchlist,
+        currentFavorites,
         (done, total) => {
           st(`財務データ取得中... (${done}/${total})`, 40 + Math.round((done / total) * 45))
           setFinDB(prev => ({ ...prev }))
         },
-        (msg) => setStatusMsg(msg)
+        (msg) => setStatusMsg(msg),
+        abortSignalRef.current
       )
 
-      const gotCount = Object.keys(fins).length
-      const missing = currentWatchlist.filter(c => !fins[c])
-      if (missing.length > 0) {
-        st(`財務データ補完中... (残${missing.length}銘柄)`, 82)
+      if (aborted) {
+        st('中断しました', 0)
+        setStatus('idle')
+        setLoading(false)
+        setTimeout(() => setProgress(0), 800)
+        return
       }
 
+      const gotCount = Object.keys(fins).length
       setFinDB({ ...fins })
 
       for (const [code, sh] of Object.entries(localShOut)) {
@@ -121,7 +165,7 @@ export default function Page() {
       setPriceDB({ ...prices })
 
       st('決算予定日取得中...', 92)
-      const announcements = await fetchAnnouncements(apiKey, currentWatchlist)
+      const announcements = await fetchAnnouncements(apiKey, currentFavorites)
       for (const [code, date] of Object.entries(announcements)) {
         if (fins[code]) fins[code] = { ...fins[code], nextAnnouncementDate: date }
       }
@@ -129,6 +173,7 @@ export default function Page() {
       setLastUpdate(dateDisp)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
+      const missing = currentFavorites.filter(c => !fins[c])
       const failMsg = missing.length > 0 ? ` (未取得${missing.length}銘柄)` : ''
       const elapsedSec = Math.round((Date.now() - startTime) / 1000)
       const elapsedStr = elapsedSec < 60 ? `${elapsedSec}秒` : `${Math.floor(elapsedSec/60)}分${elapsedSec%60}秒`
@@ -145,9 +190,30 @@ export default function Page() {
     }
   }, [apiKey, loading])
 
+  // ── お気に入り操作 ────────────────────────────────────────────────
+  function toggleFavorite(code: string) {
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      lsSet('favorites', Array.from(next))
+      return next
+    })
+  }
+
+  // ── StockMeta 操作 ────────────────────────────────────────────────
+  function saveStockMeta(code: string, meta: StockMeta) {
+    setStockMeta(prev => {
+      const next = { ...prev, [code]: meta }
+      lsSet('stockMetadata', next)
+      return next
+    })
+  }
+
+  // ── allRows（★銘柄のみ） ──────────────────────────────────────────
   const allRows = useMemo(
-    () => watchlist.map(code => buildStockRow(code, priceDB, finDB, masterDB, customGenres)),
-    [watchlist, priceDB, finDB, masterDB, customGenres]
+    () => Array.from(favorites).map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta)),
+    [favorites, priceDB, finDB, masterDB, stockMeta]
   )
 
   const filteredRows = useMemo(() => {
@@ -193,7 +259,19 @@ export default function Page() {
     const next = [...customGenreOptions, trimmed]
     setCustomGenreOptions(next); lsSet('customGenreOptions', next)
   }
+
   function removeGenreOption(name: string) {
+    // カスケード削除: 全銘柄のstockMetaからもこのジャンルを除去
+    setStockMeta(prev => {
+      const next = { ...prev }
+      for (const [code, meta] of Object.entries(next)) {
+        if (meta.genres.includes(name)) {
+          next[code] = { ...meta, genres: meta.genres.filter(g => g !== name) }
+        }
+      }
+      lsSet('stockMetadata', next)
+      return next
+    })
     if (customGenreOptions.includes(name)) {
       const next = customGenreOptions.filter(g => g !== name)
       setCustomGenreOptions(next); lsSet('customGenreOptions', next)
@@ -202,67 +280,38 @@ export default function Page() {
       setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
     }
   }
+
   function restoreDefaultGenres() {
     setRemovedDefaultGenres([]); lsSet('removedDefaultGenres', [])
   }
 
-  function searchMaster(q: string) {
-    setSearchQuery(q)
-    setSearchSelectedIdx(-1)
-    if (!q.trim()) { setSearchResults([]); setSearchOpen(false); return }
-    const lower = q.toLowerCase()
-    const results = Object.entries(masterDB)
-      .filter(([code, rec]) =>
-        code.toLowerCase().includes(lower) ||
-        rec.name.toLowerCase().includes(lower)
-      )
-      .slice(0, 10)
-      .map(([code, rec]) => ({ code, name: rec.name }))
-    setSearchResults(results)
-    setSearchOpen(results.length > 0)
-  }
-
-  function addStockFromSearch(code: string) {
-    if (!watchlist.includes(code)) {
-      const next = [code, ...watchlist]
-      updateWatchlist(next)
-    }
-    setSearchQuery(''); setSearchResults([]); setSearchOpen(false); setSearchSelectedIdx(-1)
-  }
-
-  function saveCustomGenre(code: string, genreStr: string) {
-    const next = { ...customGenres, [code]: genreStr }
-    setCustomGenres(next); lsSet('customGenres', next)
-  }
-  function resetCustomGenre(code: string) {
-    const next = { ...customGenres }
-    delete next[code]
-    setCustomGenres(next); lsSet('customGenres', next)
-  }
-
-  function addStock() {
-    const code = addCode.trim().toUpperCase()
-    if (!code) return
-    if (!watchlist.includes(code)) {
-      const next = [...watchlist, code]
-      updateWatchlist(next)
-    }
-    setAddCode('')
-  }
-  function removeStock(code: string) {
-    const next = watchlist.filter(c => c !== code)
-    updateWatchlist(next)
-  }
   function saveMemo(code: string, text: string) {
-    const next = { ...memos, [code]: text }
-    setMemos(next); lsSet('memos', next)
+    const prev = stockMeta[code] ?? { genres: [], memo: '' }
+    saveStockMeta(code, { ...prev, memo: text })
   }
   function saveEarningsDate(code: string, date: string) {
     const next = { ...earningsDates, [code]: date }
     setEarningsDates(next); lsSet('earningsDates', next)
   }
 
-  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, customGenres) : null
+  async function exportToExcel() {
+    const XLSX = await import('xlsx')
+    const rows: string[][] = Array.from(favorites).map(code => {
+      const meta = stockMeta[code] ?? { genres: [], memo: '' }
+      const master = masterDB[code] ?? { name: '', market: '' }
+      const defaultGenreStr = DEFAULT_GENRES[code] ?? ''
+      const defaultGenres = defaultGenreStr ? defaultGenreStr.split(',').map(g => g.trim()).filter(Boolean) : ['その他']
+      const genres = meta.genres.length ? meta.genres : defaultGenres
+      return [code, master.name, master.market, genres.join(','), meta.memo]
+    })
+    const ws = XLSX.utils.aoa_to_sheet([['コード','銘柄名','市場','ジャンル','メモ'], ...rows])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'お気に入り')
+    const date = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `kabu-favorites-${date}.xlsx`)
+  }
+
+  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, stockMeta) : null
   const detailFin = detailCode ? finDB[detailCode] : null
 
   return (
@@ -270,7 +319,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></>  : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; {stats.total}銘柄</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
           <label className={styles.apiLabel}>API Key</label>
@@ -282,10 +331,10 @@ export default function Page() {
             onChange={e => setApiKey(e.target.value)}
           />
           <button
-            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''}`}
-            onClick={fetchAll} disabled={loading}
+            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''} ${loading ? styles.btnAbort : ''}`}
+            onClick={fetchAll}
           >
-            {loading ? '取得中...' : lastUpdate ? '更新済み ↺' : '全更新'}
+            {loading ? '⏸ 中断' : lastUpdate ? '更新済み ↺' : '全更新'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
         </div>
@@ -383,6 +432,7 @@ export default function Page() {
           </button>
         </div>
       )}
+
       <main className={styles.main}>
         {tab === 'dashboard' && (
           <>
@@ -420,114 +470,20 @@ export default function Page() {
         )}
 
         {tab === 'watchlist' && (
-          <div className={styles.wlManager}>
-            <div className={styles.wlHeader}>
-              <div className={styles.wlTitle}>銘柄管理 <span className={styles.wlCount}>{watchlist.length}銘柄</span></div>
-              <div style={{display:'flex', gap:8}}>
-                <button className={styles.btnSecondary} onClick={() => {
-                  navigator.clipboard.writeText(watchlist.join(','))
-                    .then(() => alert('コピーしました'))
-                }}>エクスポート</button>
-                <button className={styles.btnSecondary} onClick={() => {
-                  const text = prompt('銘柄コードをカンマ区切りで入力:')
-                  if (!text) return
-                  const codes = text.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-                  const next = Array.from(new Set([...watchlist, ...codes]))
-                  updateWatchlist(next)
-                }}>インポート</button>
-              </div>
-            </div>
-
-            <div className={styles.wlGenreBar}>
-              <span className={styles.wlGenreLabel}>ジャンル:</span>
-              {allGenreOptions.map(g => (
-                <span key={g} className={styles.genreBadgeEditable}>
-                  {g}
-                  <button className={styles.genreRemoveBtn} onClick={() => removeGenreOption(g)} title="削除">×</button>
-                </span>
-              ))}
-              <AddGenreInput onAdd={addGenreOption} />
-              {removedDefaultGenres.length > 0 && (
-                <button className={styles.genreRestoreBtn} onClick={restoreDefaultGenres}>
-                  ↩ デフォルト復元
-                </button>
-              )}
-            </div>
-
-            <div className={styles.wlSearchRow}>
-              <div className={styles.wlSearchWrap}>
-                <input
-                  className={styles.wlSearchInput}
-                  placeholder="銘柄名またはコードで検索して追加..."
-                  value={searchQuery}
-                  onChange={e => searchMaster(e.target.value)}
-                  onFocus={() => searchQuery && setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => { setSearchOpen(false); setSearchSelectedIdx(-1) }, 150)}
-                  onKeyDown={e => {
-                    if (!searchOpen || searchResults.length === 0) return
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault()
-                      setSearchSelectedIdx(i => Math.min(i + 1, searchResults.length - 1))
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault()
-                      setSearchSelectedIdx(i => Math.max(i - 1, 0))
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const idx = searchSelectedIdx >= 0 ? searchSelectedIdx : 0
-                      if (searchResults[idx]) addStockFromSearch(searchResults[idx].code)
-                    } else if (e.key === 'Escape') {
-                      setSearchOpen(false); setSearchSelectedIdx(-1)
-                    }
-                  }}
-                />
-                {searchOpen && searchResults.length > 0 && (
-                  <div className={styles.searchDropdown}>
-                    {searchResults.map((r, idx) => (
-                      <div
-                        key={r.code}
-                        className={`${styles.searchDropdownItem} ${idx === searchSelectedIdx ? styles.searchDropdownItemActive : ''}`}
-                        onMouseDown={() => addStockFromSearch(r.code)}
-                        onMouseEnter={() => setSearchSelectedIdx(idx)}
-                      >
-                        <span className={styles.searchItemCode}>{r.code}</span>
-                        <span className={styles.searchItemName}>{r.name}</span>
-                        {watchlist.includes(r.code) && <span className={styles.searchItemAdded}>登録済</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <table className={styles.wlTableInner}>
-                <thead>
-                  <tr>
-                    <th className={styles.wlTh} style={{width:70, top:52}}>コード</th>
-                    <th className={styles.wlTh} style={{top:52}}>銘柄名</th>
-                    <th className={styles.wlTh} style={{width:'auto', top:52}}>ジャンル（複数選択可）</th>
-                    <th className={styles.wlTh} style={{width:180, top:52}}>メモ</th>
-                    <th className={styles.wlTh} style={{width:50, top:52}}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {watchlist.map(code => (
-                    <WatchlistRow
-                      key={code} code={code}
-                      name={masterDB[code]?.name ?? ''}
-                      currentGenre={customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'}
-                      memo={memos[code] ?? ''}
-                      allGenreOptions={allGenreOptions}
-                      customGenreOptions={customGenreOptions}
-                      onSave={saveCustomGenre}
-                      onReset={resetCustomGenre}
-                      onRemove={removeStock}
-                      onAddGenre={addGenreOption}
-                      onSaveMemo={saveMemo}
-                    />
-                  ))}
-                </tbody>
-            </table>
-          </div>
+          <StockManager
+            masterDB={masterDB}
+            favorites={favorites}
+            stockMeta={stockMeta}
+            allGenreOptions={allGenreOptions}
+            customGenreOptions={customGenreOptions}
+            removedDefaultGenres={removedDefaultGenres}
+            onToggleFavorite={toggleFavorite}
+            onSaveStockMeta={saveStockMeta}
+            onAddGenre={addGenreOption}
+            onRemoveGenre={removeGenreOption}
+            onRestoreGenres={restoreDefaultGenres}
+            onExport={exportToExcel}
+          />
         )}
       </main>
 
@@ -538,8 +494,8 @@ export default function Page() {
             <DetailPanel
               row={detailRow}
               fin={detailFin}
-              memo={memos[detailCode] ?? ''}
-              onSaveMemo={text => saveMemo(detailCode, text)}
+              memo={stockMeta[detailCode]?.memo ?? ''}
+              onSaveMemo={text => saveMemo(detailCode!, text)}
               apiKey={apiKey}
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
@@ -567,9 +523,245 @@ export default function Page() {
   )
 }
 
+// ─── StockManager（銘柄管理画面）────────────────────────────────────
+const PER_PAGE = 100
+
+function StockManager({
+  masterDB, favorites, stockMeta, allGenreOptions, customGenreOptions, removedDefaultGenres,
+  onToggleFavorite, onSaveStockMeta, onAddGenre, onRemoveGenre, onRestoreGenres, onExport,
+}: {
+  masterDB: Record<string, MasterRecord>
+  favorites: Set<string>
+  stockMeta: Record<string, StockMeta>
+  allGenreOptions: string[]
+  customGenreOptions: string[]
+  removedDefaultGenres: string[]
+  onToggleFavorite: (code: string) => void
+  onSaveStockMeta: (code: string, meta: StockMeta) => void
+  onAddGenre: (name: string) => void
+  onRemoveGenre: (name: string) => void
+  onRestoreGenres: () => void
+  onExport: () => void
+}) {
+  const [wlSearch, setWlSearch] = useState('')
+  const [showFavOnly, setShowFavOnly] = useState(false)
+  const [mktF, setMktF] = useState('all')
+  const [page, setPage] = useState(1)
+
+  const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
+
+  const filteredCodes = useMemo(() => {
+    const q = wlSearch.trim().toLowerCase()
+    return allCodes.filter(code => {
+      const rec = masterDB[code]
+      if (!rec) return false
+      if (showFavOnly && !favorites.has(code)) return false
+      if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
+      if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
+      if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+      if (q && !code.toLowerCase().includes(q) && !rec.name.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [allCodes, masterDB, favorites, showFavOnly, mktF, wlSearch])
+
+  useEffect(() => { setPage(1) }, [wlSearch, showFavOnly, mktF])
+
+  const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
+  const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+
+  function renderPageNums() {
+    const pages: number[] = []
+    const start = Math.max(1, Math.min(totalPages - 4, page - 2))
+    for (let i = start; i <= Math.min(totalPages, start + 4); i++) pages.push(i)
+    return pages
+  }
+
+  return (
+    <div className={styles.wlManager}>
+      <div className={styles.wlHeader}>
+        <div className={styles.wlTitle}>
+          銘柄管理
+          <span className={styles.wlCount}>★{favorites.size}件 / 全{allCodes.length}件</span>
+        </div>
+        <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
+          ↓ Excelエクスポート
+        </button>
+      </div>
+
+      <div className={styles.wlGenreBar}>
+        <span className={styles.wlGenreLabel}>ジャンル:</span>
+        {allGenreOptions.map(g => (
+          <span key={g} className={styles.genreBadgeEditable}>
+            {g}
+            <button className={styles.genreRemoveBtn} onClick={() => onRemoveGenre(g)} title="削除">×</button>
+          </span>
+        ))}
+        <AddGenreInput onAdd={onAddGenre} />
+        {removedDefaultGenres.length > 0 && (
+          <button className={styles.genreRestoreBtn} onClick={onRestoreGenres}>↩ デフォルト復元</button>
+        )}
+      </div>
+
+      <div className={styles.wlFilterBar}>
+        <input
+          className={styles.wlSearchInput}
+          placeholder="銘柄名・コードで絞り込み..."
+          value={wlSearch}
+          onChange={e => setWlSearch(e.target.value)}
+        />
+        <button
+          className={`${styles.filterBtn} ${showFavOnly ? styles.filterBtnActive : ''}`}
+          onClick={() => setShowFavOnly(f => !f)}
+          style={{fontWeight: showFavOnly ? 700 : undefined}}
+        >★ お気に入りのみ</button>
+        {(['all','prime','standard','growth'] as const).map(k => (
+          <button key={k}
+            className={`${styles.filterBtn} ${mktF === k ? styles.filterBtnActive : ''}`}
+            onClick={() => setMktF(k)}
+          >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+        ))}
+        <span className={styles.wlResultCount}>{filteredCodes.length}件</span>
+      </div>
+
+      <div className={styles.wlTableScroll}>
+        <table className={styles.wlTableInner}>
+          <thead>
+            <tr>
+              <th className={styles.wlTh} style={{width:44}}>★</th>
+              <th className={styles.wlTh} style={{width:68}}>コード</th>
+              <th className={styles.wlTh} style={{width:190}}>銘柄名</th>
+              <th className={styles.wlTh} style={{width:80}}>市場</th>
+              <th className={styles.wlTh} style={{width:220}}>ジャンル</th>
+              <th className={styles.wlTh}>メモ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allCodes.length === 0 ? (
+              <tr><td colSpan={6} className={styles.emptyCell}>銘柄マスタ読込中...</td></tr>
+            ) : pageCodes.length === 0 ? (
+              <tr><td colSpan={6} className={styles.emptyCell}>該当銘柄なし</td></tr>
+            ) : pageCodes.map(code => (
+              <StockManagerRow
+                key={code}
+                code={code}
+                rec={masterDB[code]}
+                isFav={favorites.has(code)}
+                meta={stockMeta[code] ?? { genres: [], memo: '' }}
+                allGenreOptions={allGenreOptions}
+                onToggleFav={() => onToggleFavorite(code)}
+                onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
+                onAddGenre={onAddGenre}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <button className={styles.pageBtn} onClick={() => setPage(1)} disabled={page === 1}>«</button>
+          <button className={styles.pageBtn} onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}>‹</button>
+          {renderPageNums().map(p => (
+            <button key={p} className={`${styles.pageBtn} ${p === page ? styles.pageBtnActive : ''}`} onClick={() => setPage(p)}>{p}</button>
+          ))}
+          <button className={styles.pageBtn} onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages}>›</button>
+          <button className={styles.pageBtn} onClick={() => setPage(totalPages)} disabled={page === totalPages}>»</button>
+          <span className={styles.pageInfo}>{page}/{totalPages}ページ</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── StockManagerRow ─────────────────────────────────────────────────
+const StockManagerRow = React.memo(function StockManagerRow({
+  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre,
+}: {
+  code: string
+  rec: MasterRecord
+  isFav: boolean
+  meta: StockMeta
+  allGenreOptions: string[]
+  onToggleFav: () => void
+  onSaveMeta: (meta: StockMeta) => void
+  onAddGenre: (name: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [localMemo, setLocalMemo] = useState(meta.memo)
+  const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
+
+  const defaultGenres = useMemo(() => {
+    const s = DEFAULT_GENRES[code] ?? ''
+    return s ? s.split(',').map(g => g.trim()).filter(Boolean) : ['その他']
+  }, [code])
+  const genres = meta.genres.length ? meta.genres : defaultGenres
+
+  function toggleGenre(tag: string) {
+    const current = meta.genres.length ? meta.genres : defaultGenres
+    const next = current.includes(tag) ? current.filter(g => g !== tag) : [...current, tag]
+    onSaveMeta({ ...meta, genres: next })
+  }
+
+  // メモがpropsで変わったとき（他の行の更新等）は同期
+  useEffect(() => { setLocalMemo(meta.memo) }, [meta.memo])
+
+  return (
+    <>
+      <tr className={styles.wlTr}>
+        <td className={styles.wlTd} style={{textAlign:'center'}}>
+          <button
+            onClick={onToggleFav}
+            className={isFav ? styles.favBtnOn : styles.favBtn}
+            title={isFav ? 'お気に入り解除' : 'お気に入りに追加'}
+          >{isFav ? '★' : '☆'}</button>
+        </td>
+        <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
+        <td className={styles.wlTd}><span className={styles.wlTdName}>{rec.name}</span></td>
+        <td className={styles.wlTd}>
+          <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+        </td>
+        <td className={styles.wlTd}>
+          <div className={styles.wlGenreCell}>
+            {genres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
+            <button
+              className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
+              onClick={() => setEditing(e => !e)}
+            >{editing ? '▲' : '✏️'}</button>
+          </div>
+        </td>
+        <td className={styles.wlTd}>
+          <input
+            className={styles.wlMemoInput}
+            placeholder="メモ（100文字）"
+            value={localMemo}
+            maxLength={100}
+            onChange={e => setLocalMemo(e.target.value)}
+            onBlur={() => onSaveMeta({ ...meta, memo: localMemo })}
+            onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
+          />
+        </td>
+      </tr>
+      {editing && (
+        <tr className={styles.wlEditRow}>
+          <td colSpan={6} className={styles.wlEditTd}>
+            <div className={styles.wlGenreEditPanel}>
+              {allGenreOptions.map(g => (
+                <button key={g}
+                  className={`${styles.genreTag} ${genres.includes(g) ? styles.genreTagOn : ''}`}
+                  onClick={() => toggleGenre(g)}
+                >{g}</button>
+              ))}
+              <InlineGenreAdd onAdd={(name) => { onAddGenre(name); toggleGenre(name) }} />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+})
+
 // ─── MiniChart ───────────────────────────────────────────────────────
 type ChartMode = 'daily' | 'monthly'
-
 interface SeriesData { prices: number[]; label: string; color: string }
 
 async function fetchIndex(stooqSymbol: string, from: string, to: string): Promise<number[]> {
@@ -608,21 +800,15 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   useEffect(() => {
     if (!apiKey || !code) return
     if (cachedData[mode] !== null) return
-
     setChartLoading(true)
     const today = new Date()
     const from = new Date(today)
-    if (mode === 'daily') {
-      from.setFullYear(from.getFullYear() - 1)
-    } else {
-      from.setFullYear(from.getFullYear() - 5)
-    }
+    if (mode === 'daily') from.setFullYear(from.getFullYear() - 1)
+    else from.setFullYear(from.getFullYear() - 5)
     const fromStr = fmt(from)
     const toStr = fmt(today)
-
     const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
     const url = `/api/jquants?path=${path}`
-
     Promise.all([
       fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
       fetchIndex('n225.jp', fromStr, toStr),
@@ -630,7 +816,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     ]).then(([json, nkPrices, ndqPrices]) => {
       const data = json?.data ?? []
       let stockPrices: number[]
-
       if (mode === 'daily') {
         stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
       } else {
@@ -641,7 +826,6 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
         }
         stockPrices = Object.values(monthly).filter(v => v > 0)
       }
-
       const series: SeriesData[] = [
         { prices: normalizeSeries(stockPrices), label: code, color: stockPrices.length > 1 && stockPrices[stockPrices.length-1] >= stockPrices[0] ? '#34d399' : '#f87171' },
         { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
@@ -655,81 +839,60 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
   useEffect(() => {
     const draw = () => {
-    const canvas = canvasRef.current
-    const series = cachedData[mode]
-    if (!canvas || !series || series.length === 0) return
-    const stockSeries = series[0].prices
-    if (stockSeries.length < 2) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const w = canvas.clientWidth || canvas.offsetWidth ||
-      (canvas.parentElement?.clientWidth ?? 280)
-    const h = 140
-    canvas.width = w
-    canvas.height = h
-    ctx.clearRect(0, 0, w, h)
-
-    const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
-    const min = Math.min(...allValues) * 0.98
-    const max = Math.max(...allValues) * 1.02
-    const range = max - min || 1
-
-    const toX = (i: number, len: number) => (i / (len - 1)) * w
-    const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
-
-    const stockColor = series[0].color
-    const grad = ctx.createLinearGradient(0, 0, 0, h)
-    grad.addColorStop(0, stockColor.includes('34d') ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)')
-    grad.addColorStop(1, 'rgba(0,0,0,0)')
-    const sp = stockSeries
-    ctx.beginPath()
-    sp.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, sp.length), toY(v)) : ctx.lineTo(toX(i, sp.length), toY(v)) })
-    ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
-    ctx.fillStyle = grad; ctx.fill()
-
-    for (const s of series) {
-      if (s.prices.length < 2) continue
+      const canvas = canvasRef.current
+      const series = cachedData[mode]
+      if (!canvas || !series || series.length === 0) return
+      const stockSeries = series[0].prices
+      if (stockSeries.length < 2) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      const w = canvas.clientWidth || canvas.offsetWidth || (canvas.parentElement?.clientWidth ?? 280)
+      const h = 140
+      canvas.width = w; canvas.height = h
+      ctx.clearRect(0, 0, w, h)
+      const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
+      const min = Math.min(...allValues) * 0.98
+      const max = Math.max(...allValues) * 1.02
+      const range = max - min || 1
+      const toX = (i: number, len: number) => (i / (len - 1)) * w
+      const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
+      const stockColor = series[0].color
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, stockColor.includes('34d') ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)')
+      grad.addColorStop(1, 'rgba(0,0,0,0)')
+      const sp = stockSeries
       ctx.beginPath()
-      s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
-      ctx.strokeStyle = s.color
-      ctx.lineWidth = s.label === code ? 1.8 : 1.2
-      ctx.stroke()
-    }
-
-    const legends = series.filter(s => s.prices.length > 1)
-    legends.forEach((s, i) => {
-      ctx.fillStyle = s.color
-      ctx.fillRect(8 + i * 72, 4, 10, 2)
-      ctx.fillStyle = 'rgba(200,220,240,0.7)'
-      ctx.font = '10px JetBrains Mono, monospace'
-      ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
-    })
+      sp.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, sp.length), toY(v)) : ctx.lineTo(toX(i, sp.length), toY(v)) })
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
+      ctx.fillStyle = grad; ctx.fill()
+      for (const s of series) {
+        if (s.prices.length < 2) continue
+        ctx.beginPath()
+        s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
+        ctx.strokeStyle = s.color; ctx.lineWidth = s.label === code ? 1.8 : 1.2; ctx.stroke()
+      }
+      series.filter(s => s.prices.length > 1).forEach((s, i) => {
+        ctx.fillStyle = s.color; ctx.fillRect(8 + i * 72, 4, 10, 2)
+        ctx.fillStyle = 'rgba(200,220,240,0.7)'; ctx.font = '10px JetBrains Mono, monospace'
+        ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
+      })
     }
     requestAnimationFrame(draw)
   }, [cachedData, mode, code])
 
   const currentData = cachedData[mode]
   const hasData = currentData !== null && currentData[0]?.prices.length >= 2
-
   return (
     <div className={styles.chartArea}>
       <div className={styles.chartTabs}>
         {(['daily','monthly'] as ChartMode[]).map(m => (
-          <button key={m}
-            className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
-            onClick={e => { e.stopPropagation(); setMode(m) }}
-          >
+          <button key={m} className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
+            onClick={e => { e.stopPropagation(); setMode(m) }}>
             {m === 'daily' ? '日足(1年)' : '月足(5年)'}
           </button>
         ))}
       </div>
-      <canvas
-        ref={canvasRef}
-        className={styles.chartCanvas}
-        style={{ display: hasData && !chartLoading ? 'block' : 'none' }}
-      />
+      <canvas ref={canvasRef} className={styles.chartCanvas} style={{ display: hasData && !chartLoading ? 'block' : 'none' }} />
       {chartLoading && <div className={styles.chartLoading}>読込中...</div>}
       {!chartLoading && !hasData && <div className={styles.chartLoading}>データなし</div>}
     </div>
@@ -751,16 +914,12 @@ function DashboardTable({
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-
   const onBodyScroll = () => {
-    if (headRef.current && bodyRef.current)
-      headRef.current.scrollLeft = bodyRef.current.scrollLeft
+    if (headRef.current && bodyRef.current) headRef.current.scrollLeft = bodyRef.current.scrollLeft
   }
-
   const SortArrow = ({ k }: { k: keyof StockRow }) => (
     <span className={`${styles.sortArrow} ${sortKey===k ? styles.sorted : ''}`}>↕</span>
   )
-
   const cols: { label: string; cls: string; key: keyof StockRow | null; group: string; width?: number; tooltip?: string }[] = [
     { label: '', cls: styles.thLeft, key: null, width: 32, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
@@ -784,59 +943,35 @@ function DashboardTable({
     { label: 'PEG', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other', tooltip: 'PER÷EPS成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
-    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。\n\n計算式: 現在株価÷予想EPS vs 1ヶ月前株価÷予想EPS\n変化率が−5%以下なら「買い」と判定' },
+    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。' },
     { label: '四季報',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'YF',       cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'かぶたん', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '公式HP',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '次決算',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-
+  const colWidths = [32,60,150,80,72,100,80,76,76,76,76,76,76,76,130,64,64,88,88,64,88,100,64,72,60,80,72,76]
+  const colGroup = (
+    <colgroup>
+      {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
+    </colgroup>
+  )
   return (
     <div className={styles.dashWrap}>
       <div className={styles.theadOuter} ref={headRef}>
         <table className={`${styles.table} ${styles.theadTable}`}>
-            <colgroup>
-              <col style={{width:32, minWidth:32}} />
-              <col style={{width:60, minWidth:60}} />
-              <col style={{width:150, minWidth:150}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:130, minWidth:130}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:60, minWidth:60}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:76, minWidth:76}} />
-            </colgroup>
+          {colGroup}
           <thead>
             <tr>
               {cols.map((col, i) => (
                 <th
                   key={i}
-                  className={`${col.cls} ${col.key ? styles.thSort : ''} ${(col as {tooltip?:string}).tooltip ? styles.thTooltip : ''}`}
+                  className={`${col.cls} ${col.key ? styles.thSort : ''} ${col.tooltip ? styles.thTooltip : ''}`}
                   style={col.width ? {width: col.width, minWidth: col.width} : undefined}
                   onClick={col.key ? () => handleSort(col.key!) : undefined}
-                  title={(col as {tooltip?:string}).tooltip}
+                  title={col.tooltip}
                 >
-                  {col.label}{(col as {tooltip?:string}).tooltip && <span className={styles.tooltipIcon}>?</span>}{col.key && <SortArrow k={col.key} />}
+                  {col.label}{col.tooltip && <span className={styles.tooltipIcon}>?</span>}{col.key && <SortArrow k={col.key} />}
                 </th>
               ))}
             </tr>
@@ -845,36 +980,7 @@ function DashboardTable({
       </div>
       <div className={styles.tbodyOuter} ref={bodyRef} onScroll={onBodyScroll}>
         <table className={styles.table}>
-            <colgroup>
-              <col style={{width:32, minWidth:32}} />
-              <col style={{width:60, minWidth:60}} />
-              <col style={{width:150, minWidth:150}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:76, minWidth:76}} />
-              <col style={{width:130, minWidth:130}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:88, minWidth:88}} />
-              <col style={{width:100, minWidth:100}} />
-              <col style={{width:64, minWidth:64}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:60, minWidth:60}} />
-              <col style={{width:80, minWidth:80}} />
-              <col style={{width:72, minWidth:72}} />
-              <col style={{width:76, minWidth:76}} />
-            </colgroup>
+          {colGroup}
           <tbody>
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
@@ -889,7 +995,10 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: { row: StockRow; idx: number; fin?: import('./lib/types').FinRecord; earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void }) {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: {
+  row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
+  earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
+}) {
   const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -902,8 +1011,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
-        <td key={i} className={`${styles.tdPct} ${styles[pctClass(v)]}`}
-          style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
+        <td key={i} className={`${styles.tdPct} ${styles[pctClass(v)]}`} style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
       ))}
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
         title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
@@ -939,23 +1047,16 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
 
 // ─── EarningsDateCell ────────────────────────────────────────────────
 function EarningsDateCell({ code, date, onSave, fin }: {
-  code: string
-  date: string
-  onSave: (code: string, date: string) => void
-  fin?: import('./lib/types').FinRecord
+  code: string; date: string; onSave: (code: string, date: string) => void; fin?: import('./lib/types').FinRecord
 }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(date)
-
-  // Prefer API-fetched nextAnnouncementDate, fall back to manual entry
   const displayDate = fin?.nextAnnouncementDate || date
 
   function getDaysUntil(d: string): number | null {
     if (!d) return null
-    const diff = (new Date(d).getTime() - Date.now()) / 86400000
-    return diff
+    return (new Date(d).getTime() - Date.now()) / 86400000
   }
-
   function getColor(d: string): string {
     const days = getDaysUntil(d)
     if (days === null) return ''
@@ -964,52 +1065,37 @@ function EarningsDateCell({ code, date, onSave, fin }: {
     if (days <= 14) return '#fbbf24'
     return ''
   }
-
   function formatShort(d: string): string {
     if (!d) return '—'
-    const days = getDaysUntil(d)
     const m = d.slice(5, 7).replace(/^0/, '')
     const day = d.slice(8, 10).replace(/^0/, '')
+    const days = getDaysUntil(d)
     const label = `${m}/${day}`
     if (days !== null && days >= 0 && days <= 3) return `${label}(${Math.ceil(days)}d)`
     return label
   }
-
-  if (editing) {
-    return (
-      <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
-        <input
-          type="date"
-          autoFocus
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { onSave(code, val); setEditing(false) }
-            if (e.key === 'Escape') { setVal(date); setEditing(false) }
-          }}
-        />
-        <button onClick={() => { onSave(code, val); setEditing(false) }}
-          style={{fontSize:10, padding:'1px 4px', background:'#3b82f6', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
-        <button onClick={() => { setVal(date); setEditing(false) }}
-          style={{fontSize:10, padding:'1px 4px', background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}>✕</button>
-      </span>
-    )
-  }
-
+  if (editing) return (
+    <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
+      <input type="date" autoFocus value={val} onChange={e => setVal(e.target.value)}
+        style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
+        onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
+      />
+      <button onClick={() => { onSave(code, val); setEditing(false) }}
+        style={{fontSize:10, padding:'1px 4px', background:'#3b82f6', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
+      <button onClick={() => { setVal(date); setEditing(false) }}
+        style={{fontSize:10, padding:'1px 4px', background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}>✕</button>
+    </span>
+  )
   return (
     <span
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
         color: displayDate ? (getColor(displayDate) || '#94a3b8') : '#60a5fa',
-        cursor: 'pointer',
-        padding: '2px 5px',
-        borderRadius: 3,
+        cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
         border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
         background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',
-        whiteSpace: 'nowrap',
-        display: 'inline-block',
+        whiteSpace: 'nowrap', display: 'inline-block',
       }}
       onClick={() => { setVal(date); setEditing(true) }}
     >
@@ -1052,8 +1138,6 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
 // ─── StockCard ───────────────────────────────────────────────────────
 function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
-  const [showChart, setShowChart] = useState(false)
-
   return (
     <div className={styles.card} onClick={onClick}>
       <div className={styles.cardHeader}>
@@ -1104,24 +1188,17 @@ function InlineGenreAdd({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState('')
   const [open, setOpen] = useState(false)
   if (!open) return (
-    <button className={styles.genreTag} style={{borderStyle:'dashed'}} onClick={() => setOpen(true)}>
-      ＋ 新規
-    </button>
+    <button className={styles.genreTag} style={{borderStyle:'dashed'}} onClick={() => setOpen(true)}>＋ 新規</button>
   )
   return (
     <span style={{display:'inline-flex', gap:3, alignItems:'center'}}>
-      <input
-        autoFocus
-        className={styles.genreNewInput}
-        placeholder="ジャンル名..."
-        value={val}
+      <input autoFocus className={styles.genreNewInput} placeholder="ジャンル名..." value={val}
         onChange={e => setVal(e.target.value)}
         onKeyDown={e => {
           if (e.key === 'Enter' && val.trim()) { onAdd(val.trim()); setVal(''); setOpen(false) }
           if (e.key === 'Escape') { setVal(''); setOpen(false) }
         }}
-        maxLength={10}
-        style={{width:80}}
+        maxLength={10} style={{width:80}}
       />
       <button className={styles.genreAddBtn}
         onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(''); setOpen(false) } }}>追加</button>
@@ -1135,10 +1212,7 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState('')
   return (
     <span style={{display:'inline-flex', gap:4, alignItems:'center'}}>
-      <input
-        className={styles.genreNewInput}
-        placeholder="新ジャンル名..."
-        value={val}
+      <input className={styles.genreNewInput} placeholder="新ジャンル名..." value={val}
         onChange={e => setVal(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && val.trim()) { onAdd(val); setVal('') } }}
         maxLength={10}
@@ -1149,103 +1223,18 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-// ─── WatchlistRow ────────────────────────────────────────────────────
-function WatchlistRow({ code, name, currentGenre, memo, allGenreOptions, customGenreOptions, onSave, onReset, onRemove, onAddGenre, onSaveMemo }: {
-  code: string
-  name: string
-  currentGenre: string
-  memo: string
-  allGenreOptions: string[]
-  customGenreOptions: string[]
-  onSave: (code: string, genre: string) => void
-  onReset: (code: string) => void
-  onRemove: (code: string) => void
-  onAddGenre: (name: string) => void
-  onSaveMemo: (code: string, text: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [localMemo, setLocalMemo] = useState(memo)
-  const selected = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
-
-  function toggle(tag: string) {
-    const next = selected.includes(tag)
-      ? selected.filter(g => g !== tag)
-      : [...selected, tag]
-    onSave(code, next.join(',') || 'その他')
-  }
-
-  return (
-    <>
-      <tr className={styles.wlTr}>
-        <td className={styles.wlTd}>
-          <span className={styles.wlChipCode}>{code}</span>
-        </td>
-        <td className={styles.wlTd}>
-          <span className={styles.wlTdName}>{name || '—'}</span>
-        </td>
-        <td className={styles.wlTd}>
-          <div className={styles.wlGenreCell}>
-            {selected.map(g => (
-              <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>
-            ))}
-            <button
-              className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
-              onClick={() => setEditing(e => !e)}
-            >{editing ? '▲ 閉じる' : '✏️ 編集'}</button>
-          </div>
-        </td>
-        <td className={styles.wlTd}>
-          <input
-            className={styles.wlMemoInput}
-            placeholder="メモ（100文字）"
-            value={localMemo}
-            maxLength={100}
-            onChange={e => setLocalMemo(e.target.value)}
-            onBlur={() => onSaveMemo(code, localMemo)}
-            onKeyDown={e => { if (e.key === 'Enter') { onSaveMemo(code, localMemo); e.currentTarget.blur() } }}
-          />
-        </td>
-        <td className={styles.wlTd} style={{textAlign:'center'}}>
-          <button className={styles.wlRemoveBtn} onClick={() => onRemove(code)}>✕</button>
-        </td>
-      </tr>
-      {editing && (
-        <tr className={styles.wlEditRow}>
-          <td colSpan={5} className={styles.wlEditTd}>
-            <div className={styles.wlGenreEditPanel}>
-              {allGenreOptions.map(g => (
-                <button key={g}
-                  className={`${styles.genreTag} ${selected.includes(g) ? styles.genreTagOn : ''}`}
-                  onClick={() => toggle(g)}
-                >{g}</button>
-              ))}
-              <InlineGenreAdd onAdd={(name) => {
-                onAddGenre(name)
-                toggle(name)
-              }} />
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  )
-}
-
 function JudgmentBadge({ j }: { j: string }) {
   if (j === '買い') return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
+// ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
   row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate,
 }: {
-  row: StockRow
-  fin: FinRecord | null | undefined
-  memo: string
-  onSaveMemo: (t: string) => void
-  apiKey: string
-  earningsDate: string
-  onSaveEarningsDate: (date: string) => void
+  row: StockRow; fin: FinRecord | null | undefined
+  memo: string; onSaveMemo: (t: string) => void
+  apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -1253,11 +1242,9 @@ function DetailPanel({
   const [dateVal, setDateVal] = useState(earningsDate)
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
 
-  function save() {
-    onSaveMemo(localMemo)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
-  }
+  useEffect(() => { setLocalMemo(memo) }, [memo])
+
+  function save() { onSaveMemo(localMemo); setSaved(true); setTimeout(() => setSaved(false), 1500) }
 
   return (
     <>
@@ -1273,11 +1260,7 @@ function DetailPanel({
       <div className={styles.detailSubPrice}>
         前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
       </div>
-
-      <Section title="チャート">
-        <MiniChart code={r.code} apiKey={apiKey} />
-      </Section>
-
+      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} /></Section>
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],
@@ -1286,7 +1269,6 @@ function DetailPanel({
           ['1年',    r.chg1y, fmtPct(r.chg1y), pctClass(r.chg1y)],
         ]} />
       </Section>
-
       <Section title="バリュー指標">
         <Grid2 items={[
           ['PER実績',    null, r.perA ? fmtN(r.perA) : '—', ''],
@@ -1301,7 +1283,6 @@ function DetailPanel({
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],
         ]} />
       </Section>
-
       {f && (
         <Section title={`財務データ${f.discDate ? ` (開示: ${f.discDate})` : ''}`}>
           <Grid2 items={[
@@ -1314,23 +1295,14 @@ function DetailPanel({
           ]} />
         </Section>
       )}
-
       <Section title="メモ">
-        <textarea
-          className={styles.detailMemo}
-          value={localMemo}
-          onChange={e => setLocalMemo(e.target.value)}
-          placeholder="メモを入力..."
-        />
-        <button
-          className={styles.btnPrimary}
+        <textarea className={styles.detailMemo} value={localMemo}
+          onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />
+        <button className={styles.btnPrimary}
           style={{ width: '100%', marginTop: 8, ...(saved ? { background: '#34d399' } : {}) }}
           onClick={save}
-        >
-          {saved ? '保存しました ✓' : 'メモを保存'}
-        </button>
+        >{saved ? '保存しました ✓' : 'メモを保存'}</button>
       </Section>
-
       <Section title="次回決算予定日">
         {(() => {
           const displayDate = f?.nextAnnouncementDate || earningsDate
@@ -1341,20 +1313,14 @@ function DetailPanel({
               {displayDate && !editingDate && (
                 <div style={{fontSize:16, fontWeight:600, color}}>
                   {displayDate}
-                  {diff !== null && diff >= 0 && <span style={{fontSize:12, marginLeft:8, color: 'rgba(200,220,255,0.6)'}}>あと{Math.ceil(diff)}日</span>}
+                  {diff !== null && diff >= 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(200,220,255,0.6)'}}>あと{Math.ceil(diff)}日</span>}
                   {diff !== null && diff < 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(100,100,100,0.7)'}}>終了</span>}
                 </div>
               )}
-              {!displayDate && !editingDate && (
-                <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>
-              )}
+              {!displayDate && !editingDate && <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>}
               {editingDate ? (
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
-                  <input
-                    type="date"
-                    autoFocus
-                    value={dateVal}
-                    onChange={e => setDateVal(e.target.value)}
+                  <input type="date" autoFocus value={dateVal} onChange={e => setDateVal(e.target.value)}
                     style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
                     onKeyDown={e => {
                       if (e.key === 'Enter') { onSaveEarningsDate(dateVal); setEditingDate(false) }
@@ -1372,14 +1338,11 @@ function DetailPanel({
                   {earningsDate ? '✏️ 編集' : '＋ 手動入力'}
                 </button>
               )}
-              {f?.nextAnnouncementDate && (
-                <div style={{fontSize:11, color:'#64748b'}}>APIから自動取得済み</div>
-              )}
+              {f?.nextAnnouncementDate && <div style={{fontSize:11, color:'#64748b'}}>APIから自動取得済み</div>}
             </div>
           )
         })()}
       </Section>
-
       <Section title="リンク">
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank">四季報オンライン</a>

@@ -246,8 +246,9 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
 export async function fetchAllFinancials(
   apiKey: string, watchlist: string[],
   onProgress?: (done: number, total: number) => void,
-  onStatus?: (msg: string) => void
-): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number> }> {
+  onStatus?: (msg: string) => void,
+  abortSignal?: { aborted: boolean }
+): Promise<{ finDB: Record<string, FinRecord>; shOutDB: Record<string, number>; aborted?: boolean }> {
   const finDB: Record<string, FinRecord> = {}
   const shOutDB: Record<string, number> = {}
 
@@ -338,6 +339,7 @@ export async function fetchAllFinancials(
     let done = watchlist.length - needIndividual.length
     const CONCURRENCY = 2
     for (let i = 0; i < needIndividual.length; i += CONCURRENCY) {
+      if (abortSignal?.aborted) return { finDB, shOutDB, aborted: true }
       const batch = needIndividual.slice(i, i + CONCURRENCY)
       const results = await Promise.all(batch.map(code => fetchFinancialOne(apiKey, code)))
       for (let j = 0; j < batch.length; j++) {
@@ -351,6 +353,7 @@ export async function fetchAllFinancials(
   }
 
   // 戦略3: リトライ（8秒待機後・逐次・1.5秒間隔）
+  if (abortSignal?.aborted) return { finDB, shOutDB, aborted: true }
   const stillMissing = watchlist.filter(c => !finDB[c])
   if (stillMissing.length > 0) {
     console.warn(`[fetchAllFinancials] リトライ対象: ${stillMissing.join(', ')}`)

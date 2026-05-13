@@ -176,6 +176,11 @@ export type FilterKey = 'all' | 'buy'
 export type TabKey = 'dashboard' | 'card' | 'watchlist'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
 
+export interface StockMeta {
+  genres: string[]   // ジャンルタグ配列
+  memo: string       // 自由メモ（100文字以内）
+}
+
 export interface KSFRecord {
   code: string
   ksf1_product: string        // KSF①Q1: 商品（何を売ってる）

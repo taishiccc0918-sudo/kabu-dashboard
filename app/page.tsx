@@ -44,6 +44,7 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{code:string;name:string}[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
+  const [searchSelectedIdx, setSearchSelectedIdx] = useState(-1)
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -207,6 +208,7 @@ export default function Page() {
 
   function searchMaster(q: string) {
     setSearchQuery(q)
+    setSearchSelectedIdx(-1)
     if (!q.trim()) { setSearchResults([]); setSearchOpen(false); return }
     const lower = q.toLowerCase()
     const results = Object.entries(masterDB)
@@ -222,10 +224,10 @@ export default function Page() {
 
   function addStockFromSearch(code: string) {
     if (!watchlist.includes(code)) {
-      const next = [...watchlist, code]
+      const next = [code, ...watchlist]
       updateWatchlist(next)
     }
-    setSearchQuery(''); setSearchResults([]); setSearchOpen(false)
+    setSearchQuery(''); setSearchResults([]); setSearchOpen(false); setSearchSelectedIdx(-1)
   }
 
   function saveCustomGenre(code: string, genreStr: string) {
@@ -460,15 +462,32 @@ export default function Page() {
                   value={searchQuery}
                   onChange={e => searchMaster(e.target.value)}
                   onFocus={() => searchQuery && setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  onBlur={() => setTimeout(() => { setSearchOpen(false); setSearchSelectedIdx(-1) }, 150)}
+                  onKeyDown={e => {
+                    if (!searchOpen || searchResults.length === 0) return
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      setSearchSelectedIdx(i => Math.min(i + 1, searchResults.length - 1))
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      setSearchSelectedIdx(i => Math.max(i - 1, 0))
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const idx = searchSelectedIdx >= 0 ? searchSelectedIdx : 0
+                      if (searchResults[idx]) addStockFromSearch(searchResults[idx].code)
+                    } else if (e.key === 'Escape') {
+                      setSearchOpen(false); setSearchSelectedIdx(-1)
+                    }
+                  }}
                 />
                 {searchOpen && searchResults.length > 0 && (
                   <div className={styles.searchDropdown}>
-                    {searchResults.map(r => (
+                    {searchResults.map((r, idx) => (
                       <div
                         key={r.code}
-                        className={styles.searchDropdownItem}
+                        className={`${styles.searchDropdownItem} ${idx === searchSelectedIdx ? styles.searchDropdownItemActive : ''}`}
                         onMouseDown={() => addStockFromSearch(r.code)}
+                        onMouseEnter={() => setSearchSelectedIdx(idx)}
                       >
                         <span className={styles.searchItemCode}>{r.code}</span>
                         <span className={styles.searchItemName}>{r.name}</span>
@@ -486,6 +505,7 @@ export default function Page() {
                     <th className={styles.wlTh} style={{width:70, top:52}}>コード</th>
                     <th className={styles.wlTh} style={{top:52}}>銘柄名</th>
                     <th className={styles.wlTh} style={{width:'auto', top:52}}>ジャンル（複数選択可）</th>
+                    <th className={styles.wlTh} style={{width:180, top:52}}>メモ</th>
                     <th className={styles.wlTh} style={{width:50, top:52}}></th>
                   </tr>
                 </thead>
@@ -495,12 +515,14 @@ export default function Page() {
                       key={code} code={code}
                       name={masterDB[code]?.name ?? ''}
                       currentGenre={customGenres[code] ?? DEFAULT_GENRES[code] ?? 'その他'}
+                      memo={memos[code] ?? ''}
                       allGenreOptions={allGenreOptions}
                       customGenreOptions={customGenreOptions}
                       onSave={saveCustomGenre}
                       onReset={resetCustomGenre}
                       onRemove={removeStock}
                       onAddGenre={addGenreOption}
+                      onSaveMemo={saveMemo}
                     />
                   ))}
                 </tbody>
@@ -747,7 +769,7 @@ function DashboardTable({
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '', tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
-    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率。\n短期の値動きトレンドの確認に使う。' },
+    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率（J-Quants生値・スプリット調整なし）。\n週末を挟む場合は前金曜日との比較。\n四季報等と若干ズレる場合があります。' },
     { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price', tooltip: '約5営業日前の終値からの変化率。\n短〜中期トレンドの確認に使う。' },
     { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price', tooltip: '約65営業日前の終値からの変化率。\n中期トレンドや季節性の確認に使う。' },
     { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
@@ -1128,20 +1150,22 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
 }
 
 // ─── WatchlistRow ────────────────────────────────────────────────────
-function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOptions, onSave, onReset, onRemove, onAddGenre }: {
+function WatchlistRow({ code, name, currentGenre, memo, allGenreOptions, customGenreOptions, onSave, onReset, onRemove, onAddGenre, onSaveMemo }: {
   code: string
   name: string
   currentGenre: string
+  memo: string
   allGenreOptions: string[]
   customGenreOptions: string[]
   onSave: (code: string, genre: string) => void
   onReset: (code: string) => void
   onRemove: (code: string) => void
   onAddGenre: (name: string) => void
+  onSaveMemo: (code: string, text: string) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const [localMemo, setLocalMemo] = useState(memo)
   const selected = currentGenre.split(',').map(g => g.trim()).filter(Boolean)
-  const isModified = currentGenre !== (DEFAULT_GENRES[code] ?? 'その他')
 
   function toggle(tag: string) {
     const next = selected.includes(tag)
@@ -1170,13 +1194,24 @@ function WatchlistRow({ code, name, currentGenre, allGenreOptions, customGenreOp
             >{editing ? '▲ 閉じる' : '✏️ 編集'}</button>
           </div>
         </td>
+        <td className={styles.wlTd}>
+          <input
+            className={styles.wlMemoInput}
+            placeholder="メモ（100文字）"
+            value={localMemo}
+            maxLength={100}
+            onChange={e => setLocalMemo(e.target.value)}
+            onBlur={() => onSaveMemo(code, localMemo)}
+            onKeyDown={e => { if (e.key === 'Enter') { onSaveMemo(code, localMemo); e.currentTarget.blur() } }}
+          />
+        </td>
         <td className={styles.wlTd} style={{textAlign:'center'}}>
           <button className={styles.wlRemoveBtn} onClick={() => onRemove(code)}>✕</button>
         </td>
       </tr>
       {editing && (
         <tr className={styles.wlEditRow}>
-          <td colSpan={4} className={styles.wlEditTd}>
+          <td colSpan={5} className={styles.wlEditTd}>
             <div className={styles.wlGenreEditPanel}>
               {allGenreOptions.map(g => (
                 <button key={g}

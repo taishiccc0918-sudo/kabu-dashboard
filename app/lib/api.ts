@@ -120,7 +120,7 @@ export async function fetchPrices(
           const raw = row.Code ?? ''
           const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
           if (!wlSet.has(code)) continue
-          const close = n(row.AdjC) || n(row.C) || n(row.Close) || n(row.AdjustmentClose)
+          const close = n(row.C) || n(row.AdjC) || n(row.Close) || n(row.AdjustmentClose)
           if (close > 0) map[code] = close
         }
         return { date, map }

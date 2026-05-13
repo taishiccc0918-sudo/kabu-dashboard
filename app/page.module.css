@@ -163,13 +163,14 @@
 .table thead th {
   background: #111827;
   padding: 0 8px;
-  height: 36px;
+  min-height: 36px;
   font-size: 11px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   color: #4e6280;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-line;
+  word-break: keep-all;
+  line-height: 1.3;
+  vertical-align: middle;
   position: sticky;
   top: 96px;
   z-index: 10;
@@ -946,12 +947,12 @@
   font-size: 13px; color: #c8d8e8;
 }
 .wlMemoInput {
-  width: 100%; max-width: 180px;
+  width: 100%;
   background: rgba(255,255,255,0.03); border: 1px solid #1f2d40;
   color: #c8d8e8; padding: 4px 8px;
   border-radius: 4px; font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
-  transition: border-color .1s;
+  transition: border-color .1s; box-sizing: border-box;
 }
 .wlMemoInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
 .wlMemoInput::placeholder { color: #2a3a52; }
@@ -1109,6 +1110,8 @@
   overflow-x: auto;
   width: 100%;
 }
+.wlTableInner td:last-child { width: auto; }
+.wlTableInner { width: 100%; table-layout: auto; }
 
 /* ── ページネーション ─────────────────────────────── */
 .pagination {

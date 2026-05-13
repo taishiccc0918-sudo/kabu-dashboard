@@ -73,7 +73,6 @@ export default function Page() {
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
-  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -84,6 +83,7 @@ export default function Page() {
   const abortSignalRef = useRef({ aborted: false })
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
+  useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
   useEffect(() => {
@@ -251,7 +251,7 @@ export default function Page() {
     else { setSortKey(key); setSortDir(-1) }
   }
 
-  const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
+  const allGenreOptions = [...ALL_GENRE_OPTIONS, ...customGenreOptions]
 
   function addGenreOption(name: string) {
     const trimmed = name.trim()
@@ -261,12 +261,22 @@ export default function Page() {
   }
 
   function removeGenreOption(name: string) {
-    // カスケード削除: 全銘柄のstockMetaからもこのジャンルを除去
     setStockMeta(prev => {
       const next = { ...prev }
+      // 明示的に設定されたジャンルから削除
       for (const [code, meta] of Object.entries(next)) {
         if (meta.genres.includes(name)) {
           next[code] = { ...meta, genres: meta.genres.filter(g => g !== name) }
+        }
+      }
+      // DEFAULT_GENRESのフォールバックを使っていた銘柄も明示的に更新
+      for (const [code, genreStr] of Object.entries(DEFAULT_GENRES)) {
+        const defaults = genreStr.split(',').map(g => g.trim()).filter(Boolean)
+        if (defaults.includes(name)) {
+          const existing = next[code]
+          if (!existing || existing.genres.length === 0) {
+            next[code] = { genres: defaults.filter(g => g !== name), memo: existing?.memo ?? '' }
+          }
         }
       }
       lsSet('stockMetadata', next)
@@ -275,14 +285,7 @@ export default function Page() {
     if (customGenreOptions.includes(name)) {
       const next = customGenreOptions.filter(g => g !== name)
       setCustomGenreOptions(next); lsSet('customGenreOptions', next)
-    } else {
-      const next = [...removedDefaultGenres, name]
-      setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
     }
-  }
-
-  function restoreDefaultGenres() {
-    setRemovedDefaultGenres([]); lsSet('removedDefaultGenres', [])
   }
 
   function saveMemo(code: string, text: string) {
@@ -299,10 +302,7 @@ export default function Page() {
     const rows: string[][] = Array.from(favorites).map(code => {
       const meta = stockMeta[code] ?? { genres: [], memo: '' }
       const master = masterDB[code] ?? { name: '', market: '' }
-      const defaultGenreStr = DEFAULT_GENRES[code] ?? ''
-      const defaultGenres = defaultGenreStr ? defaultGenreStr.split(',').map(g => g.trim()).filter(Boolean) : ['その他']
-      const genres = meta.genres.length ? meta.genres : defaultGenres
-      return [code, master.name, master.market, genres.join(','), meta.memo]
+      return [code, master.name, master.market, meta.genres.join(','), meta.memo]
     })
     const ws = XLSX.utils.aoa_to_sheet([['コード','銘柄名','市場','ジャンル','メモ'], ...rows])
     const wb = XLSX.utils.book_new()
@@ -322,7 +322,9 @@ export default function Page() {
           <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
-          <label className={styles.apiLabel}>API Key</label>
+          <label className={styles.apiLabel}>
+            API Key{apiKey ? <span style={{color:'#34d399',marginLeft:5,fontSize:10}}>✓ 保存済み</span> : ''}
+          </label>
           <input
             type="password"
             className={styles.apiInput}
@@ -475,13 +477,10 @@ export default function Page() {
             favorites={favorites}
             stockMeta={stockMeta}
             allGenreOptions={allGenreOptions}
-            customGenreOptions={customGenreOptions}
-            removedDefaultGenres={removedDefaultGenres}
             onToggleFavorite={toggleFavorite}
             onSaveStockMeta={saveStockMeta}
             onAddGenre={addGenreOption}
             onRemoveGenre={removeGenreOption}
-            onRestoreGenres={restoreDefaultGenres}
             onExport={exportToExcel}
           />
         )}
@@ -527,20 +526,17 @@ export default function Page() {
 const PER_PAGE = 100
 
 function StockManager({
-  masterDB, favorites, stockMeta, allGenreOptions, customGenreOptions, removedDefaultGenres,
-  onToggleFavorite, onSaveStockMeta, onAddGenre, onRemoveGenre, onRestoreGenres, onExport,
+  masterDB, favorites, stockMeta, allGenreOptions,
+  onToggleFavorite, onSaveStockMeta, onAddGenre, onRemoveGenre, onExport,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
   stockMeta: Record<string, StockMeta>
   allGenreOptions: string[]
-  customGenreOptions: string[]
-  removedDefaultGenres: string[]
   onToggleFavorite: (code: string) => void
   onSaveStockMeta: (code: string, meta: StockMeta) => void
   onAddGenre: (name: string) => void
   onRemoveGenre: (name: string) => void
-  onRestoreGenres: () => void
   onExport: () => void
 }) {
   const [wlSearch, setWlSearch] = useState('')
@@ -597,9 +593,6 @@ function StockManager({
           </span>
         ))}
         <AddGenreInput onAdd={onAddGenre} />
-        {removedDefaultGenres.length > 0 && (
-          <button className={styles.genreRestoreBtn} onClick={onRestoreGenres}>↩ デフォルト復元</button>
-        )}
       </div>
 
       <div className={styles.wlFilterBar}>
@@ -690,15 +683,10 @@ const StockManagerRow = React.memo(function StockManagerRow({
   const [localMemo, setLocalMemo] = useState(meta.memo)
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
 
-  const defaultGenres = useMemo(() => {
-    const s = DEFAULT_GENRES[code] ?? ''
-    return s ? s.split(',').map(g => g.trim()).filter(Boolean) : ['その他']
-  }, [code])
-  const genres = meta.genres.length ? meta.genres : defaultGenres
+  const genres = meta.genres
 
   function toggleGenre(tag: string) {
-    const current = meta.genres.length ? meta.genres : defaultGenres
-    const next = current.includes(tag) ? current.filter(g => g !== tag) : [...current, tag]
+    const next = genres.includes(tag) ? genres.filter(g => g !== tag) : [...genres, tag]
     onSaveMeta({ ...meta, genres: next })
   }
 
@@ -722,7 +710,9 @@ const StockManagerRow = React.memo(function StockManagerRow({
         </td>
         <td className={styles.wlTd}>
           <div className={styles.wlGenreCell}>
-            {genres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
+            {genres.length === 0
+              ? <span className={styles.genreTag} style={{color:'#4e6280',borderStyle:'dashed'}}>未設定</span>
+              : genres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
             <button
               className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
               onClick={() => setEditing(e => !e)}
@@ -732,9 +722,8 @@ const StockManagerRow = React.memo(function StockManagerRow({
         <td className={styles.wlTd}>
           <input
             className={styles.wlMemoInput}
-            placeholder="メモ（100文字）"
+            placeholder="メモ"
             value={localMemo}
-            maxLength={100}
             onChange={e => setLocalMemo(e.target.value)}
             onBlur={() => onSaveMeta({ ...meta, memo: localMemo })}
             onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
@@ -944,13 +933,13 @@ function DashboardTable({
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
     { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。' },
-    { label: '四季報',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'YF',       cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'かぶたん', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: '公式HP',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: '次決算',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
+    { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'Yahoo\nFinance', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
+    { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [32,60,150,80,72,100,80,76,76,76,76,76,76,76,130,64,64,88,88,64,88,100,64,72,60,80,72,76]
+  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1035,7 +1024,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
       <td className={styles.hasTooltip} title="PER今期の1ヶ月前比が−5%以下のとき「買い」\n= 市場がこの銘柄の将来利益を1ヶ月前より安く評価している（割安化シグナル）"><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>YF</a></td>
+      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>公式HP</a></td>
       <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
@@ -1076,7 +1065,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   }
   if (editing) return (
     <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
-      <input type="date" autoFocus value={val} onChange={e => setVal(e.target.value)}
+      <input type="date" autoFocus value={val} min={new Date().toISOString().slice(0,10)} onChange={e => setVal(e.target.value)}
         style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
         onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
       />
@@ -1091,7 +1080,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
-        color: displayDate ? (getColor(displayDate) || '#94a3b8') : '#60a5fa',
+        color: displayDate ? (getColor(displayDate) || '#c8d4e0') : '#60a5fa',
         cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
         border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
         background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',

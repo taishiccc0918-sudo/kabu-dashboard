@@ -1,4 +1,4 @@
-import { StockRow, PriceRecord, FinRecord, MasterRecord, StockMeta, DEFAULT_GENRES } from './types'
+import { StockRow, PriceRecord, FinRecord, MasterRecord, StockMeta } from './types'
 
 export function fmtN(v: number | null | undefined, dec = 1): string {
   if (v == null || v === 0) return '—'
@@ -64,10 +64,7 @@ export function buildStockRow(
   const perFChg1mPrev = (prev1m && feps) ? prev1m / feps : null
 
   const meta = stockMeta[code]
-  const defaultGenres = DEFAULT_GENRES[code]
-    ? DEFAULT_GENRES[code].split(',').map(g => g.trim()).filter(Boolean)
-    : ['その他']
-  const genres = (meta?.genres?.length) ? meta.genres : defaultGenres
+  const genres = meta?.genres ?? []
 
   return {
     code,

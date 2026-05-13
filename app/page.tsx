@@ -36,21 +36,40 @@ function initFavorites(): Set<string> {
 
 function initStockMeta(): Record<string, StockMeta> {
   if (typeof window === 'undefined') return {}
-  const meta = ls<Record<string, StockMeta> | null>('stockMetadata', null)
-  if (meta !== null) return meta
-  // 旧 customGenres + memos から移行
-  const oldGenres = ls<Record<string, string>>('customGenres', {})
-  const oldMemos  = ls<Record<string, string>>('memos', {})
-  const result: Record<string, StockMeta> = {}
-  const allCodes = Array.from(new Set(Object.keys(oldGenres).concat(Object.keys(oldMemos))))
-  for (const code of allCodes) {
-    result[code] = {
-      genres: oldGenres[code] ? oldGenres[code].split(',').map(g => g.trim()).filter(Boolean) : [],
-      memo:   oldMemos[code] ?? '',
+  let meta = ls<Record<string, StockMeta> | null>('stockMetadata', null)
+  let needSave = false
+
+  if (meta === null) {
+    // 旧 customGenres + memos から移行
+    const oldGenres = ls<Record<string, string>>('customGenres', {})
+    const oldMemos  = ls<Record<string, string>>('memos', {})
+    meta = {}
+    const allCodes = Array.from(new Set(Object.keys(oldGenres).concat(Object.keys(oldMemos))))
+    for (const code of allCodes) {
+      meta[code] = {
+        genres: oldGenres[code] ? oldGenres[code].split(',').map(g => g.trim()).filter(Boolean) : [],
+        memo:   oldMemos[code] ?? '',
+      }
     }
+    needSave = true
   }
-  lsSet('stockMetadata', result)
-  return result
+
+  // DEFAULT_GENRESの初期化（一度だけ実行）— ジャンル未設定の銘柄にデフォルトを設定
+  if (!ls<boolean>('metadataInitialized', false)) {
+    for (const [code, genreStr] of Object.entries(DEFAULT_GENRES)) {
+      if (!meta[code] || meta[code].genres.length === 0) {
+        meta[code] = {
+          genres: genreStr.split(',').map(g => g.trim()).filter(Boolean),
+          memo: meta[code]?.memo ?? '',
+        }
+      }
+    }
+    lsSet('metadataInitialized', true)
+    needSave = true
+  }
+
+  if (needSave) lsSet('stockMetadata', meta)
+  return meta
 }
 
 export default function Page() {
@@ -73,6 +92,7 @@ export default function Page() {
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [showFilter, setShowFilter] = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
+  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
@@ -251,7 +271,7 @@ export default function Page() {
     else { setSortKey(key); setSortDir(-1) }
   }
 
-  const allGenreOptions = [...ALL_GENRE_OPTIONS, ...customGenreOptions]
+  const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
 
   function addGenreOption(name: string) {
     const trimmed = name.trim()
@@ -285,6 +305,9 @@ export default function Page() {
     if (customGenreOptions.includes(name)) {
       const next = customGenreOptions.filter(g => g !== name)
       setCustomGenreOptions(next); lsSet('customGenreOptions', next)
+    } else {
+      const next = [...removedDefaultGenres, name]
+      setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
     }
   }
 
@@ -960,7 +983,7 @@ function DashboardTable({
                   onClick={col.key ? () => handleSort(col.key!) : undefined}
                   title={col.tooltip}
                 >
-                  {col.label}{col.tooltip && <span className={styles.tooltipIcon}>?</span>}{col.key && <SortArrow k={col.key} />}
+                  {col.label}
                 </th>
               ))}
             </tr>
@@ -1080,7 +1103,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
-        color: displayDate ? (getColor(displayDate) || '#c8d4e0') : '#60a5fa',
+        color: displayDate ? (getColor(displayDate) || '#e8ecf0') : '#60a5fa',
         cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
         border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
         background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',
@@ -1309,7 +1332,7 @@ function DetailPanel({
               {!displayDate && !editingDate && <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>}
               {editingDate ? (
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
-                  <input type="date" autoFocus value={dateVal} onChange={e => setDateVal(e.target.value)}
+                  <input type="date" autoFocus value={dateVal} min={new Date().toISOString().slice(0,10)} onChange={e => setDateVal(e.target.value)}
                     style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
                     onKeyDown={e => {
                       if (e.key === 'Enter') { onSaveEarningsDate(dateVal); setEditingDate(false) }

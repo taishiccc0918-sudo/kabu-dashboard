@@ -7,7 +7,7 @@ import {
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
-import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, marketShort } from './lib/format'
+import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort } from './lib/format'
 import styles from './page.module.css'
 
 function ls<T>(key: string, fallback: T): T {
@@ -1012,18 +1012,19 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
 }) {
   const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
+  const stickyNameBg = idx % 2 === 0 ? '#131825' : '#171d2e'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
-      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyBg}}>{r.name || '—'}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyNameBg}}>{r.name || '—'}</td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>
       <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
-        <td key={i} className={`${styles.tdPct} ${styles[pctClass(v)]}`} style={{ background: pctBg(v) }}>{fmtPct(v)}</td>
+        <td key={i} className={styles.tdPct} style={{ background: pctBg(v), color: pctCellColor(v) }}>{fmtPct(v)}</td>
       ))}
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
         title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
@@ -1034,17 +1035,17 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
         title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : undefined}
       >{r.perN ? fmtN(r.perN) : '—'}</td>
-      <td className={`${styles.tdPct} ${styles[pctClass(r.perFChg1m)]} ${styles.tdPerGroup} ${styles.hasTooltip}`}
-        style={{background: pctBg(r.perFChg1m)}}
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip}`}
+        style={{background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)}}
         title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fmtPct(r.perFChg1m)}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
-      <td className={`${styles.tdNum} ${r.roe && r.roe > 0.1 ? styles.up : ''}`}>{r.roe ? fmtPct(r.roe) : '—'}</td>
-      <td className={`${styles.tdNum} ${r.divY && r.divY > 0.03 ? styles.up : ''}`}>{r.divY ? fmtPct(r.divY) : '—'}</td>
-      <td className={`${styles.tdPct} ${styles[pctClass(r.epsGr)]}`}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
-      <td className={`${styles.tdNum} ${r.peg && r.peg < 1 ? styles.up : ''}`}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
-      <td className={`${styles.tdNum} ${r.opMgn && r.opMgn > 0.15 ? styles.up : ''}`}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
-      <td className={`${styles.tdPct} ${styles[pctClass(r.nySalesGr)]}`}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
+      <td className={styles.tdPct} style={{color: pctCellColor(r.epsGr)}}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
+      <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
       <td className={styles.hasTooltip} title="PER今期の1ヶ月前比が−5%以下のとき「買い」\n= 市場がこの銘柄の将来利益を1ヶ月前より安く評価している（割安化シグナル）"><JudgmentBadge j={r.judgment} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
@@ -1090,6 +1091,8 @@ function EarningsDateCell({ code, date, onSave, fin }: {
     <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
       <input type="date" autoFocus value={val} min={new Date().toISOString().slice(0,10)} onChange={e => setVal(e.target.value)}
         style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
+        onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
+        onClick={e => { e.stopPropagation(); try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
         onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
       />
       <button onClick={() => { onSave(code, val); setEditing(false) }}
@@ -1334,6 +1337,8 @@ function DetailPanel({
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
                   <input type="date" autoFocus value={dateVal} min={new Date().toISOString().slice(0,10)} onChange={e => setDateVal(e.target.value)}
                     style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
+                    onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
+                    onClick={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
                     onKeyDown={e => {
                       if (e.key === 'Enter') { onSaveEarningsDate(dateVal); setEditingDate(false) }
                       if (e.key === 'Escape') { setDateVal(earningsDate); setEditingDate(false) }

@@ -18,6 +18,14 @@ export function pctBg(v: number | null | undefined): string {
   if (v > 0) return `rgba(63,185,80,${(intensity * 0.25).toFixed(2)})`
   return `rgba(248,81,73,${(intensity * 0.25).toFixed(2)})`
 }
+// 変化率の色強度: ±5%超=鮮やか、±5%未満=控えめ
+export function pctCellColor(v: number | null | undefined): string {
+  if (v == null) return '#6b7280'
+  const abs = Math.abs(v)
+  if (v > 0) return abs >= 0.05 ? '#10b981' : 'rgba(52,211,153,0.65)'
+  if (v < 0) return abs >= 0.05 ? '#f43f5e' : 'rgba(248,113,113,0.65)'
+  return '#6b7280'
+}
 export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('プライム'))     return { label: 'Prime',    cls: 'prime' }
   if (mkt.includes('スタンダード')) return { label: 'Standard', cls: 'standard' }

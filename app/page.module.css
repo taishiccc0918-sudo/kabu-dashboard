@@ -152,8 +152,8 @@
 .tableScrollX { overflow-x: auto; }
 .tableWrap { overflow: visible; }
 .table {
-  width: 2280px;
-  min-width: 2280px;
+  width: 2270px;
+  min-width: 2270px;
   border-collapse: collapse;
   background: #0d1219;
   table-layout: fixed;
@@ -161,11 +161,11 @@
 
 /* thead: topはJS inline styleで渡す */
 .table thead th {
-  background: #111827;
-  padding: 6px 8px;
-  font-size: 11px; font-weight: 600;
+  background: #1a2535;
+  padding: 7px 8px;
+  font-size: 12px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
-  color: #4e6280;
+  color: #9ca3af;
   white-space: pre-line;
   word-break: keep-all;
   line-height: 1.35;
@@ -174,7 +174,7 @@
   position: sticky;
   top: 96px;
   z-index: 10;
-  border-bottom: 1px solid #2a3a52;
+  border-bottom: 2px solid #2a3a52;
   border-top: 1px solid #1f2d40;
   user-select: none;
   box-sizing: border-box;
@@ -250,8 +250,8 @@
   width: 140px; min-width: 140px; max-width: 140px;
   color: #e8eef8;
   position: sticky; left: 92px; z-index: 5;
-  border-right: 1px solid #2a3a52;
-  background: #111827;
+  border-right: 2px solid rgba(255,255,255,0.08);
+  background: #131825;
 }
 .tdNum {
   padding: 0 10px; text-align: right;
@@ -261,13 +261,13 @@
 .tdPct {
   padding: 0 10px; text-align: right;
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
-  font-weight: 600;
+  font-weight: 600; color: #6b7280;
 }
 .tdInfoLink { padding: 0 6px; text-align: center; }
 .tdInfoLink a { text-decoration: none; }
 
 /* row height */
-.table tbody tr td { height: 42px; }
+.table tbody tr td { height: 46px; }
 
 /* color */
 .up   { color: #34d399 !important; }
@@ -1088,10 +1088,12 @@
   background: none; border: none; cursor: pointer;
   font-size: 16px; padding: 2px 4px;
   color: #fbbf24;
-  transition: color .1s, transform .1s;
+  transition: color .1s, transform .15s;
   line-height: 1;
 }
-.favBtnOn:hover { color: #f59e0b; transform: scale(1.1); }
+.favBtnOn:hover { color: #f59e0b; transform: scale(1.15); }
+.favBtnOn:active { transform: scale(1.35); transition: transform 0.08s; }
+.favBtn:active   { transform: scale(1.35); transition: transform 0.08s; }
 
 /* ── 銘柄管理フィルターバー ──────────────────────── */
 .wlFilterBar {

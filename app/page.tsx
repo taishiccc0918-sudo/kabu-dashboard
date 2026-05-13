@@ -72,8 +72,16 @@ function initStockMeta(): Record<string, StockMeta> {
   return meta
 }
 
+function initTheme(): 'dark' | 'light' {
+  if (typeof window === 'undefined') return 'dark'
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
+  const [theme,      setTheme]      = useState<'dark'|'light'>(initTheme)
   const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
   const favoritesRef = useRef<Set<string>>(new Set())
   const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>(initStockMeta)
@@ -104,6 +112,9 @@ export default function Page() {
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
+  useEffect(() => { lsSet('theme', theme) }, [theme])
+
+  function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
   useEffect(() => {
@@ -338,15 +349,20 @@ export default function Page() {
   const detailFin = detailCode ? finDB[detailCode] : null
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root} ${theme === 'light' ? styles.light : ''}`}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
           <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
+          <button
+            className={styles.themeBtn}
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+          >{theme === 'dark' ? '☀️' : '🌙'}</button>
           <label className={styles.apiLabel}>
-            API Key{apiKey ? <span style={{color:'#34d399',marginLeft:5,fontSize:10}}>✓ 保存済み</span> : ''}
+            API Key{apiKey ? <span style={{color:'var(--green)',marginLeft:5,fontSize:10}}>✓ 保存済み</span> : ''}
           </label>
           <input
             type="password"
@@ -461,6 +477,7 @@ export default function Page() {
       <main className={styles.main}>
         {tab === 'dashboard' && (
           <>
+            <FreshLegend />
             <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
               <DashboardTable
                 filteredRows={filteredRows}
@@ -478,7 +495,7 @@ export default function Page() {
                 {filteredRows.length === 0
                   ? <div className={styles.emptyCell}>該当銘柄なし</div>
                   : filteredRows.map(r => (
-                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} />
+                    <MobileRow key={r.code} row={r} earningsDate={earningsDates[r.code] ?? ''} onClick={() => setDetailCode(r.code)} />
                   ))
                 }
               </div>
@@ -940,29 +957,18 @@ function DashboardTable({
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '', tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, group: 'price' },
-    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率（J-Quants生値・スプリット調整なし）。\n週末を挟む場合は前金曜日との比較。\n四季報等と若干ズレる場合があります。' },
-    { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price', tooltip: '約5営業日前の終値からの変化率。\n短〜中期トレンドの確認に使う。' },
-    { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price', tooltip: '約65営業日前の終値からの変化率。\n中期トレンドや季節性の確認に使う。' },
-    { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
-    { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
-    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
-    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per', tooltip: '株価÷来期予想EPS。\n来期の成長性を加味した割安度。\n来期の業績改善が見込まれるか確認できる。' },
-    { label: 'PER今期の1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
-    { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
-    { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
-    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
-    { label: 'EPS成長率',  cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other', tooltip: 'EPS（1株あたり利益）の成長率（今期予想÷直近実績−1）。\n高成長の目安は15%超。' },
-    { label: 'PEG', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other', tooltip: 'PER÷EPS成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
-    { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
-    { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
-    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。' },
-    { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'Yahoo\nFinance', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
-    { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
+    { label: '前日比%', cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1d' as keyof StockRow, group: 'price', tooltip: '前営業日の終値からの変化率。' },
+    { label: '1週間%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1w' as keyof StockRow, group: 'price', tooltip: '約5営業日前の終値からの変化率。' },
+    { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, group: 'price', tooltip: '約65営業日前の終値からの変化率。' },
+    { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。' },
+    { label: 'PER今期', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
+    { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。' },
+    { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n10%超で優良、15%超で高収益企業。' },
+    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\n3%超で高配当株とされる。' },
+    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: 'PER今期の1ヶ月前比 ≤ −5% → 「買い」\n市場が割安と評価し始めたシグナル。' },
+    { label: '次決算', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集。\n7日以内:黄色で警告、過去日:赤。' },
   ]
-  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
+  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,64,64,88,64,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -995,7 +1001,7 @@ function DashboardTable({
           {colGroup}
           <tbody>
             {filteredRows.length === 0 ? (
-              <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={17} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
               <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} />
             ))}
@@ -1011,8 +1017,8 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
 }) {
-  const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
-  const stickyNameBg = idx % 2 === 0 ? '#131825' : '#171d2e'
+  const stickyBg = idx % 2 === 0 ? '#0a0e15' : '#0f1520'
+  const stickyNameBg = idx % 2 === 0 ? '#0d1320' : '#121928'
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -1026,31 +1032,17 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       {[r.chg1d, r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
         <td key={i} className={styles.tdPct} style={{ background: pctBg(v), color: pctCellColor(v) }}>{fmtPct(v)}</td>
       ))}
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
-        title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
-      >{r.perA ? fmtN(r.perA) : '—'}</td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''}`}
-        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : undefined}
-      >{r.perF ? fmtN(r.perF) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
-        title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : undefined}
-      >{r.perN ? fmtN(r.perN) : '—'}</td>
-      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip}`}
-        style={{background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)}}
-        title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
-      >{fmtPct(r.perFChg1m)}</td>
+        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}\n${getFreshLabel(fin.discDate)}` : undefined}
+        style={{display:'flex', alignItems:'center', justifyContent:'flex-end', height:'100%'}}
+      >
+        <span style={{fontFeatureSettings:'"tnum"'}}>{r.perF ? fmtN(r.perF) : '—'}</span>
+        <FreshDot discDate={fin?.discDate} />
+      </td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
-      <td className={styles.tdPct} style={{color: pctCellColor(r.epsGr)}}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
-      <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-      <td className={styles.hasTooltip} title="PER今期の1ヶ月前比が−5%以下のとき「買い」\n= 市場がこの銘柄の将来利益を1ヶ月前より安く評価している（割安化シグナル）"><JudgmentBadge j={r.judgment} /></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
-      <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>公式HP</a></td>
+      <td className={styles.tdNum} style={{color: r.roe && r.roe >= 0.15 ? 'var(--green)' : r.roe && r.roe > 0.1 ? 'var(--green)' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
+      <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? 'var(--green)' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
+      <td title="PER今期の1ヶ月前比が−5%以下のとき「買い」"><JudgmentBadge j={r.judgment} /></td>
       <td onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
         <EarningsDateCell code={r.code} date={earningsDates[r.code] ?? ''} onSave={onSaveEarningsDate} fin={fin} />
       </td>
@@ -1073,9 +1065,8 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   function getColor(d: string): string {
     const days = getDaysUntil(d)
     if (days === null) return ''
-    if (days < 0) return 'rgba(100,100,100,0.6)'
-    if (days <= 7) return '#f87171'
-    if (days <= 14) return '#fbbf24'
+    if (days < 0) return 'var(--red)'
+    if (days <= 7) return 'var(--yellow)'
     return ''
   }
   function formatShort(d: string): string {
@@ -1087,40 +1078,86 @@ function EarningsDateCell({ code, date, onSave, fin }: {
     if (days !== null && days >= 0 && days <= 3) return `${label}(${Math.ceil(days)}d)`
     return label
   }
-  if (editing) return (
-    <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
-      <input type="date" autoFocus value={val} min={new Date().toISOString().slice(0,10)} onChange={e => setVal(e.target.value)}
-        style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
-        onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
-        onClick={e => { e.stopPropagation(); try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
-        onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
-      />
-      <button onClick={() => { onSave(code, val); setEditing(false) }}
-        style={{fontSize:10, padding:'1px 4px', background:'#3b82f6', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
-      <button onClick={() => { setVal(date); setEditing(false) }}
-        style={{fontSize:10, padding:'1px 4px', background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}>✕</button>
-    </span>
-  )
   return (
-    <span
-      title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
-      style={{
-        fontSize: 11,
-        color: displayDate ? (getColor(displayDate) || '#e8ecf0') : '#60a5fa',
-        cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
-        border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
-        background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',
-        whiteSpace: 'nowrap', display: 'inline-block',
-      }}
-      onClick={() => { setVal(date); setEditing(true) }}
-    >
-      {displayDate ? formatShort(displayDate) : '+'}
-    </span>
+    <>
+      {editing && (
+        <>
+          <div
+            style={{position:'fixed', inset:0, zIndex:9000, background:'rgba(0,0,0,0.6)'}}
+            onClick={() => { setVal(date); setEditing(false) }}
+          />
+          <div
+            style={{position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', zIndex:9001,
+              background:'var(--card)', border:'1px solid var(--accent)', borderRadius:'var(--r-lg)', padding:20,
+              display:'flex', flexDirection:'column', gap:12, minWidth:240,
+              boxShadow:'var(--shadow-hover)'}}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{fontSize:12, color:'var(--text-muted)', fontFamily:'JetBrains Mono, monospace'}}>{code} — 次回決算予定日</div>
+            <input type="date" autoFocus value={val}
+              min={new Date().toISOString().slice(0,10)}
+              onChange={e => setVal(e.target.value)}
+              style={{fontSize:14, padding:'8px 10px', background:'var(--input-bg)', border:'1px solid var(--accent)',
+                color:'var(--text-main)', borderRadius:'var(--r)', outline:'none'}}
+              onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { onSave(code, val); setEditing(false) }
+                if (e.key === 'Escape') { setVal(date); setEditing(false) }
+              }}
+            />
+            <div style={{display:'flex', gap:6}}>
+              <button onClick={() => { onSave(code, val); setEditing(false) }}
+                style={{flex:1, padding:'7px', background:'var(--accent-btn)', border:'none', borderRadius:'var(--r)', color:'#fff', cursor:'pointer', fontSize:13, fontWeight:600}}>保存</button>
+              <button onClick={() => { setVal(date); setEditing(false) }}
+                style={{flex:1, padding:'7px', background:'transparent', border:'1px solid var(--border-strong)', borderRadius:'var(--r)', color:'var(--text-sub)', cursor:'pointer', fontSize:13}}>キャンセル</button>
+            </div>
+          </div>
+        </>
+      )}
+      <span
+        title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
+        style={{
+          fontSize: 11, fontWeight: 600,
+          color: displayDate ? (getColor(displayDate) || 'var(--text-main)') : 'var(--accent)',
+          cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
+          border: displayDate ? '1px solid transparent' : '1px dashed var(--border-md)',
+          background: displayDate ? 'transparent' : 'var(--accent-bg)',
+          whiteSpace: 'nowrap', display: 'inline-block',
+        }}
+        onClick={() => { setVal(date); setEditing(true) }}
+      >
+        {displayDate ? formatShort(displayDate) : '+'}
+      </span>
+    </>
+  )
+}
+
+// ─── StatusBadges ────────────────────────────────────────────────────
+function StatusBadges({ row, earningsDate, max = 3 }: { row: StockRow; earningsDate?: string; max?: number }) {
+  const badges: { label: string; cssColor: string; cssBg: string }[] = []
+  if (row.roe && row.roe >= 0.15) badges.push({ label: '高ROE', cssColor: 'var(--green)', cssBg: 'var(--green-bg)' })
+  if (row.nySalesGr && row.nySalesGr >= 0.15) badges.push({ label: '高成長', cssColor: 'var(--purple)', cssBg: 'var(--purple-bg)' })
+  if (row.judgment === '買い') badges.push({ label: '買いシグナル', cssColor: 'var(--yellow)', cssBg: 'var(--yellow-bg)' })
+  if (earningsDate) {
+    const days = (new Date(earningsDate).getTime() - Date.now()) / 86400000
+    if (days >= 0 && days <= 7) badges.push({ label: '決算間近', cssColor: 'var(--red)', cssBg: 'var(--red-bg)' })
+  }
+  if (badges.length === 0) return null
+  return (
+    <>
+      {badges.slice(0, max).map(b => (
+        <span key={b.label} style={{
+          display: 'inline-block', fontSize: 9, padding: '1px 5px', borderRadius: 3,
+          color: b.cssColor, background: b.cssBg, border: `1px solid color-mix(in srgb, ${b.cssColor} 30%, transparent)`,
+          fontWeight: 700, fontFamily: 'Noto Sans JP, sans-serif', whiteSpace: 'nowrap',
+        }}>{b.label}</span>
+      ))}
+    </>
   )
 }
 
 // ─── MobileRow ───────────────────────────────────────────────────────
-function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
+function MobileRow({ row: r, earningsDate, onClick }: { row: StockRow; earningsDate?: string; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.mobileRow} onClick={onClick}>
@@ -1128,15 +1165,19 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
         <div className={styles.mobileRowTop}>
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          <JudgmentBadge j={r.judgment} />
         </div>
         <div className={styles.mobileName}>{r.name || '—'}</div>
         <div className={styles.mobileMetaRow}>
           <span className={styles.mobileMetaItem}>PER {r.perF ? fmtN(r.perF) : '—'}</span>
           <span className={styles.mobileMetaItem}>PBR {r.pbr ? fmtN(r.pbr) : '—'}</span>
+          <span className={styles.mobileMetaItem}>ROE {r.roe ? fmtPct(r.roe) : '—'}</span>
           <span className={styles.mobileMetaItem}>配当 {r.divY ? fmtPct(r.divY) : '—'}</span>
-          {r.mcap ? <span className={styles.mobileMetaItem}>{r.mcap.toLocaleString()}億</span> : null}
         </div>
+        {(r.roe && r.roe >= 0.15) || (r.nySalesGr && r.nySalesGr >= 0.15) || r.judgment === '買い' ? (
+          <div style={{display:'flex', gap:4, flexWrap:'wrap', marginTop:3}}>
+            <StatusBadges row={r} earningsDate={earningsDate} />
+          </div>
+        ) : null}
       </div>
       <div className={styles.mobileRowRight}>
         <div className={styles.mobilePrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
@@ -1144,6 +1185,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
         <div className={styles.mobileSubChg}>
           <span className={styles[pctClass(r.chg1w)]}>1W {fmtPct(r.chg1w)}</span>
           <span className={styles[pctClass(r.chg3m)]}>3M {fmtPct(r.chg3m)}</span>
+          <span className={styles[pctClass(r.chg1y)]}>1Y {fmtPct(r.chg1y)}</span>
         </div>
       </div>
     </div>
@@ -1243,6 +1285,44 @@ function JudgmentBadge({ j }: { j: string }) {
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
+// ─── PER鮮度インジケーター ────────────────────────────────────────────
+function getFreshClass(discDate: string | null | undefined): string {
+  if (!discDate) return ''
+  const days = (Date.now() - new Date(discDate).getTime()) / 86400000
+  if (days <= 90)  return 'fresh'
+  if (days <= 180) return 'warn1'
+  if (days <= 365) return 'warn2'
+  return 'danger'
+}
+function getFreshLabel(discDate: string | null | undefined): string {
+  if (!discDate) return ''
+  const days = Math.floor((Date.now() - new Date(discDate).getTime()) / 86400000)
+  return `最終開示: ${discDate}（${days}日前）`
+}
+function FreshDot({ discDate }: { discDate?: string }) {
+  const cls = getFreshClass(discDate)
+  if (!cls || cls === 'fresh') return null
+  return <span className={`${styles.freshDot} ${styles[cls]}`} title={getFreshLabel(discDate)} />
+}
+function FreshLegend() {
+  return (
+    <div className={styles.freshLegend}>
+      <span style={{color:'var(--text-muted)'}}>PERデータ鮮度:</span>
+      {[
+        { cls: 'fresh',  label: '新しい（3ヶ月以内）' },
+        { cls: 'warn1',  label: 'やや古い（3〜6ヶ月）' },
+        { cls: 'warn2',  label: '古い（6ヶ月〜1年）' },
+        { cls: 'danger', label: '要注意（1年以上）' },
+      ].map(({ cls, label }) => (
+        <span key={cls} className={styles.freshLegendItem}>
+          <span className={`${styles.freshDot} ${styles[cls]}`} />
+          {label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
   row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate,
@@ -1268,6 +1348,7 @@ function DetailPanel({
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         <JudgmentBadge j={r.judgment} />
+        <StatusBadges row={r} earningsDate={f?.nextAnnouncementDate || earningsDate} />
       </div>
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}
@@ -1314,7 +1395,7 @@ function DetailPanel({
         <textarea className={styles.detailMemo} value={localMemo}
           onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />
         <button className={styles.btnPrimary}
-          style={{ width: '100%', marginTop: 8, ...(saved ? { background: '#34d399' } : {}) }}
+          style={{ width: '100%', marginTop: 8, ...(saved ? { background: 'var(--green)' } : {}) }}
           onClick={save}
         >{saved ? '保存しました ✓' : 'メモを保存'}</button>
       </Section>
@@ -1322,21 +1403,21 @@ function DetailPanel({
         {(() => {
           const displayDate = f?.nextAnnouncementDate || earningsDate
           const diff = displayDate ? (new Date(displayDate).getTime() - Date.now()) / 86400000 : null
-          const color = diff === null ? '' : diff < 0 ? 'rgba(100,100,100,0.7)' : diff <= 7 ? '#f87171' : diff <= 14 ? '#fbbf24' : '#34d399'
+          const color = diff === null ? '' : diff < 0 ? 'var(--red)' : diff <= 7 ? 'var(--yellow)' : 'var(--green)'
           return (
             <div style={{display:'flex', flexDirection:'column', gap:6}}>
               {displayDate && !editingDate && (
                 <div style={{fontSize:16, fontWeight:600, color}}>
                   {displayDate}
-                  {diff !== null && diff >= 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(200,220,255,0.6)'}}>あと{Math.ceil(diff)}日</span>}
-                  {diff !== null && diff < 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(100,100,100,0.7)'}}>終了</span>}
+                  {diff !== null && diff >= 0 && <span style={{fontSize:12, marginLeft:8, color:'var(--text-muted)'}}>あと{Math.ceil(diff)}日</span>}
+                  {diff !== null && diff < 0 && <span style={{fontSize:12, marginLeft:8, color:'var(--text-muted)'}}>終了</span>}
                 </div>
               )}
-              {!displayDate && !editingDate && <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>}
+              {!displayDate && !editingDate && <div style={{color:'var(--text-muted)', fontSize:13}}>未設定（APIまたは手動入力）</div>}
               {editingDate ? (
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
                   <input type="date" autoFocus value={dateVal} min={new Date().toISOString().slice(0,10)} onChange={e => setDateVal(e.target.value)}
-                    style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
+                    style={{padding:'4px 8px', background:'var(--input-bg)', border:'1px solid var(--accent)', color:'var(--text-main)', borderRadius:'var(--r)', fontSize:14}}
                     onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
                     onClick={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
                     onKeyDown={e => {
@@ -1355,7 +1436,7 @@ function DetailPanel({
                   {earningsDate ? '✏️ 編集' : '＋ 手動入力'}
                 </button>
               )}
-              {f?.nextAnnouncementDate && <div style={{fontSize:11, color:'#64748b'}}>APIから自動取得済み</div>}
+              {f?.nextAnnouncementDate && <div style={{fontSize:11, color:'var(--text-muted)'}}>APIから自動取得済み</div>}
             </div>
           )
         })()}

@@ -90,6 +90,11 @@ export default function Page() {
   const [genreFilter, setGenreFilter] = useState<string>('all')
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
+  const [darkMode,   setDarkMode]   = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    const saved = localStorage.getItem('darkMode')
+    return saved === null ? true : saved !== 'false'
+  })
   const [showFilter, setShowFilter] = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
@@ -104,6 +109,7 @@ export default function Page() {
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
+  useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
   useEffect(() => {
@@ -338,7 +344,7 @@ export default function Page() {
   const detailFin = detailCode ? finDB[detailCode] : null
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root}${darkMode ? '' : ' ' + styles.lightMode}`}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
@@ -362,6 +368,9 @@ export default function Page() {
             {loading ? '⏸ 中断' : lastUpdate ? '更新済み ↺' : '全更新'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
+            {darkMode ? '☀️' : '🌙'}
+          </button>
         </div>
       </header>
 

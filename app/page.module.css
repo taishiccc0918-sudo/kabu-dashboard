@@ -1144,3 +1144,93 @@
   font-size: 11px; color: #4e6280;
   margin-left: 8px;
 }
+
+/* ── THEME TOGGLE BUTTON ────────────────────────────── */
+.themeToggle {
+  padding: 5px 8px; border-radius: 6px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  font-size: 14px; line-height: 1;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.themeToggle:hover { background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+
+/* ── LIGHT MODE OVERRIDES ───────────────────────────── */
+/* .lightMode クラスが .root に付いている場合のみ適用。既存ダーク用CSSは変更なし。 */
+
+.lightMode { background: #f0f4f8 !important; color: #1e293b !important; }
+
+.lightMode .header {
+  background: rgba(255,255,255,0.97) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+.lightMode .logo { color: #1e293b !important; }
+.lightMode .logo span { color: #2563eb !important; }
+.lightMode .lastUpdate { color: #64748b !important; background: rgba(37,99,235,0.06) !important; border-color: rgba(37,99,235,0.2) !important; }
+.lightMode .lastUpdate strong { color: #2563eb !important; }
+.lightMode .apiLabel { color: #64748b !important; }
+.lightMode .apiInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .btnSecondary { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .btnSecondary:hover { color: #1e293b !important; border-color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .themeToggle { background: #f8fafc !important; border-color: #94a3b8 !important; }
+.lightMode .themeToggle:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; }
+
+.lightMode .toolbar { background: #e8edf3 !important; border-bottom: 1px solid #cbd5e1 !important; }
+.lightMode .searchInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .filterBtn { color: #64748b !important; }
+.lightMode .filterBtn:hover { color: #1e293b !important; background: rgba(0,0,0,0.05) !important; }
+.lightMode .filterBtnActive { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.08) !important; }
+.lightMode .sortSelect { background: #fff !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .tabGroup { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; }
+.lightMode .tabBtn { color: #64748b !important; }
+.lightMode .tabBtnActive { background: #fff !important; color: #1e293b !important; }
+
+.lightMode .table { background: #fff !important; }
+.lightMode .table thead th { background: #f1f5f9 !important; color: #475569 !important; border-bottom-color: #94a3b8 !important; border-top-color: #cbd5e1 !important; }
+.lightMode .table tbody tr { background: #fff !important; border-bottom-color: rgba(203,213,225,0.8) !important; }
+.lightMode .table tbody tr:nth-child(even) { background: rgba(241,245,249,0.8) !important; }
+.lightMode .table tbody tr:hover { background: #e2e8f0 !important; }
+.lightMode .table tbody tr:hover .tdStar,
+.lightMode .table tbody tr:hover .tdCode,
+.lightMode .table tbody tr:hover .tdName { background: #e2e8f0 !important; }
+
+.lightMode .tdStar { background: #f8fafc !important; color: rgba(217,119,6,0.6) !important; }
+.lightMode .tdCode { background: #f8fafc !important; color: #64748b !important; }
+.lightMode .tdName { background: #f1f5f9 !important; color: #1e293b !important; border-right-color: rgba(0,0,0,0.1) !important; }
+.lightMode .tdNum { color: #475569 !important; }
+.lightMode .tdPct { color: #64748b !important; }
+.lightMode .emptyCell { color: #64748b !important; }
+
+.lightMode .card { background: #fff !important; border-color: #cbd5e1 !important; }
+.lightMode .card:hover { background: #f0f4f8 !important; border-color: #2563eb !important; }
+.lightMode .cardCode { color: #64748b !important; }
+.lightMode .cardName { color: #1e293b !important; }
+.lightMode .cardMcap { color: #64748b !important; }
+.lightMode .cardPrice { color: #1e293b !important; }
+.lightMode .cardMetric { background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
+.lightMode .cardMetricLabel { color: #64748b !important; }
+.lightMode .cardMetricValue { color: #475569 !important; }
+.lightMode .chartArea { border-top-color: #cbd5e1 !important; }
+.lightMode .chartTab { border-color: #cbd5e1 !important; color: #64748b !important; }
+.lightMode .chartTab:hover { color: #1e293b !important; }
+.lightMode .chartTabActive { border-color: #2563eb !important; color: #2563eb !important; }
+.lightMode .cardLinks { border-top-color: #cbd5e1 !important; }
+.lightMode .cardLinkBtn { color: #2563eb !important; border-color: #bfdbfe !important; background: rgba(37,99,235,0.05) !important; }
+.lightMode .cardLinkBtn:hover { background: rgba(37,99,235,0.12) !important; border-color: #2563eb !important; }
+
+.lightMode .detailOverlay { background: rgba(0,0,0,0.4) !important; }
+.lightMode .detailPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
+.lightMode .detailClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
+.lightMode .detailClose:hover { color: #1e293b !important; background: rgba(0,0,0,0.08) !important; }
+.lightMode .detailCode { color: #64748b !important; }
+.lightMode .detailName { color: #1e293b !important; }
+.lightMode .detailSectionTitle { color: #64748b !important; border-bottom-color: #cbd5e1 !important; }
+
+.lightMode .wlTitle { color: #1e293b !important; }
+.lightMode .wlInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .wlCount { color: #64748b !important; }
+.lightMode .wlChip { background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
+.lightMode .wlChipCode { color: #475569 !important; }
+.lightMode .wlChipName { color: #64748b !important; }
+.lightMode .wlChipRemove { color: #94a3b8 !important; }

@@ -1082,7 +1082,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   function getColor(d: string): string {
     const days = getDaysUntil(d)
     if (days === null) return ''
-    if (days < 0) return 'rgba(100,100,100,0.6)'
+    if (days < 0) return '#94a3b8'
     if (days <= 7) return '#f87171'
     if (days <= 14) return '#fbbf24'
     return ''
@@ -1115,7 +1115,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
-        color: displayDate ? (getColor(displayDate) || '#e8ecf0') : '#60a5fa',
+        color: displayDate ? (getColor(displayDate) || '#4a7090') : '#60a5fa',
         cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
         border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
         background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',

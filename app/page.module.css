@@ -239,7 +239,7 @@
 .tdCode {
   padding: 0 8px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
-  color: #4e6280;
+  color: #8fa3be;
   width: 60px; min-width: 60px; max-width: 60px;
   position: sticky; left: 32px; z-index: 5;
   background: #111827;
@@ -1196,7 +1196,7 @@
 .lightMode .table tbody tr:hover .tdName { background: #e2e8f0 !important; }
 
 .lightMode .tdStar { background: #f8fafc !important; color: rgba(217,119,6,0.6) !important; }
-.lightMode .tdCode { background: #f8fafc !important; color: #64748b !important; }
+.lightMode .tdCode { background: #f8fafc !important; color: #334155 !important; }
 .lightMode .tdName { background: #f1f5f9 !important; color: #1e293b !important; border-right-color: rgba(0,0,0,0.1) !important; }
 .lightMode .tdNum { color: #1a2c4a !important; }
 .lightMode .tdPct { color: #475569 !important; }

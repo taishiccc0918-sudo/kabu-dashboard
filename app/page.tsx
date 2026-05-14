@@ -673,6 +673,7 @@ function StockManager({
   const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
   const [wlDropdownActive,  setWlDropdownActive]  = useState(-1)
+  const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -724,6 +725,32 @@ function StockManager({
 
   useEffect(() => { setPage(1) }, [wlSearch, showFavOnly, mktF])
 
+  useEffect(() => {
+    if (!wlHighlightCode) return
+    const el = document.querySelector<HTMLElement>(`[data-code-wl="${wlHighlightCode}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = setTimeout(() => setWlHighlightCode(null), 2500)
+    return () => clearTimeout(timer)
+  }, [wlHighlightCode])
+
+  function scrollToWlRow(code: string) {
+    setWlShowDropdown(false); setWlDropdownActive(-1); setWlSearch('')
+    // テキストフィルタ解除後の filteredCodes を手計算してページを特定
+    const filtered = allCodes.filter(c => {
+      const rec = masterDB[c]
+      if (!rec) return false
+      if (showFavOnly && !favorites.has(c)) return false
+      if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
+      if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
+      if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+      return true
+    })
+    const idx = filtered.indexOf(code)
+    setPage(idx >= 0 ? Math.floor(idx / PER_PAGE) + 1 : 1)
+    setWlHighlightCode(null)
+    setTimeout(() => setWlHighlightCode(code), 0)
+  }
+
   const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
@@ -771,14 +798,14 @@ function StockManager({
               if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
               else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
               else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
-              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { console.log('[PhaseC] wl selected:', wlDropdownResults[wlDropdownActive].code); setWlShowDropdown(false) }
+              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { scrollToWlRow(wlDropdownResults[wlDropdownActive].code) }
             }}
           />
           <SearchDropdown
             results={wlDropdownResults}
             activeIndex={wlDropdownActive}
             visible={wlShowDropdown && wlSearch.trim().length > 0}
-            onSelect={code => { console.log('[PhaseC] wl selected:', code); setWlShowDropdown(false) }}
+            onSelect={code => scrollToWlRow(code)}
           />
         </div>
         <button
@@ -824,6 +851,7 @@ function StockManager({
                 onToggleFav={() => onToggleFavorite(code)}
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
                 onAddGenre={onAddGenre}
+                highlighted={wlHighlightCode === code}
               />
             ))}
           </tbody>
@@ -848,7 +876,7 @@ function StockManager({
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre,
+  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre, highlighted,
 }: {
   code: string
   rec: MasterRecord
@@ -858,6 +886,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
   onToggleFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   onAddGenre: (name: string) => void
+  highlighted: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [localMemo, setLocalMemo] = useState(meta.memo)
@@ -875,7 +904,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
 
   return (
     <>
-      <tr className={styles.wlTr}>
+      <tr data-code-wl={code} className={`${styles.wlTr}${highlighted ? ' ' + styles.wlHighlight : ''}`}>
         <td className={styles.wlTd} style={{textAlign:'center'}}>
           <button
             onClick={onToggleFav}

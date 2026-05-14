@@ -194,6 +194,9 @@
 .table tbody tr[data-code] { scroll-margin-top: 96px; }
 .table tbody tr[data-code] td { transition: background 0.8s ease-out; }
 .trHighlight td { background: rgba(59,130,246,0.25) !important; }
+.wlTableInner tbody tr[data-code-wl] { scroll-margin-top: 96px; }
+.wlTableInner tbody tr[data-code-wl] td { transition: background 0.8s ease-out; }
+.wlHighlight td { background: rgba(59,130,246,0.25) !important; }
 
 /* ── TABLE ───────────────────────────────────────── */
 .main { flex: 1; }
@@ -1347,3 +1350,4 @@
 .lightMode .searchDropdownName { color: #1e293b !important; }
 .lightMode .searchDropdownSnippet { color: #64748b !important; }
 .lightMode .trHighlight td { background: rgba(37,99,235,0.15) !important; }
+.lightMode .wlHighlight td { background: rgba(37,99,235,0.15) !important; }

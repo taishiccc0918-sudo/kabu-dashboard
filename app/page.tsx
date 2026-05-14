@@ -658,6 +658,7 @@ function StockManager({
               <th className={styles.wlTh} style={{width:80}}>市場</th>
               <th className={styles.wlTh} style={{width:220}}>ジャンル</th>
               <th className={styles.wlTh}>メモ</th>
+              <th className={styles.wlTh} style={{width:180}}>リンク</th>
             </tr>
           </thead>
           <tbody>
@@ -761,10 +762,18 @@ const StockManagerRow = React.memo(function StockManagerRow({
             onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
           />
         </td>
+        <td className={styles.wlTd} style={{whiteSpace:'nowrap'}}>
+          <div style={{display:'flex', gap:4}}>
+            <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a>
+            <a href={`https://finance.yahoo.co.jp/quote/${code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>Yahoo</a>
+            <a href={`https://kabutan.jp/stock/?code=${code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a>
+            <a href={`https://www.google.com/search?q=${encodeURIComponent((rec.name || code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>公式HP</a>
+          </div>
+        </td>
       </tr>
       {editing && (
         <tr className={styles.wlEditRow}>
-          <td colSpan={6} className={styles.wlEditTd}>
+          <td colSpan={7} className={styles.wlEditTd}>
             <div className={styles.wlGenreEditPanel}>
               {allGenreOptions.map(g => (
                 <button key={g}

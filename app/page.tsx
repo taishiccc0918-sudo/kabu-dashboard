@@ -118,6 +118,7 @@ export default function Page() {
   const [showDropdown,     setShowDropdown]     = useState(false)
   const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
   const [dropdownActive,   setDropdownActive]   = useState(-1)
+  const [highlightCode,    setHighlightCode]    = useState<string | null>(null)
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
@@ -323,6 +324,14 @@ export default function Page() {
     return () => clearTimeout(timer)
   }, [search, allRows, stockMeta, masterDB, favorites])
 
+  useEffect(() => {
+    if (!highlightCode) return
+    const el = document.querySelector<HTMLElement>(`tr[data-code="${highlightCode}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = setTimeout(() => setHighlightCode(null), 2500)
+    return () => clearTimeout(timer)
+  }, [highlightCode])
+
   const stats = useMemo(() => ({
     total: allRows.length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
@@ -332,6 +341,18 @@ export default function Page() {
   function handleSort(key: keyof StockRow) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
+  }
+
+  function clearAllFilters() {
+    setFilter('all'); setMktFilter('all'); setGenreFilter('all')
+    setMcapMin(''); setPerFMax(''); setSortKey(null); setSortDir(-1)
+  }
+
+  function scrollToAndHighlight(code: string) {
+    clearAllFilters()
+    setSearch(''); setShowDropdown(false); setDropdownActive(-1)
+    setHighlightCode(null)
+    setTimeout(() => setHighlightCode(code), 0)
   }
 
   const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
@@ -447,14 +468,14 @@ export default function Page() {
               if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownActive(i => Math.min(i + 1, dropdownResults.length - 1)) }
               else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownActive(i => Math.max(i - 1, 0)) }
               else if (e.key === 'Escape') { setShowDropdown(false); setDropdownActive(-1) }
-              else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { console.log('[PhaseA] selected:', dropdownResults[dropdownActive].code); setShowDropdown(false) }
+              else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { scrollToAndHighlight(dropdownResults[dropdownActive].code) }
             }}
           />
           <SearchDropdown
             results={dropdownResults}
             activeIndex={dropdownActive}
             visible={showDropdown && search.trim().length > 0}
-            onSelect={code => { console.log('[PhaseA] selected:', code); setShowDropdown(false) }}
+            onSelect={code => scrollToAndHighlight(code)}
           />
         </div>
         <div className={styles.filterGroup}>
@@ -553,6 +574,7 @@ export default function Page() {
                 sortDir={sortDir}
                 handleSort={handleSort}
                 onRowClick={(code) => setDetailCode(code)}
+                highlightCode={highlightCode}
               />
             </div>
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
@@ -1004,7 +1026,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -1014,6 +1036,7 @@ function DashboardTable({
   sortDir: 1 | -1
   handleSort: (k: keyof StockRow) => void
   onRowClick: (code: string) => void
+  highlightCode: string | null
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1088,7 +1111,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} />
             ))}
           </tbody>
         </table>
@@ -1098,15 +1121,16 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
+  highlighted: boolean
 }) {
-  const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
-  const stickyNameBg = idx % 2 === 0 ? '#131825' : '#171d2e'
+  const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
+  const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
-    <tr style={{ cursor: 'pointer' }} onClick={onClick}>
+    <tr data-code={r.code} className={highlighted ? styles.trHighlight : undefined} style={{ cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyNameBg}}>{r.name || '—'}</td>

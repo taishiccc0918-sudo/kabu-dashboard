@@ -942,8 +942,10 @@
   transition: background .1s;
 }
 .wlTr:hover { background: rgba(255,255,255,0.03); }
+.wlTr:hover .wlTd { background: #121c2e; }
 .wlTd {
   padding: 5px 12px; vertical-align: middle;
+  background: #0d1219;
 }
 .wlTdName {
   font-size: 13px; color: #c8d8e8;
@@ -1231,6 +1233,9 @@
 .lightMode .wlTitle { color: #1e293b !important; }
 .lightMode .wlInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlCount { color: #64748b !important; }
+.lightMode .wlTh { background: #f1f5f9 !important; color: #475569 !important; border-bottom-color: #94a3b8 !important; }
+.lightMode .wlTd { background: #fff !important; }
+.lightMode .wlTr:hover .wlTd { background: #e2e8f0 !important; }
 .lightMode .wlChip { background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
 .lightMode .wlChipCode { color: #475569 !important; }
 .lightMode .wlChipName { color: #64748b !important; }

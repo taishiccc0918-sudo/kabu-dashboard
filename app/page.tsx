@@ -287,6 +287,7 @@ export default function Page() {
   }
 
   function removeGenreOption(name: string) {
+    if (genreFilter === name) setGenreFilter('all')
     setStockMeta(prev => {
       const next = { ...prev }
       // 明示的に設定されたジャンルから削除
@@ -441,7 +442,7 @@ export default function Page() {
             <div className={styles.filterPanelGroup}>
               <label className={styles.filterPanelLabel}>ジャンル</label>
               <div className={styles.filterPanelChips}>
-                {['all','防衛','宇宙','半導体','造船','IP','スポーツ','保険','銀行','素材','化学','機械','IT','サービス','小売','エネルギー','自動車','その他'].map(g => (
+                {['all', ...allGenreOptions].map(g => (
                   <button key={g}
                     className={`${styles.filterChip} ${genreFilter===g ? styles.filterChipActive : ''}`}
                     onClick={() => setGenreFilter(g)}

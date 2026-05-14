@@ -38,6 +38,7 @@ function initStockMeta(): Record<string, StockMeta> {
   if (typeof window === 'undefined') return {}
   let meta = ls<Record<string, StockMeta> | null>('stockMetadata', null)
   let needSave = false
+  const removedGenres = ls<string[]>('removedDefaultGenres', [])
 
   if (meta === null) {
     // 旧 customGenres + memos から移行
@@ -59,13 +60,25 @@ function initStockMeta(): Record<string, StockMeta> {
     for (const [code, genreStr] of Object.entries(DEFAULT_GENRES)) {
       if (!meta[code] || meta[code].genres.length === 0) {
         meta[code] = {
-          genres: genreStr.split(',').map(g => g.trim()).filter(Boolean),
+          genres: genreStr.split(',').map(g => g.trim()).filter(Boolean)
+            .filter(g => !removedGenres.includes(g)),
           memo: meta[code]?.memo ?? '',
         }
       }
     }
     lsSet('metadataInitialized', true)
     needSave = true
+  }
+
+  // 毎回起動時: 削除済みジャンルが stockMeta に残っていればサニタイズ
+  if (removedGenres.length > 0) {
+    for (const [code, m] of Object.entries(meta)) {
+      const cleaned = m.genres.filter(g => !removedGenres.includes(g))
+      if (cleaned.length !== m.genres.length) {
+        meta[code] = { ...m, genres: cleaned }
+        needSave = true
+      }
+    }
   }
 
   if (needSave) lsSet('stockMetadata', meta)

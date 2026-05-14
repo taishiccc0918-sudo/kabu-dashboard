@@ -819,7 +819,7 @@
 
 /* ══ 銘柄管理 新UI ══════════════════════════════════════════════ */
 .wlManager {
-  padding: 0; width: 100%; overflow-x: auto;
+  padding: 0; width: 100%;
 }
 .wlHeader {
   display: flex; align-items: center; justify-content: space-between;
@@ -1113,7 +1113,6 @@
 
 /* ── 銘柄管理テーブルスクロール ─────────────────── */
 .wlTableScroll {
-  overflow-x: auto;
   width: 100%;
 }
 .wlTableInner td:last-child { width: auto; }

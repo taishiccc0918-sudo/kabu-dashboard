@@ -670,6 +670,9 @@ function StockManager({
   const [showFavOnly, setShowFavOnly] = useState(false)
   const [mktF, setMktF] = useState('all')
   const [page, setPage] = useState(1)
+  const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
+  const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
+  const [wlDropdownActive,  setWlDropdownActive]  = useState(-1)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -686,6 +689,38 @@ function StockManager({
       return true
     })
   }, [allCodes, masterDB, favorites, showFavOnly, mktF, wlSearch])
+
+  useEffect(() => {
+    const q = wlSearch.trim().toLowerCase()
+    if (!q) { setWlDropdownResults([]); setWlDropdownActive(-1); return }
+    const timer = setTimeout(() => {
+      const codeNameHits: DropdownResult[] = []
+      const memoHits: DropdownResult[] = []
+      for (const code of allCodes) {
+        if (codeNameHits.length >= 5) break
+        const rec = masterDB[code]
+        if (!rec) continue
+        if (code.toLowerCase().includes(q) || rec.name.toLowerCase().includes(q)) {
+          codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
+        }
+      }
+      for (const [code, meta] of Object.entries(stockMeta)) {
+        if (memoHits.length >= 5) break
+        if (!favorites.has(code) || !meta.memo) continue
+        if (meta.memo.toLowerCase().includes(q)) {
+          if (codeNameHits.some(r => r.code === code)) continue
+          const idx = meta.memo.toLowerCase().indexOf(q)
+          const start = Math.max(0, idx - 20)
+          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
+        }
+      }
+      setWlDropdownResults([...codeNameHits, ...memoHits])
+      setWlDropdownActive(-1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [wlSearch, allCodes, masterDB, stockMeta, favorites])
 
   useEffect(() => { setPage(1) }, [wlSearch, showFavOnly, mktF])
 
@@ -723,12 +758,29 @@ function StockManager({
       </div>
 
       <div className={styles.wlFilterBar}>
-        <input
-          className={styles.wlSearchInput}
-          placeholder="銘柄名・コードで絞り込み..."
-          value={wlSearch}
-          onChange={e => setWlSearch(e.target.value)}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            className={styles.wlSearchInput}
+            placeholder="銘柄名・コードで絞り込み..."
+            value={wlSearch}
+            onChange={e => setWlSearch(e.target.value)}
+            onFocus={() => setWlShowDropdown(true)}
+            onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
+            onKeyDown={e => {
+              if (!wlShowDropdown || !wlSearch.trim()) return
+              if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
+              else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
+              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { console.log('[PhaseC] wl selected:', wlDropdownResults[wlDropdownActive].code); setWlShowDropdown(false) }
+            }}
+          />
+          <SearchDropdown
+            results={wlDropdownResults}
+            activeIndex={wlDropdownActive}
+            visible={wlShowDropdown && wlSearch.trim().length > 0}
+            onSelect={code => { console.log('[PhaseC] wl selected:', code); setWlShowDropdown(false) }}
+          />
+        </div>
         <button
           className={`${styles.filterBtn} ${showFavOnly ? styles.filterBtnActive : ''}`}
           onClick={() => setShowFavOnly(f => !f)}

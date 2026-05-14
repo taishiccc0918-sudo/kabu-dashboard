@@ -96,7 +96,7 @@ export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
   const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
   const favoritesRef = useRef<Set<string>>(new Set())
-  const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>(initStockMeta)
+  const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>({})
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
@@ -132,6 +132,9 @@ export default function Page() {
   useEffect(() => {
     const saved = localStorage.getItem('darkMode')
     if (saved !== null) setDarkMode(saved !== 'false')
+  }, [])
+  useEffect(() => {
+    setStockMeta(initStockMeta())
   }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────

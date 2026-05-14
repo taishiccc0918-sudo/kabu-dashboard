@@ -1248,3 +1248,42 @@
 .lightMode .mkt_standard { background: rgba(5,150,105,0.15) !important; color: #047857 !important; border: 1px solid rgba(5,150,105,0.35) !important; }
 .lightMode .mkt_growth   { background: rgba(109,40,217,0.15) !important; color: #6d28d9 !important; border: 1px solid rgba(109,40,217,0.35) !important; }
 .lightMode .genreBadge   { background: rgba(0,0,0,0.07) !important; border: 1px solid rgba(0,0,0,0.18) !important; color: #334155 !important; }
+
+/* ── ライトモード: 銘柄管理画面コントラスト強化 ──────── */
+/* 1. ジャンルマスターバー */
+.lightMode .wlGenreBar { background: #f1f5f9 !important; border-bottom-color: #cbd5e1 !important; }
+.lightMode .wlGenreLabel { color: #475569 !important; }
+.lightMode .genreBadgeEditable { background: #fff !important; border-color: #94a3b8 !important; color: #334155 !important; }
+.lightMode .genreRemoveBtn { color: #dc2626 !important; opacity: 0.7; }
+
+/* 2. 検索バー */
+.lightMode .wlSearchInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .wlSearchInput::placeholder { color: #94a3b8 !important; }
+.lightMode .wlSearchInput:focus { border-color: #2563eb !important; background: rgba(37,99,235,0.04) !important; }
+
+/* 3. フィルターバー */
+.lightMode .wlFilterBar { background: #f1f5f9 !important; border-bottom-color: #cbd5e1 !important; }
+.lightMode .wlResultCount { color: #64748b !important; }
+
+/* 4. 銘柄一覧本文 */
+.lightMode .wlTr { border-bottom-color: #e2e8f0 !important; }
+.lightMode .wlTdName { color: #1e293b !important; }
+.lightMode .wlChipCode { color: #2563eb !important; }
+.lightMode .wlMemoInput { background: #fff !important; border-color: #cbd5e1 !important; color: #1e293b !important; }
+.lightMode .wlMemoInput::placeholder { color: #94a3b8 !important; }
+.lightMode .genreTag { border-color: #94a3b8 !important; background: rgba(0,0,0,0.04) !important; color: #334155 !important; }
+.lightMode .genreTagOn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
+.lightMode .genreEditToggleBtn { border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .genreEditToggleBtnOn { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .wlEditRow { background: rgba(37,99,235,0.04) !important; }
+.lightMode .wlEditTd { border-bottom-color: #cbd5e1 !important; }
+.lightMode .favBtn { color: rgba(0,0,0,0.2) !important; }
+.lightMode .infoLinkBtn { color: #1d4ed8 !important; border-color: #93c5fd !important; background: rgba(37,99,235,0.07) !important; }
+
+/* 5. ページネーション */
+.lightMode .pagination { border-top-color: #cbd5e1 !important; }
+.lightMode .pageBtn { border-color: #94a3b8 !important; background: #f8fafc !important; color: #334155 !important; }
+.lightMode .pageBtn:hover:not(:disabled) { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .pageBtn:disabled { color: #cbd5e1 !important; }
+.lightMode .pageBtnActive { border-color: #2563eb !important; background: rgba(37,99,235,0.12) !important; color: #1d4ed8 !important; }
+.lightMode .pageInfo { color: #64748b !important; }

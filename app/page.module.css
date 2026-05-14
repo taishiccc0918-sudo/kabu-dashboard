@@ -191,8 +191,8 @@
 }
 
 /* ── ROW HIGHLIGHT ──────────────────────────────── */
-tr[data-code] { scroll-margin-top: 96px; }
-tr[data-code] td { transition: background 0.8s ease-out; }
+.table tbody tr[data-code] { scroll-margin-top: 96px; }
+.table tbody tr[data-code] td { transition: background 0.8s ease-out; }
 .trHighlight td { background: rgba(59,130,246,0.25) !important; }
 
 /* ── TABLE ───────────────────────────────────────── */

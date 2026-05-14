@@ -10,6 +10,13 @@ import {
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort } from './lib/format'
 import styles from './page.module.css'
 
+interface DropdownResult {
+  code: string
+  name: string
+  matchType: 'code_name' | 'memo'
+  memoSnippet?: string
+}
+
 function ls<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback } catch { return fallback }
@@ -108,6 +115,9 @@ export default function Page() {
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
+  const [showDropdown,     setShowDropdown]     = useState(false)
+  const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
+  const [dropdownActive,   setDropdownActive]   = useState(-1)
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
@@ -279,6 +289,37 @@ export default function Page() {
     return rows
   }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
+  // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
+  useEffect(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) { setDropdownResults([]); setDropdownActive(-1); return }
+    const timer = setTimeout(() => {
+      const codeNameHits: DropdownResult[] = []
+      const memoHits: DropdownResult[] = []
+      for (const r of allRows) {
+        if (codeNameHits.length >= 5) break
+        if (r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) {
+          codeNameHits.push({ code: r.code, name: r.name, matchType: 'code_name' })
+        }
+      }
+      for (const [code, meta] of Object.entries(stockMeta)) {
+        if (memoHits.length >= 5) break
+        if (!favorites.has(code) || !meta.memo) continue
+        if (meta.memo.toLowerCase().includes(q)) {
+          if (codeNameHits.some(r => r.code === code)) continue
+          const idx = meta.memo.toLowerCase().indexOf(q)
+          const start = Math.max(0, idx - 20)
+          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
+        }
+      }
+      setDropdownResults([...codeNameHits, ...memoHits])
+      setDropdownActive(-1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, allRows, stockMeta, masterDB, favorites])
+
   const stats = useMemo(() => ({
     total: allRows.length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
@@ -393,9 +434,24 @@ export default function Page() {
           <span className={styles.searchIcon}>🔍</span>
           <input
             className={styles.searchInput}
-            placeholder="銘柄名・コード検索..."
+            placeholder="銘柄名・コード・メモ検索..."
             value={search}
             onChange={e => setSearch(e.target.value)}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            onKeyDown={e => {
+              if (!showDropdown || !search.trim()) return
+              if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownActive(i => Math.min(i + 1, dropdownResults.length - 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownActive(i => Math.max(i - 1, 0)) }
+              else if (e.key === 'Escape') { setShowDropdown(false); setDropdownActive(-1) }
+              else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { console.log('[PhaseA] selected:', dropdownResults[dropdownActive].code); setShowDropdown(false) }
+            }}
+          />
+          <SearchDropdown
+            results={dropdownResults}
+            activeIndex={dropdownActive}
+            visible={showDropdown && search.trim().length > 0}
+            onSelect={code => { console.log('[PhaseA] selected:', code); setShowDropdown(false) }}
           />
         </div>
         <div className={styles.filterGroup}>
@@ -1422,6 +1478,61 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
           <div className={`${styles.detailItemValue} ${cls ? styles[cls] : ''}`}>{val}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── SearchDropdown（共通UIコンポーネント）────────────────────────────
+function SearchDropdown({
+  results, activeIndex, onSelect, visible,
+}: {
+  results: DropdownResult[]
+  activeIndex: number
+  onSelect: (code: string) => void
+  visible: boolean
+}) {
+  if (!visible) return null
+  const codeNameResults = results.filter(r => r.matchType === 'code_name')
+  const memoResults     = results.filter(r => r.matchType === 'memo')
+  return (
+    <div className={styles.searchDropdownPanel}>
+      {results.length === 0 ? (
+        <div className={styles.searchDropdownEmpty}>該当なし</div>
+      ) : (
+        <>
+          {codeNameResults.length > 0 && (
+            <>
+              <div className={styles.searchDropdownCategory}>銘柄名・コード</div>
+              {codeNameResults.map((r, i) => (
+                <div
+                  key={r.code}
+                  className={`${styles.searchDropdownItem} ${activeIndex === i ? styles.searchDropdownItemActive : ''}`}
+                  onMouseDown={e => { e.preventDefault(); onSelect(r.code) }}
+                >
+                  <span className={styles.searchDropdownCode}>{r.code}</span>
+                  <span className={styles.searchDropdownName}>{r.name}</span>
+                </div>
+              ))}
+            </>
+          )}
+          {memoResults.length > 0 && (
+            <>
+              <div className={styles.searchDropdownCategory}>メモ</div>
+              {memoResults.map((r, i) => (
+                <div
+                  key={r.code}
+                  className={`${styles.searchDropdownItem} ${activeIndex === codeNameResults.length + i ? styles.searchDropdownItemActive : ''}`}
+                  onMouseDown={e => { e.preventDefault(); onSelect(r.code) }}
+                >
+                  <span className={styles.searchDropdownCode}>{r.code}</span>
+                  <span className={styles.searchDropdownName}>{r.name}</span>
+                  {r.memoSnippet && <div className={styles.searchDropdownSnippet}>{r.memoSnippet}</div>}
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }

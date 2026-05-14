@@ -146,6 +146,50 @@
   box-shadow: 0 1px 3px rgba(0,0,0,.5);
 }
 
+/* ── 検索ドロップダウン ─────────────────────────── */
+.searchDropdownPanel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 320px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #111827;
+  border: 1px solid #2a3a52;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 600;
+}
+.searchDropdownEmpty {
+  padding: 12px 16px;
+  color: #4e6280;
+  font-size: 12px;
+}
+.searchDropdownCategory {
+  padding: 7px 14px 3px;
+  font-size: 9px; font-weight: 700; color: #4e6280;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+  border-top: 1px solid #1f2d40;
+}
+.searchDropdownCategory:first-child { border-top: none; }
+.searchDropdownItem {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 14px; cursor: pointer; transition: background 0.1s;
+}
+.searchDropdownItem:hover { background: rgba(59,130,246,0.1); }
+.searchDropdownItemActive { background: rgba(59,130,246,0.18) !important; }
+.searchDropdownCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; color: #60a5fa; min-width: 44px;
+}
+.searchDropdownName { font-size: 13px; color: #e8eef8; }
+.searchDropdownSnippet {
+  width: 100%;
+  font-size: 11px; color: #4e6280;
+  padding-left: 52px; line-height: 1.4;
+}
+
 /* ── TABLE ───────────────────────────────────────── */
 .main { flex: 1; }
 /* 旧スタイル(互換) */
@@ -1287,3 +1331,13 @@
 .lightMode .pageBtn:disabled { color: #cbd5e1 !important; }
 .lightMode .pageBtnActive { border-color: #2563eb !important; background: rgba(37,99,235,0.12) !important; color: #1d4ed8 !important; }
 .lightMode .pageInfo { color: #64748b !important; }
+
+/* ── ライトモード: 検索ドロップダウン ───────────── */
+.lightMode .searchDropdownPanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
+.lightMode .searchDropdownEmpty { color: #64748b !important; }
+.lightMode .searchDropdownCategory { color: #64748b !important; border-top-color: #e2e8f0 !important; }
+.lightMode .searchDropdownItem:hover { background: rgba(37,99,235,0.06) !important; }
+.lightMode .searchDropdownItemActive { background: rgba(37,99,235,0.1) !important; }
+.lightMode .searchDropdownCode { color: #2563eb !important; }
+.lightMode .searchDropdownName { color: #1e293b !important; }
+.lightMode .searchDropdownSnippet { color: #64748b !important; }

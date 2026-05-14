@@ -90,11 +90,7 @@ export default function Page() {
   const [genreFilter, setGenreFilter] = useState<string>('all')
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
-  const [darkMode,   setDarkMode]   = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true
-    const saved = localStorage.getItem('darkMode')
-    return saved === null ? true : saved !== 'false'
-  })
+  const [darkMode,   setDarkMode]   = useState<boolean>(true)
   const [showFilter, setShowFilter] = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
@@ -110,6 +106,10 @@ export default function Page() {
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
+  useEffect(() => {
+    const saved = localStorage.getItem('darkMode')
+    if (saved !== null) setDarkMode(saved !== 'false')
+  }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
   useEffect(() => {

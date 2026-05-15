@@ -95,8 +95,9 @@ function initStockMeta(): Record<string, StockMeta> {
 }
 
 export default function Page() {
-  const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
-  const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
+  const [mounted,    setMounted]    = useState(false)
+  const [apiKey,     setApiKey]     = useState('')
+  const [favorites,  setFavorites]  = useState<Set<string>>(new Set())
   const favoritesRef = useRef<Set<string>>(new Set())
   const [superFavorites,    setSuperFavorites]    = useState<Set<string>>(new Set())
   const [judgmentSettings,  setJudgmentSettings]  = useState<JudgmentSettings | null>(null)
@@ -104,7 +105,7 @@ export default function Page() {
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
-  const [lastUpdate, setLastUpdate] = useState<string>(() => ls('lastUpdate', ''))
+  const [lastUpdate, setLastUpdate] = useState('')
   const [status,     setStatus]     = useState<StatusType>('idle')
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
@@ -118,8 +119,8 @@ export default function Page() {
   const [showFilter,  setShowFilter]  = useState(false)
   const [showHelp,    setShowHelp]    = useState(false)
   const [filterHeart, setFilterHeart] = useState(false)
-  const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
-  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
+  const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
+  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>([])
   const [search,     setSearch]     = useState('')
   const [showDropdown,     setShowDropdown]     = useState(false)
   const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
@@ -130,26 +131,29 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
   const [forcePc,    setForcePc]    = useState(false)
-  const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
+  const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
   const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
+
+  // localStorage からの読み込みを一箇所に集約し、最後に mounted = true でコンテンツを表示
   useEffect(() => {
-    const saved = localStorage.getItem('darkMode')
-    if (saved !== null) setDarkMode(saved !== 'false')
-  }, [])
-  useEffect(() => {
-    setStockMeta(initStockMeta())
-  }, [])
-  useEffect(() => {
+    const savedDark = localStorage.getItem('darkMode')
+    if (savedDark !== null) setDarkMode(savedDark !== 'false')
+    setFavorites(initFavorites())
+    setApiKey(ls('apiKey', ''))
+    setLastUpdate(ls('lastUpdate', ''))
+    setCustomGenreOptions(ls('customGenreOptions', []))
+    setRemovedDefaultGenres(ls('removedDefaultGenres', []))
+    setEarningsDates(ls('earningsDates', {}))
     setSuperFavorites(new Set(ls<string[]>('superFavorites', [])))
-  }, [])
-  useEffect(() => {
-    const saved = ls<JudgmentSettings | null>('judgmentSettings', null)
-    setJudgmentSettings(saved ?? DEFAULT_LOGICS)
+    setStockMeta(initStockMeta())
+    const savedJudgment = ls<JudgmentSettings | null>('judgmentSettings', null)
+    setJudgmentSettings(savedJudgment ?? DEFAULT_LOGICS)
+    setMounted(true)
   }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
@@ -623,7 +627,7 @@ export default function Page() {
         </div>
       )}
 
-      <main className={styles.main}>
+      <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
         {tab === 'dashboard' && (
           <>
             <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>

@@ -2,11 +2,12 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord, StockMeta,
-  TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES, JudgmentSettings,
+  TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
+  JudgmentSettings, JudgmentLogic, MetricRange,
 } from './lib/types'
 import { evaluateLogic } from './lib/judgmentEngine'
 import { DEFAULT_LOGICS } from './lib/defaultLogics'
-import { METRIC_LABELS } from './lib/metricLabels'
+import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
@@ -307,9 +308,9 @@ export default function Page() {
   }, [judgmentSettings])
 
   const judgmentResultsMap = useMemo(() => {
-    const map: Record<string, string[]> = {}
+    const map: Record<string, string | null> = {}
     for (const row of allRows) {
-      map[row.code] = activeLogic ? evaluateLogic(row, activeLogic) : []
+      map[row.code] = activeLogic ? evaluateLogic(row, activeLogic) : null
     }
     return map
   }, [allRows, activeLogic])
@@ -318,7 +319,7 @@ export default function Page() {
     const q = search.trim().toLowerCase()
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
-      if (filter === 'buy' && (judgmentResultsMap[r.code]?.length ?? 0) === 0) return false
+      if (filter === 'buy' && judgmentResultsMap[r.code] == null) return false
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
       if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
@@ -405,11 +406,9 @@ export default function Page() {
     else { setSortKey(key); setSortDir(-1) }
   }
 
-  function handleLogicChange(logicId: string) {
-    if (!judgmentSettings) return
-    const next = { ...judgmentSettings, activeLogicId: logicId }
-    setJudgmentSettings(next)
-    lsSet('judgmentSettings', next)
+  function handleSettingsChange(newSettings: JudgmentSettings) {
+    setJudgmentSettings(newSettings)
+    lsSet('judgmentSettings', newSettings)
   }
 
   function clearAllFilters() {
@@ -661,7 +660,7 @@ export default function Page() {
                 {filteredRows.length === 0
                   ? <div className={styles.emptyCell}>該当銘柄なし</div>
                   : filteredRows.map(r => (
-                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
+                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
                   ))
                 }
               </div>
@@ -672,7 +671,7 @@ export default function Page() {
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
+              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
             ))}
           </div>
         )}
@@ -706,7 +705,7 @@ export default function Page() {
               apiKey={apiKey}
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
-              matchedGroups={judgmentResultsMap[detailCode] ?? []}
+              judgment={judgmentResultsMap[detailCode] ?? null}
             />
           </div>
         </div>
@@ -717,7 +716,7 @@ export default function Page() {
         visible={showSettings}
         onClose={() => setShowSettings(false)}
         judgmentSettings={judgmentSettings}
-        onLogicChange={handleLogicChange}
+        onSettingsChange={handleSettingsChange}
       />
 
       <div className={styles.statusBar}>
@@ -1231,7 +1230,7 @@ function DashboardTable({
   highlightCode: string | null
   superFavorites: Set<string>
   onToggleSuperFav: (code: string) => void
-  judgmentResultsMap: Record<string, string[]>
+  judgmentResultsMap: Record<string, string | null>
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1306,7 +1305,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
             ))}
           </tbody>
         </table>
@@ -1316,10 +1315,10 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, matchedGroups }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, judgment }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
-  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; matchedGroups: string[]
+  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; judgment: string | null
 }) {
   const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
   const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
@@ -1363,7 +1362,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-      <td className={styles.hasTooltip} title={matchedGroups.length > 0 ? `該当: ${matchedGroups.join(', ')}` : '買い条件に非該当'}><JudgmentBadge matchedGroups={matchedGroups} /></td>
+      <td className={styles.hasTooltip} title={judgment != null ? `該当: ${judgment}` : '買い条件に非該当'}><JudgmentBadge result={judgment} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
@@ -1437,7 +1436,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
 }
 
 // ─── MobileRow ───────────────────────────────────────────────────────
-function MobileRow({ row: r, onClick, matchedGroups }: { row: StockRow; onClick: () => void; matchedGroups: string[] }) {
+function MobileRow({ row: r, onClick, judgment }: { row: StockRow; onClick: () => void; judgment: string | null }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.mobileRow} onClick={onClick}>
@@ -1445,7 +1444,7 @@ function MobileRow({ row: r, onClick, matchedGroups }: { row: StockRow; onClick:
         <div className={styles.mobileRowTop}>
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          <JudgmentBadge matchedGroups={matchedGroups} />
+          <JudgmentBadge result={judgment} />
         </div>
         <div className={styles.mobileName}>{r.name || '—'}</div>
         <div className={styles.mobileMetaRow}>
@@ -1468,7 +1467,7 @@ function MobileRow({ row: r, onClick, matchedGroups }: { row: StockRow; onClick:
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, matchedGroups }: { row: StockRow; apiKey: string; onClick: () => void; matchedGroups: string[] }) {
+function StockCard({ row: r, apiKey, onClick, judgment }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.card} onClick={onClick}>
@@ -1479,7 +1478,7 @@ function StockCard({ row: r, apiKey, onClick, matchedGroups }: { row: StockRow; 
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </div>
         <div className={styles.cardRight}>
-          <JudgmentBadge matchedGroups={matchedGroups} />
+          <JudgmentBadge result={judgment} />
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -1555,21 +1554,21 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-function JudgmentBadge({ matchedGroups }: { matchedGroups: string[] }) {
-  if (matchedGroups.length > 0) {
-    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={`該当: ${matchedGroups.join(', ')}`}>買い</span>
+function JudgmentBadge({ result }: { result: string | null }) {
+  if (result != null) {
+    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={`該当: ${result}`}>買い</span>
   }
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, matchedGroups,
+  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
-  matchedGroups: string[]
+  judgment: string | null
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -1587,10 +1586,10 @@ function DetailPanel({
       <div className={styles.detailName}>{r.name || '—'}</div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <JudgmentBadge matchedGroups={matchedGroups} />
+        <JudgmentBadge result={judgment} />
       </div>
-      {matchedGroups.length > 0 && (
-        <div className={styles.judgmentGroups}>該当: {matchedGroups.join(', ')}</div>
+      {judgment != null && (
+        <div className={styles.judgmentGroups}>該当: {judgment}</div>
       )}
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}
@@ -1795,36 +1794,88 @@ function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void
 
 // ─── SettingsPanel ────────────────────────────────────────────────────
 function SettingsPanel({
-  visible, onClose, judgmentSettings, onLogicChange,
+  visible, onClose, judgmentSettings, onSettingsChange,
 }: {
   visible: boolean
   onClose: () => void
-  judgmentSettings: import('./lib/types').JudgmentSettings | null
-  onLogicChange: (id: string) => void
+  judgmentSettings: JudgmentSettings | null
+  onSettingsChange: (s: JudgmentSettings) => void
 }) {
-  if (!judgmentSettings) return null
+  const [local, setLocal] = useState<JudgmentSettings | null>(null)
+  const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  const activeLogic =
-    judgmentSettings.logics.find(l => l.id === judgmentSettings.activeLogicId)
-    ?? judgmentSettings.logics[0]
+  useEffect(() => {
+    if (visible && judgmentSettings) setLocal(judgmentSettings)
+  }, [visible])  // sync only on open
 
-  function fmtOp(op: string): string {
-    switch (op) {
-      case '<=': return '≤'
-      case '>=': return '≥'
-      case '==': return '='
-      case '!=': return '≠'
-      default: return op
-    }
+  if (!local) return null
+  const s = local  // narrowed non-null reference for closures
+
+  const activeLogic = s.logics.find(l => l.id === s.activeLogicId) ?? s.logics[0]
+
+  function commit(next: JudgmentSettings) {
+    setLocal(next)
+    onSettingsChange(next)
   }
 
-  function fmtValue(threshold: number, isPercent: boolean, unit: string): string {
-    if (isPercent) {
-      const pct = threshold * 100
-      const str = Number.isInteger(pct) ? String(pct) : pct.toFixed(1)
-      return str + '%'
-    }
-    return threshold + unit
+  function debounce(key: string, next: JudgmentSettings) {
+    setLocal(next)
+    if (debounceRef.current[key]) clearTimeout(debounceRef.current[key])
+    debounceRef.current[key] = setTimeout(() => onSettingsChange(next), 300)
+  }
+
+  function switchLogic(id: string) {
+    commit({ ...s, activeLogicId: id })
+  }
+
+  function addLogic() {
+    const id = 'logic_' + Date.now()
+    const newLogic: JudgmentLogic = { id, name: '新ロジック', ranges: [] }
+    commit({ ...s, logics: [...s.logics, newLogic], activeLogicId: id })
+  }
+
+  function deleteLogic(id: string) {
+    if (s.logics.length <= 1) return
+    const logics = s.logics.filter(l => l.id !== id)
+    const activeId = id === s.activeLogicId ? logics[0].id : s.activeLogicId
+    commit({ ...s, logics, activeLogicId: activeId })
+  }
+
+  function renameLogic(id: string, name: string) {
+    const logics = s.logics.map(l => l.id === id ? { ...l, name } : l)
+    debounce('rename_' + id, { ...s, logics })
+  }
+
+  function patchActiveLogic(logic: JudgmentLogic, debounceKey?: string) {
+    const logics = s.logics.map(l => l.id === logic.id ? logic : l)
+    const next = { ...s, logics }
+    if (debounceKey) debounce(debounceKey, next)
+    else commit(next)
+  }
+
+  function addRange() {
+    patchActiveLogic({ ...activeLogic, ranges: [...activeLogic.ranges, { metric: AVAILABLE_METRICS[0], min: null, max: null }] })
+  }
+
+  function deleteRange(idx: number) {
+    patchActiveLogic({ ...activeLogic, ranges: activeLogic.ranges.filter((_, i) => i !== idx) })
+  }
+
+  function patchRange(idx: number, patch: Partial<MetricRange>, debounceKey?: string) {
+    const ranges = activeLogic.ranges.map((r, i) => i === idx ? { ...r, ...patch } : r)
+    patchActiveLogic({ ...activeLogic, ranges }, debounceKey)
+  }
+
+  function parseNum(val: string, isPercent: boolean): number | null {
+    const n = parseFloat(val)
+    if (isNaN(n)) return null
+    return isPercent ? n / 100 : n
+  }
+
+  function fmtNum(v: number | null, isPercent: boolean): string {
+    if (v == null) return ''
+    const n = isPercent ? v * 100 : v
+    return Number.isInteger(n) ? String(n) : n.toFixed(1)
   }
 
   return (
@@ -1840,43 +1891,73 @@ function SettingsPanel({
         </div>
 
         <div className={styles.judgmentLogicRow}>
-          <span className={styles.judgmentLogicLabel}>アクティブロジック</span>
           <select
             className={styles.judgmentLogicSelect}
-            value={judgmentSettings.activeLogicId}
-            onChange={e => onLogicChange(e.target.value)}
+            value={s.activeLogicId}
+            onChange={e => switchLogic(e.target.value)}
           >
-            {judgmentSettings.logics.map(l => (
+            {s.logics.map(l => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
+          <button className={styles.judgmentAddBtn} onClick={addLogic} title="ロジックを追加">＋</button>
         </div>
 
         <div className={styles.judgmentBody}>
-          {activeLogic.groups.map((group, gi) => (
-            <React.Fragment key={group.id}>
-              {gi > 0 && <div className={styles.judgmentOrLabel}>OR</div>}
-              <div className={styles.judgmentGroupCard}>
-                <div className={styles.judgmentGroupName}>{group.name}</div>
-                {group.conditions.map((cond, ci) => {
-                  const meta = METRIC_LABELS[cond.metric]
-                  const label = meta?.label ?? cond.metric
-                  const value = fmtValue(
-                    cond.threshold,
-                    meta?.isPercent ?? false,
-                    meta?.unit ?? ''
-                  )
-                  return (
-                    <div key={ci} className={styles.judgmentCondition}>
-                      <span className={styles.judgmentCondMetric}>{label}</span>
-                      <span className={styles.judgmentCondOp}>{fmtOp(cond.operator)}</span>
-                      <span className={styles.judgmentCondValue}>{value}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </React.Fragment>
-          ))}
+          <div className={styles.logicNameRow}>
+            <input
+              className={styles.logicNameInput}
+              value={activeLogic.name}
+              onChange={e => renameLogic(activeLogic.id, e.target.value)}
+              placeholder="ロジック名"
+            />
+            {s.logics.length > 1 && (
+              <button
+                className={styles.judgmentDeleteBtn}
+                onClick={() => deleteLogic(activeLogic.id)}
+                title="このロジックを削除"
+              >削除</button>
+            )}
+          </div>
+
+          <div className={styles.rangesSection}>
+            <div className={styles.rangesSectionLabel}>条件（すべてAND）</div>
+            {activeLogic.ranges.map((range, idx) => {
+              const meta = METRIC_LABELS[range.metric]
+              const isPercent = meta?.isPercent ?? false
+              return (
+                <div key={idx} className={styles.rangeRow}>
+                  <select
+                    className={styles.metricSelect}
+                    value={range.metric}
+                    onChange={e => patchRange(idx, { metric: e.target.value })}
+                  >
+                    {AVAILABLE_METRICS.map(m => (
+                      <option key={m} value={m}>{METRIC_LABELS[m].label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    className={styles.rangeInput}
+                    value={fmtNum(range.min, isPercent)}
+                    onChange={e => patchRange(idx, { min: parseNum(e.target.value, isPercent) }, 'min_' + idx)}
+                    placeholder="下限"
+                  />
+                  <span className={styles.rangeLabel}>〜</span>
+                  <input
+                    type="number"
+                    className={styles.rangeInput}
+                    value={fmtNum(range.max, isPercent)}
+                    onChange={e => patchRange(idx, { max: parseNum(e.target.value, isPercent) }, 'max_' + idx)}
+                    placeholder="上限"
+                  />
+                  <span className={styles.rangeUnit}>{meta?.unit ?? ''}</span>
+                  <button className={styles.rangeDeleteBtn} onClick={() => deleteRange(idx)}>×</button>
+                </div>
+              )
+            })}
+            <button className={styles.addRangeBtn} onClick={addRange}>＋ 条件を追加</button>
+          </div>
         </div>
       </div>
     </>

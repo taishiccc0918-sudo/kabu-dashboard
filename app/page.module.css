@@ -1481,34 +1481,87 @@
   display: flex; flex-direction: column; gap: 8px;
 }
 
-.judgmentGroupCard {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid #2a3a52;
-  border-radius: 8px;
-  padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 6px;
+.judgmentAddBtn {
+  background: rgba(59,130,246,0.15); border: 1px solid #3b82f6;
+  color: #60a5fa; font-size: 16px; line-height: 1;
+  cursor: pointer; border-radius: 6px; padding: 4px 10px;
+  transition: all .15s; flex-shrink: 0;
 }
-.judgmentGroupName {
-  font-size: 12px; font-weight: 700; color: #60a5fa;
-  margin-bottom: 4px;
+.judgmentAddBtn:hover { background: rgba(59,130,246,0.28); }
+
+.judgmentDeleteBtn {
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
+  color: #f87171; font-size: 11px; font-weight: 600;
+  cursor: pointer; border-radius: 6px; padding: 4px 10px;
+  transition: all .15s; flex-shrink: 0;
   font-family: 'Noto Sans JP', sans-serif;
 }
-.judgmentCondition {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
-}
-.judgmentCondMetric { color: #9ca3af; flex: 1; }
-.judgmentCondOp { color: #fbbf24; font-weight: 600; min-width: 14px; text-align: center; }
-.judgmentCondValue { color: #e8eef8; font-weight: 600; }
+.judgmentDeleteBtn:hover { background: rgba(239,68,68,0.22); }
 
-.judgmentOrLabel {
-  text-align: center;
-  font-size: 11px; font-weight: 700; color: #4e6280;
-  letter-spacing: 0.1em;
-  font-family: 'JetBrains Mono', monospace;
-  padding: 2px 0;
+.logicNameRow {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
 }
+.logicNameInput {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid #2a3a52; border-radius: 6px;
+  color: #e8eef8; font-size: 13px; font-weight: 600;
+  padding: 6px 10px; font-family: 'Noto Sans JP', sans-serif;
+}
+.logicNameInput:focus { outline: none; border-color: #3b82f6; }
+
+.rangesSection { display: flex; flex-direction: column; gap: 6px; }
+.rangesSectionLabel {
+  font-size: 10px; color: #4e6280; letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 2px;
+}
+
+.rangeRow {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid #2a3a52; border-radius: 7px;
+  padding: 7px 10px;
+}
+.metricSelect {
+  flex: 0 0 auto; width: 88px;
+  background: rgba(255,255,255,0.04); border: 1px solid #2a3a52;
+  color: #9ca3af; font-size: 11px;
+  border-radius: 5px; padding: 3px 4px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+}
+.metricSelect:focus { outline: none; border-color: #3b82f6; }
+
+.rangeInput {
+  width: 56px; flex-shrink: 0;
+  background: rgba(255,255,255,0.06); border: 1px solid #2a3a52;
+  color: #e8eef8; font-size: 12px;
+  border-radius: 5px; padding: 3px 6px; text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rangeInput:focus { outline: none; border-color: #3b82f6; }
+.rangeInput::placeholder { color: #4e6280; }
+
+.rangeLabel { font-size: 11px; color: #4e6280; flex-shrink: 0; }
+.rangeUnit { font-size: 10px; color: #4e6280; flex-shrink: 0; min-width: 14px; }
+
+.rangeDeleteBtn {
+  background: none; border: none; color: #4e6280;
+  font-size: 14px; line-height: 1; cursor: pointer;
+  padding: 2px 4px; border-radius: 4px; margin-left: auto;
+  transition: color .15s;
+}
+.rangeDeleteBtn:hover { color: #f87171; }
+
+.addRangeBtn {
+  align-self: flex-start;
+  background: rgba(255,255,255,0.04); border: 1px dashed #2a3a52;
+  color: #4e6280; font-size: 11px;
+  cursor: pointer; border-radius: 6px; padding: 5px 12px;
+  transition: all .15s; margin-top: 2px;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.addRangeBtn:hover { color: #60a5fa; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
 
 /* ── HELP BUTTON ──────────────────────────────────────── */
 .helpBtn {
@@ -1636,12 +1689,15 @@
 .lightMode .judgmentPanelTitle { color: #1e293b !important; }
 .lightMode .judgmentClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
 .lightMode .judgmentClose:hover { color: #1e293b !important; background: rgba(0,0,0,0.08) !important; }
-.lightMode .judgmentGroupCard { background: rgba(0,0,0,0.02) !important; border-color: #e2e8f0 !important; }
-.lightMode .judgmentGroupName { color: #2563eb !important; }
-.lightMode .judgmentCondMetric { color: #64748b !important; }
-.lightMode .judgmentCondValue { color: #1e293b !important; }
-.lightMode .judgmentOrLabel { color: #94a3b8 !important; }
 .lightMode .judgmentLogicSelect { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .logicNameInput { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .metricSelect { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .rangeInput { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .rangeRow { background: rgba(0,0,0,0.02) !important; border-color: #e2e8f0 !important; }
+.lightMode .rangesSectionLabel { color: #94a3b8 !important; }
+.lightMode .rangeLabel { color: #94a3b8 !important; }
+.lightMode .rangeUnit { color: #94a3b8 !important; }
+.lightMode .addRangeBtn { color: #94a3b8 !important; border-color: #94a3b8 !important; }
 .lightMode .helpBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
 .lightMode .helpBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
 .lightMode .helpPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }

@@ -175,24 +175,16 @@ export type SortKey = keyof StockRow
 export type FilterKey = 'all' | 'buy'
 
 // ── 判定エンジン型定義 ──────────────────────────────────────────────
-export type ConditionOperator = '<' | '<=' | '>' | '>=' | '==' | '!='
-
-export type Condition = {
-  metric: string            // StockRow のキー名（例: 'perF', 'pbr', 'roe'）
-  operator: ConditionOperator
-  threshold: number
-}
-
-export type ConditionGroup = {
-  id: string
-  name: string              // 例: '割安株'
-  conditions: Condition[]   // グループ内はAND
+export type MetricRange = {
+  metric: string        // StockRow のキー名（例: 'perF', 'pbr', 'roe'）
+  min: number | null    // null = 下限なし
+  max: number | null    // null = 上限なし
 }
 
 export type JudgmentLogic = {
   id: string
-  name: string              // 例: 'マイロジック'
-  groups: ConditionGroup[]  // グループ間はOR
+  name: string          // 例: '標準割安'
+  ranges: MetricRange[] // 全条件をAND
 }
 
 export type JudgmentSettings = {

@@ -1,25 +1,16 @@
-import { StockRow, JudgmentLogic, Condition } from './types'
+import { StockRow, JudgmentLogic, MetricRange } from './types'
 
-export function evaluateCondition(row: StockRow, cond: Condition): boolean {
-  const value = (row as unknown as Record<string, unknown>)[cond.metric]
+export function evaluateRange(row: StockRow, range: MetricRange): boolean {
+  const value = (row as unknown as Record<string, unknown>)[range.metric]
   if (value == null || typeof value !== 'number') return false
-  switch (cond.operator) {
-    case '<':  return value < cond.threshold
-    case '<=': return value <= cond.threshold
-    case '>':  return value > cond.threshold
-    case '>=': return value >= cond.threshold
-    case '==': return value === cond.threshold
-    case '!=': return value !== cond.threshold
-  }
+  if (range.min != null && value < range.min) return false
+  if (range.max != null && value > range.max) return false
+  return true
 }
 
-// 戻り値: 該当したグループ名の配列（空配列なら買い条件に該当しない）
-export function evaluateLogic(row: StockRow, logic: JudgmentLogic): string[] {
-  const matched: string[] = []
-  for (const group of logic.groups) {
-    if (group.conditions.length === 0) continue
-    const allPass = group.conditions.every(c => evaluateCondition(row, c))
-    if (allPass) matched.push(group.name)
-  }
-  return matched
+// 戻り値: ロジック名（全条件AND一致）または null（非該当）
+export function evaluateLogic(row: StockRow, logic: JudgmentLogic): string | null {
+  if (logic.ranges.length === 0) return null
+  const allPass = logic.ranges.every(r => evaluateRange(row, r))
+  return allPass ? logic.name : null
 }

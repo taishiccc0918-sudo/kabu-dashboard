@@ -5,7 +5,7 @@ import {
   TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
   JudgmentSettings, JudgmentLogic, MetricRange,
 } from './lib/types'
-import { evaluateLogic } from './lib/judgmentEngine'
+import { evaluateLogic, formatLogicDescription } from './lib/judgmentEngine'
 import { DEFAULT_LOGICS } from './lib/defaultLogics'
 import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
@@ -314,6 +314,11 @@ export default function Page() {
     }
     return map
   }, [allRows, activeLogic])
+
+  const activeLogicDesc = useMemo(
+    () => activeLogic ? formatLogicDescription(activeLogic) : '',
+    [activeLogic]
+  )
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -653,6 +658,7 @@ export default function Page() {
                 superFavorites={superFavorites}
                 onToggleSuperFav={toggleSuperFavorite}
                 judgmentResultsMap={judgmentResultsMap}
+                activeLogicDesc={activeLogicDesc}
               />
             </div>
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
@@ -660,7 +666,7 @@ export default function Page() {
                 {filteredRows.length === 0
                   ? <div className={styles.emptyCell}>該当銘柄なし</div>
                   : filteredRows.map(r => (
-                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
+                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
                   ))
                 }
               </div>
@@ -671,7 +677,7 @@ export default function Page() {
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
+              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
             ))}
           </div>
         )}
@@ -706,6 +712,7 @@ export default function Page() {
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
               judgment={judgmentResultsMap[detailCode] ?? null}
+              description={activeLogicDesc}
             />
           </div>
         </div>
@@ -1217,7 +1224,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -1231,6 +1238,7 @@ function DashboardTable({
   superFavorites: Set<string>
   onToggleSuperFav: (code: string) => void
   judgmentResultsMap: Record<string, string | null>
+  activeLogicDesc: string
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1305,7 +1313,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
             ))}
           </tbody>
         </table>
@@ -1315,10 +1323,10 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, judgment }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, judgment, description }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
-  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; judgment: string | null
+  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; judgment: string | null; description?: string
 }) {
   const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
   const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
@@ -1362,7 +1370,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-      <td className={styles.hasTooltip} title={judgment != null ? `該当: ${judgment}` : '買い条件に非該当'}><JudgmentBadge result={judgment} /></td>
+      <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
@@ -1436,7 +1444,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
 }
 
 // ─── MobileRow ───────────────────────────────────────────────────────
-function MobileRow({ row: r, onClick, judgment }: { row: StockRow; onClick: () => void; judgment: string | null }) {
+function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; onClick: () => void; judgment: string | null; description?: string }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.mobileRow} onClick={onClick}>
@@ -1444,7 +1452,7 @@ function MobileRow({ row: r, onClick, judgment }: { row: StockRow; onClick: () =
         <div className={styles.mobileRowTop}>
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          <JudgmentBadge result={judgment} />
+          <JudgmentBadge result={judgment} description={description} />
         </div>
         <div className={styles.mobileName}>{r.name || '—'}</div>
         <div className={styles.mobileMetaRow}>
@@ -1467,7 +1475,7 @@ function MobileRow({ row: r, onClick, judgment }: { row: StockRow; onClick: () =
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, judgment }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null }) {
+function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null; description?: string }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.card} onClick={onClick}>
@@ -1478,7 +1486,7 @@ function StockCard({ row: r, apiKey, onClick, judgment }: { row: StockRow; apiKe
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </div>
         <div className={styles.cardRight}>
-          <JudgmentBadge result={judgment} />
+          <JudgmentBadge result={judgment} description={description} />
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -1554,21 +1562,21 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-function JudgmentBadge({ result }: { result: string | null }) {
+function JudgmentBadge({ result, description }: { result: string | null; description?: string }) {
   if (result != null) {
-    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={`該当: ${result}`}>買い</span>
+    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={description || `該当: ${result}`}>買い</span>
   }
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment,
+  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
-  judgment: string | null
+  judgment: string | null; description?: string
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -1586,10 +1594,10 @@ function DetailPanel({
       <div className={styles.detailName}>{r.name || '—'}</div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <JudgmentBadge result={judgment} />
+        <JudgmentBadge result={judgment} description={description} />
       </div>
-      {judgment != null && (
-        <div className={styles.judgmentGroups}>該当: {judgment}</div>
+      {judgment != null && description && (
+        <div className={styles.judgmentGroups}>{description}</div>
       )}
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}
@@ -1834,6 +1842,14 @@ function SettingsPanel({
     commit({ ...s, logics: [...s.logics, newLogic], activeLogicId: id })
   }
 
+  function duplicateLogic(id: string) {
+    const src = s.logics.find(l => l.id === id)
+    if (!src) return
+    const newId = 'logic_' + Date.now()
+    const copy: JudgmentLogic = { ...src, id: newId, name: src.name + ' (コピー)', ranges: src.ranges.map(r => ({ ...r })) }
+    commit({ ...s, logics: [...s.logics, copy], activeLogicId: newId })
+  }
+
   function deleteLogic(id: string) {
     if (s.logics.length <= 1) return
     const logics = s.logics.filter(l => l.id !== id)
@@ -1911,6 +1927,11 @@ function SettingsPanel({
               onChange={e => renameLogic(activeLogic.id, e.target.value)}
               placeholder="ロジック名"
             />
+            <button
+              className={styles.judgmentDupBtn}
+              onClick={() => duplicateLogic(activeLogic.id)}
+              title="このロジックを複製"
+            >複製</button>
             {s.logics.length > 1 && (
               <button
                 className={styles.judgmentDeleteBtn}

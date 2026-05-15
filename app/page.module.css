@@ -1489,6 +1489,15 @@
 }
 .judgmentAddBtn:hover { background: rgba(59,130,246,0.28); }
 
+.judgmentDupBtn {
+  background: rgba(255,255,255,0.04); border: 1px solid #2a3a52;
+  color: #8fa3be; font-size: 11px; font-weight: 600;
+  cursor: pointer; border-radius: 6px; padding: 4px 10px;
+  transition: all .15s; flex-shrink: 0;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.judgmentDupBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); }
+
 .judgmentDeleteBtn {
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
   color: #f87171; font-size: 11px; font-weight: 600;

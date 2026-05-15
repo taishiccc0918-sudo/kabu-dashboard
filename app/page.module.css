@@ -1396,6 +1396,120 @@
 .lightMode .trHighlight td { background: rgba(37,99,235,0.15) !important; }
 .lightMode .wlHighlight td { background: rgba(37,99,235,0.15) !important; }
 
+/* ── SETTINGS BUTTON ─────────────────────────────────── */
+.settingsBtn {
+  padding: 5px 8px; border-radius: 6px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #8fa3be; font-size: 14px;
+  line-height: 1; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.settingsBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+
+/* ── SETTINGS OVERLAY ────────────────────────────────── */
+.settingsOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0);
+  z-index: 800;
+  pointer-events: none;
+  transition: background .2s;
+}
+.settingsOverlayVisible {
+  background: rgba(0,0,0,0.55);
+  pointer-events: auto;
+}
+
+/* ── JUDGMENT PANEL ──────────────────────────────────── */
+.judgmentPanel {
+  position: fixed; top: 0; right: 0;
+  width: 38%; max-width: 520px; min-width: 320px;
+  height: 100vh;
+  background: #111827;
+  border-left: 1px solid #2a3a52;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+  z-index: 801;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+.judgmentPanelOpen { transform: translateX(0); }
+
+.judgmentPanelHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.judgmentPanelTitle {
+  font-size: 14px; font-weight: 700; color: #e8eef8;
+  font-family: 'JetBrains Mono', monospace;
+}
+.judgmentClose {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #2a3a52;
+  color: #8fa3be; font-size: 16px; line-height: 1;
+  cursor: pointer; border-radius: 6px;
+  padding: 4px 8px; transition: all .15s;
+}
+.judgmentClose:hover { color: #e8eef8; background: rgba(255,255,255,0.09); }
+
+.judgmentLogicRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.judgmentLogicLabel {
+  font-size: 11px; color: #4e6280; white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+.judgmentLogicSelect {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #2a3a52;
+  color: #e8eef8; padding: 5px 10px;
+  border-radius: 6px; font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer;
+}
+.judgmentLogicSelect:focus { outline: none; border-color: #3b82f6; }
+
+.judgmentBody {
+  flex: 1; overflow-y: auto; padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.judgmentGroupCard {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid #2a3a52;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.judgmentGroupName {
+  font-size: 12px; font-weight: 700; color: #60a5fa;
+  margin-bottom: 4px;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.judgmentCondition {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.judgmentCondMetric { color: #9ca3af; flex: 1; }
+.judgmentCondOp { color: #fbbf24; font-weight: 600; min-width: 14px; text-align: center; }
+.judgmentCondValue { color: #e8eef8; font-weight: 600; }
+
+.judgmentOrLabel {
+  text-align: center;
+  font-size: 11px; font-weight: 700; color: #4e6280;
+  letter-spacing: 0.1em;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 0;
+}
+
 /* ── HELP BUTTON ──────────────────────────────────────── */
 .helpBtn {
   padding: 5px 9px; border-radius: 6px;
@@ -1516,6 +1630,18 @@
 }
 
 /* ── HELP: LIGHT MODE ─────────────────────────────────── */
+.lightMode .settingsBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .settingsBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .judgmentPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
+.lightMode .judgmentPanelTitle { color: #1e293b !important; }
+.lightMode .judgmentClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
+.lightMode .judgmentClose:hover { color: #1e293b !important; background: rgba(0,0,0,0.08) !important; }
+.lightMode .judgmentGroupCard { background: rgba(0,0,0,0.02) !important; border-color: #e2e8f0 !important; }
+.lightMode .judgmentGroupName { color: #2563eb !important; }
+.lightMode .judgmentCondMetric { color: #64748b !important; }
+.lightMode .judgmentCondValue { color: #1e293b !important; }
+.lightMode .judgmentOrLabel { color: #94a3b8 !important; }
+.lightMode .judgmentLogicSelect { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .helpBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
 .lightMode .helpBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
 .lightMode .helpPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
@@ -1534,4 +1660,5 @@
 
 @media (max-width: 768px) {
   .helpPanel { width: 100%; min-width: 0; max-width: 100%; }
+  .judgmentPanel { width: 100%; min-width: 0; max-width: 100%; }
 }

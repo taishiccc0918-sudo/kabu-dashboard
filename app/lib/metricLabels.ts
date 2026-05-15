@@ -1,0 +1,18 @@
+export const METRIC_LABELS: Record<string, { label: string; unit: string; isPercent: boolean }> = {
+  perF:       { label: 'PER今期',           unit: '倍',  isPercent: false },
+  perN:       { label: 'PER来期',           unit: '倍',  isPercent: false },
+  perA:       { label: 'PER実績',           unit: '倍',  isPercent: false },
+  pbr:        { label: 'PBR',              unit: '倍',  isPercent: false },
+  peg:        { label: 'PEGレシオ',         unit: '倍',  isPercent: false },
+  roe:        { label: 'ROE',              unit: '%',   isPercent: true  },
+  divY:       { label: '配当利回り',         unit: '%',   isPercent: true  },
+  epsGr:      { label: 'EPS成長率',         unit: '%',   isPercent: true  },
+  opMgn:      { label: '営業利益率',         unit: '%',   isPercent: true  },
+  nySalesGr:  { label: '来期売上成長率',     unit: '%',   isPercent: true  },
+  perFChg1w:  { label: 'PER今期1週変化率',   unit: '%',   isPercent: true  },
+  perFChg1m:  { label: 'PER今期1ヶ月変化率', unit: '%',   isPercent: true  },
+  perFChg3m:  { label: 'PER今期3ヶ月変化率', unit: '%',   isPercent: true  },
+  perFChg1y:  { label: 'PER今期1年変化率',   unit: '%',   isPercent: true  },
+  mcap:       { label: '時価総額',           unit: '億円', isPercent: false },
+  close:      { label: '株価',              unit: '円',  isPercent: false },
+}

@@ -6,6 +6,7 @@ import {
 } from './lib/types'
 import { evaluateLogic } from './lib/judgmentEngine'
 import { DEFAULT_LOGICS } from './lib/defaultLogics'
+import { METRIC_LABELS } from './lib/metricLabels'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
@@ -116,9 +117,10 @@ export default function Page() {
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
-  const [showFilter,  setShowFilter]  = useState(false)
-  const [showHelp,    setShowHelp]    = useState(false)
-  const [filterHeart, setFilterHeart] = useState(false)
+  const [showFilter,   setShowFilter]   = useState(false)
+  const [showHelp,     setShowHelp]     = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [filterHeart,  setFilterHeart]  = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>([])
   const [search,     setSearch]     = useState('')
@@ -387,7 +389,7 @@ export default function Page() {
   }, [])
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setShowHelp(false) }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { setShowHelp(false); setShowSettings(false) } }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
@@ -401,6 +403,13 @@ export default function Page() {
   function handleSort(key: keyof StockRow) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
+  }
+
+  function handleLogicChange(logicId: string) {
+    if (!judgmentSettings) return
+    const next = { ...judgmentSettings, activeLogicId: logicId }
+    setJudgmentSettings(next)
+    lsSet('judgmentSettings', next)
   }
 
   function clearAllFilters() {
@@ -508,6 +517,7 @@ export default function Page() {
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
+          <button className={styles.settingsBtn} onClick={() => setShowSettings(s => !s)} title="判定設定">⚙️</button>
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
@@ -703,6 +713,12 @@ export default function Page() {
       )}
 
       <HelpPanel visible={showHelp} onClose={() => setShowHelp(false)} />
+      <SettingsPanel
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        judgmentSettings={judgmentSettings}
+        onLogicChange={handleLogicChange}
+      />
 
       <div className={styles.statusBar}>
         <div className={`${styles.statusDot} ${
@@ -1771,6 +1787,96 @@ function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void
               ))}
             </div>
           )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── SettingsPanel ────────────────────────────────────────────────────
+function SettingsPanel({
+  visible, onClose, judgmentSettings, onLogicChange,
+}: {
+  visible: boolean
+  onClose: () => void
+  judgmentSettings: import('./lib/types').JudgmentSettings | null
+  onLogicChange: (id: string) => void
+}) {
+  if (!judgmentSettings) return null
+
+  const activeLogic =
+    judgmentSettings.logics.find(l => l.id === judgmentSettings.activeLogicId)
+    ?? judgmentSettings.logics[0]
+
+  function fmtOp(op: string): string {
+    switch (op) {
+      case '<=': return '≤'
+      case '>=': return '≥'
+      case '==': return '='
+      case '!=': return '≠'
+      default: return op
+    }
+  }
+
+  function fmtValue(threshold: number, isPercent: boolean, unit: string): string {
+    if (isPercent) {
+      const pct = threshold * 100
+      const str = Number.isInteger(pct) ? String(pct) : pct.toFixed(1)
+      return str + '%'
+    }
+    return threshold + unit
+  }
+
+  return (
+    <>
+      <div
+        className={`${styles.settingsOverlay} ${visible ? styles.settingsOverlayVisible : ''}`}
+        onClick={onClose}
+      />
+      <div className={`${styles.judgmentPanel} ${visible ? styles.judgmentPanelOpen : ''}`}>
+        <div className={styles.judgmentPanelHead}>
+          <span className={styles.judgmentPanelTitle}>判定ロジック設定</span>
+          <button className={styles.judgmentClose} onClick={onClose}>×</button>
+        </div>
+
+        <div className={styles.judgmentLogicRow}>
+          <span className={styles.judgmentLogicLabel}>アクティブロジック</span>
+          <select
+            className={styles.judgmentLogicSelect}
+            value={judgmentSettings.activeLogicId}
+            onChange={e => onLogicChange(e.target.value)}
+          >
+            {judgmentSettings.logics.map(l => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.judgmentBody}>
+          {activeLogic.groups.map((group, gi) => (
+            <React.Fragment key={group.id}>
+              {gi > 0 && <div className={styles.judgmentOrLabel}>OR</div>}
+              <div className={styles.judgmentGroupCard}>
+                <div className={styles.judgmentGroupName}>{group.name}</div>
+                {group.conditions.map((cond, ci) => {
+                  const meta = METRIC_LABELS[cond.metric]
+                  const label = meta?.label ?? cond.metric
+                  const value = fmtValue(
+                    cond.threshold,
+                    meta?.isPercent ?? false,
+                    meta?.unit ?? ''
+                  )
+                  return (
+                    <div key={ci} className={styles.judgmentCondition}>
+                      <span className={styles.judgmentCondMetric}>{label}</span>
+                      <span className={styles.judgmentCondOp}>{fmtOp(cond.operator)}</span>
+                      <span className={styles.judgmentCondValue}>{value}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </React.Fragment>
+          ))}
         </div>
       </div>
     </>

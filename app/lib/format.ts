@@ -32,11 +32,12 @@ export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('グロース'))     return { label: 'Growth',   cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
-export function getJudgment(perFChg1m: number | null | undefined): string {
-  if (perFChg1m == null) return ''
-  if (perFChg1m <= -0.05) return '買い'
-  return ''
-}
+// [旧ロジック: Step1で新エンジンに置換。緊急ロールバック用に残す]
+// export function getJudgment(perFChg1m: number | null | undefined): string {
+//   if (perFChg1m == null) return ''
+//   if (perFChg1m <= -0.05) return '買い'
+//   return ''
+// }
 
 export function buildStockRow(
   code: string,
@@ -98,6 +99,6 @@ export function buildStockRow(
     peg,
     opMgn:      f?.opMgn  ?? null,
     nySalesGr:  f?.nySalesGr ?? null,
-    judgment:   getJudgment(perFAt(prev1m)),
+    judgment:   '',  // [旧: getJudgment(perFAt(prev1m)) → page.tsx の判定エンジンに移行]
   }
 }

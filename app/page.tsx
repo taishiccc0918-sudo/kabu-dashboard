@@ -96,6 +96,7 @@ export default function Page() {
   const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
   const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
   const favoritesRef = useRef<Set<string>>(new Set())
+  const [superFavorites, setSuperFavorites] = useState<Set<string>>(new Set())
   const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>({})
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
@@ -111,8 +112,9 @@ export default function Page() {
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
-  const [showFilter, setShowFilter] = useState(false)
-  const [showHelp,   setShowHelp]   = useState(false)
+  const [showFilter,  setShowFilter]  = useState(false)
+  const [showHelp,    setShowHelp]    = useState(false)
+  const [filterHeart, setFilterHeart] = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
@@ -138,6 +140,9 @@ export default function Page() {
   }, [])
   useEffect(() => {
     setStockMeta(initStockMeta())
+  }, [])
+  useEffect(() => {
+    setSuperFavorites(new Set(ls<string[]>('superFavorites', [])))
   }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
@@ -255,6 +260,17 @@ export default function Page() {
       return next
     })
   }
+  function toggleSuperFavorite(code: string) {
+    const isSuper = superFavorites.has(code)
+    if (!isSuper && !favorites.has(code)) toggleFavorite(code)
+    setSuperFavorites(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      lsSet('superFavorites', Array.from(next))
+      return next
+    })
+  }
 
   // ── StockMeta 操作 ────────────────────────────────────────────────
   function saveStockMeta(code: string, meta: StockMeta) {
@@ -276,6 +292,7 @@ export default function Page() {
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy' && r.judgment !== '買い') return false
+      if (filterHeart && !superFavorites.has(r.code)) return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
       if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
       if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
@@ -293,7 +310,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, filter, filterHeart, superFavorites, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
@@ -507,6 +524,11 @@ export default function Page() {
               {{ all:'全て', buy:'買い' }[f]}
             </button>
           ))}
+          <button
+            className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
+            onClick={() => setFilterHeart(h => !h)}
+            title="超お気に入り（♥）銘柄のみ表示"
+          >♥のみ</button>
         </div>
         <div className={styles.filterDivider} />
         <div className={styles.filterGroup}>
@@ -594,6 +616,8 @@ export default function Page() {
                 handleSort={handleSort}
                 onRowClick={(code) => setDetailCode(code)}
                 highlightCode={highlightCode}
+                superFavorites={superFavorites}
+                onToggleSuperFav={toggleSuperFavorite}
               />
             </div>
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
@@ -621,9 +645,11 @@ export default function Page() {
           <StockManager
             masterDB={masterDB}
             favorites={favorites}
+            superFavorites={superFavorites}
             stockMeta={stockMeta}
             allGenreOptions={allGenreOptions}
             onToggleFavorite={toggleFavorite}
+            onToggleSuperFav={toggleSuperFavorite}
             onSaveStockMeta={saveStockMeta}
             onAddGenre={addGenreOption}
             onRemoveGenre={removeGenreOption}
@@ -674,21 +700,24 @@ export default function Page() {
 const PER_PAGE = 100
 
 function StockManager({
-  masterDB, favorites, stockMeta, allGenreOptions,
-  onToggleFavorite, onSaveStockMeta, onAddGenre, onRemoveGenre, onExport,
+  masterDB, favorites, superFavorites, stockMeta, allGenreOptions,
+  onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onExport,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
+  superFavorites: Set<string>
   stockMeta: Record<string, StockMeta>
   allGenreOptions: string[]
   onToggleFavorite: (code: string) => void
+  onToggleSuperFav: (code: string) => void
   onSaveStockMeta: (code: string, meta: StockMeta) => void
   onAddGenre: (name: string) => void
   onRemoveGenre: (name: string) => void
   onExport: () => void
 }) {
   const [wlSearch, setWlSearch] = useState('')
-  const [showFavOnly, setShowFavOnly] = useState(false)
+  const [showFavOnly,   setShowFavOnly]   = useState(false)
+  const [showHeartOnly, setShowHeartOnly] = useState(false)
   const [mktF, setMktF] = useState('all')
   const [page, setPage] = useState(1)
   const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
@@ -704,14 +733,15 @@ function StockManager({
     return allCodes.filter(code => {
       const rec = masterDB[code]
       if (!rec) return false
-      if (showFavOnly && !favorites.has(code)) return false
+      if (showFavOnly   && !favorites.has(code))      return false
+      if (showHeartOnly && !superFavorites.has(code)) return false
       if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
       if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
       if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
       if (q && !code.toLowerCase().includes(q) && !rec.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [allCodes, masterDB, favorites, showFavOnly, mktF, wlSearch])
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch])
 
   useEffect(() => {
     const q = wlSearch.trim().toLowerCase()
@@ -837,6 +867,11 @@ function StockManager({
           onClick={() => setShowFavOnly(f => !f)}
           style={{fontWeight: showFavOnly ? 700 : undefined}}
         >★ お気に入りのみ</button>
+        <button
+          className={`${styles.filterBtn} ${styles.heartFilterBtn} ${showHeartOnly ? styles.heartFilterBtnActive : ''}`}
+          onClick={() => setShowHeartOnly(h => !h)}
+          title="超お気に入り（♥）銘柄のみ表示"
+        >♥のみ</button>
         {(['all','prime','standard','growth'] as const).map(k => (
           <button key={k}
             className={`${styles.filterBtn} ${mktF === k ? styles.filterBtnActive : ''}`}
@@ -850,7 +885,7 @@ function StockManager({
         <table className={styles.wlTableInner}>
           <thead>
             <tr>
-              <th className={styles.wlTh} style={{width:44}}>★</th>
+              <th className={styles.wlTh} style={{width:64}}>♥ ★</th>
               <th className={styles.wlTh} style={{width:68}}>コード</th>
               <th className={styles.wlTh} style={{width:190}}>銘柄名</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
@@ -870,9 +905,11 @@ function StockManager({
                 code={code}
                 rec={masterDB[code]}
                 isFav={favorites.has(code)}
+                isSuperFav={superFavorites.has(code)}
                 meta={stockMeta[code] ?? { genres: [], memo: '' }}
                 allGenreOptions={allGenreOptions}
                 onToggleFav={() => onToggleFavorite(code)}
+                onToggleSuperFav={() => onToggleSuperFav(code)}
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
                 onAddGenre={onAddGenre}
                 highlighted={wlHighlightCode === code}
@@ -900,14 +937,16 @@ function StockManager({
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre, highlighted,
+  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, highlighted,
 }: {
   code: string
   rec: MasterRecord
   isFav: boolean
+  isSuperFav: boolean
   meta: StockMeta
   allGenreOptions: string[]
   onToggleFav: () => void
+  onToggleSuperFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   onAddGenre: (name: string) => void
   highlighted: boolean
@@ -929,7 +968,12 @@ const StockManagerRow = React.memo(function StockManagerRow({
   return (
     <>
       <tr data-code-wl={code} className={`${styles.wlTr}${highlighted ? ' ' + styles.wlHighlight : ''}`}>
-        <td className={styles.wlTd} style={{textAlign:'center'}}>
+        <td className={styles.wlTd} style={{textAlign:'center', whiteSpace:'nowrap'}}>
+          <button
+            onClick={onToggleSuperFav}
+            className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
+            title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
+          >♥</button>
           <button
             onClick={onToggleFav}
             className={isFav ? styles.favBtnOn : styles.favBtn}
@@ -1131,7 +1175,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -1142,6 +1186,8 @@ function DashboardTable({
   handleSort: (k: keyof StockRow) => void
   onRowClick: (code: string) => void
   highlightCode: string | null
+  superFavorites: Set<string>
+  onToggleSuperFav: (code: string) => void
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1152,7 +1198,7 @@ function DashboardTable({
     <span className={`${styles.sortArrow} ${sortKey===k ? styles.sorted : ''}`}>↕</span>
   )
   const cols: { label: string; cls: string; key: keyof StockRow | null; group: string; width?: number; tooltip?: string }[] = [
-    { label: '', cls: styles.thLeft, key: null, width: 32, group: '' },
+    { label: '', cls: styles.thLeft, key: null, width: 48, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
     { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
     { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, group: '' },
@@ -1181,7 +1227,7 @@ function DashboardTable({
     { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [32,60,150,80,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
+  const colWidths = [48,60,150,80,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1216,7 +1262,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} />
             ))}
           </tbody>
         </table>
@@ -1226,17 +1272,24 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
-  highlighted: boolean
+  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void
 }) {
   const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
   const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr data-code={r.code} className={highlighted ? styles.trHighlight : undefined} style={{ cursor: 'pointer' }} onClick={onClick}>
-      <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
+      <td className={styles.tdStar} style={{background: stickyBg}}>
+        <button
+          className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
+          onClick={e => { e.stopPropagation(); onToggleSuperFav() }}
+          title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
+        >♥</button>
+        <span className={styles.starSymbol}>★</span>
+      </td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyNameBg}}>{r.name || '—'}</td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>

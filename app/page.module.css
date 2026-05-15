@@ -232,8 +232,8 @@
   box-sizing: border-box;
 }
 .table thead th:first-child { left: 0; z-index: 12; }
-.table thead th.stickyCol0 { left: 32px !important; z-index: 12 !important; }
-.table thead th.stickyCol1 { left: 92px !important; z-index: 12 !important; }
+.table thead th.stickyCol0 { left: 48px !important; z-index: 12 !important; }
+.table thead th.stickyCol1 { left: 108px !important; z-index: 12 !important; }
 
 /* th groups */
 .thPriceGroup {
@@ -281,19 +281,20 @@
 
 /* sticky td */
 .tdStar {
-  padding: 0 6px 0 10px;
-  font-size: 11px; color: rgba(251,191,36,0.4);
-  width: 32px; min-width: 32px;
+  padding: 0 4px;
+  width: 48px; min-width: 48px;
   position: sticky; left: 0; z-index: 5;
   text-align: center;
   background: #111827;
+  white-space: nowrap;
 }
+.starSymbol { font-size: 11px; color: rgba(251,191,36,0.4); }
 .tdCode {
   padding: 0 8px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
   color: #8fa3be;
   width: 60px; min-width: 60px; max-width: 60px;
-  position: sticky; left: 32px; z-index: 5;
+  position: sticky; left: 48px; z-index: 5;
   background: #111827;
 }
 .tdName {
@@ -301,7 +302,7 @@
   font-weight: 500; font-size: 12px;
   width: 140px; min-width: 140px; max-width: 140px;
   color: #e8eef8;
-  position: sticky; left: 92px; z-index: 5;
+  position: sticky; left: 108px; z-index: 5;
   border-right: 2px solid rgba(255,255,255,0.08);
   background: #131825;
 }
@@ -648,8 +649,8 @@
 .statsBar { display: flex; gap: 1px; background: #1f2d40; border-bottom: 1px solid #1f2d40; }
 
 /* sticky cols in tbody */
-.stickyCol0 { position: sticky !important; left: 32px !important; z-index: 4 !important; }
-.stickyCol1 { position: sticky !important; left: 92px !important; z-index: 4 !important; }
+.stickyCol0 { position: sticky !important; left: 48px !important; z-index: 4 !important; }
+.stickyCol1 { position: sticky !important; left: 108px !important; z-index: 4 !important; }
 
 /* 情報サイトリンクボタン */
 .tdInfoCenter { text-align: center !important; }
@@ -1152,6 +1153,38 @@
 .favBtnOn:active { transform: scale(1.35); transition: transform 0.08s; }
 .favBtn:active   { transform: scale(1.35); transition: transform 0.08s; }
 
+/* ── ハートボタン（超お気に入り）─────────────────── */
+.heartBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; padding: 2px 2px;
+  color: rgba(156,163,175,0.3);
+  transition: color .1s, transform .1s;
+  line-height: 1;
+}
+.heartBtn:hover { color: #f472b6; transform: scale(1.15); }
+.heartBtnOn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; padding: 2px 2px;
+  color: #f43f5e;
+  transition: color .1s, transform .15s;
+  line-height: 1;
+}
+.heartBtnOn:hover { color: #e11d48; transform: scale(1.15); }
+.heartBtnOn:active { transform: scale(1.35); transition: transform 0.08s; }
+.heartBtn:active   { transform: scale(1.35); transition: transform 0.08s; }
+
+/* ── ハートフィルターボタン ──────────────────────── */
+.heartFilterBtn.filterBtnActive {
+  border-color: #f43f5e !important;
+  color: #f43f5e !important;
+  background: rgba(244,63,94,0.1) !important;
+}
+.heartFilterBtnActive {
+  border-color: #f43f5e !important;
+  color: #f43f5e !important;
+  background: rgba(244,63,94,0.1) !important;
+}
+
 /* ── 銘柄管理フィルターバー ──────────────────────── */
 .wlFilterBar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -1330,6 +1363,10 @@
 .lightMode .wlEditRow { background: rgba(37,99,235,0.04) !important; }
 .lightMode .wlEditTd { border-bottom-color: #cbd5e1 !important; }
 .lightMode .favBtn { color: rgba(0,0,0,0.2) !important; }
+.lightMode .heartBtn { color: rgba(0,0,0,0.15) !important; }
+.lightMode .heartBtn:hover { color: #f43f5e !important; }
+.lightMode .heartBtnOn { color: #f43f5e !important; }
+.lightMode .starSymbol { color: rgba(180,130,0,0.5) !important; }
 .lightMode .infoLinkBtn { color: #1d4ed8 !important; border-color: #93c5fd !important; background: rgba(37,99,235,0.07) !important; }
 
 /* 5. ページネーション */

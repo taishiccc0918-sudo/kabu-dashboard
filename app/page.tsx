@@ -112,6 +112,7 @@ export default function Page() {
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
   const [showFilter, setShowFilter] = useState(false)
+  const [showHelp,   setShowHelp]   = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
@@ -343,6 +344,12 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', onOutsideDown)
   }, [])
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setShowHelp(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   const stats = useMemo(() => ({
     total: allRows.length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
@@ -461,6 +468,7 @@ export default function Page() {
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
+          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
         </div>
       </header>
 
@@ -640,6 +648,8 @@ export default function Page() {
           </div>
         </div>
       )}
+
+      <HelpPanel visible={showHelp} onClose={() => setShowHelp(false)} />
 
       <div className={styles.statusBar}>
         <div className={`${styles.statusDot} ${
@@ -1601,6 +1611,82 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// ─── HelpPanel ────────────────────────────────────────────────────────
+const USAGE_ITEMS = [
+  { title: 'データ取得',   desc: 'APIキーを入力して「全更新」ボタンを押すとJ-Quants APIから株価・財務データを取得します。取得済みデータはlocalStorageに保存されます。' },
+  { title: '銘柄検索',     desc: 'ツールバーの検索欄で銘柄名・コード・メモキーワードを入力するとドロップダウンが表示されます。選択するとその銘柄の行にジャンプしてハイライトします。' },
+  { title: '絞り込み',     desc: '「フィルター」ボタンでジャンル・時価総額・PER今期による絞り込みができます。ツールバーの市場ボタン（Prime/Standard/Growth）でも絞り込めます。' },
+  { title: 'ソート',       desc: 'テーブルのヘッダーをクリックするとその列でソートされます。再クリックで昇順/降順が切り替わります。' },
+  { title: '詳細パネル',   desc: '行をクリックすると右側から詳細パネルが開き、財務情報・チャート・メモを確認できます。パネル外クリックまたは×ボタンで閉じます。' },
+  { title: '銘柄管理',     desc: '「銘柄管理」ボタンでウォッチリストの追加・削除、ジャンルタグ・メモの編集ができます。メモ内容からも銘柄を検索できます。' },
+  { title: 'ジャンルタグ', desc: '各銘柄に複数のジャンルタグを設定できます。ツールバーのフィルターでジャンルを絞り込んで素早く対象銘柄を確認できます。' },
+  { title: 'データ保存',   desc: 'APIキー・ウォッチリスト・ジャンル・メモはすべてブラウザのlocalStorageに自動保存されます。エクスポートボタンでExcel形式でダウンロードできます。' },
+]
+const INDICATOR_ITEMS = [
+  { label: '株価',        desc: '直近営業日の終値（円）' },
+  { label: '1D / 1W',    desc: '前日・前週比の株価変化率' },
+  { label: '3M / 1Y',    desc: '3ヶ月前・1年前比の株価変化率' },
+  { label: '時価総額',    desc: '発行済み株数 × 株価（億円単位）。会社全体の市場評価額' },
+  { label: 'PER実績',     desc: '株価 ÷ 実績EPS。過去の利益ベースの割安度。低いほど割安' },
+  { label: 'PER今期',     desc: '株価 ÷ 今期予想EPS。今年度の利益ベースの割安度' },
+  { label: 'PER来期',     desc: '株価 ÷ 来期予想EPS。翌年度の利益ベースの割安度' },
+  { label: 'PER変化',     desc: '1週・1ヶ月・3ヶ月・1年前の株価で計算したPER今期との差分（株価変化率）。−5%以下で「買い」判定' },
+  { label: 'PBR',         desc: '株価 ÷ BPS（1株純資産）。1倍以下は理論上の解散価値以下で割安とみなされやすい' },
+  { label: 'ROE',         desc: '自己資本利益率（純利益 ÷ 自己資本）。株主資本の効率性。一般的に10%以上が優良' },
+  { label: '配当利回り',  desc: '年間配当 ÷ 株価。高いほど配当が多い。ただし株価下落で高くなることに注意' },
+  { label: 'EPS成長率',   desc: '実績EPS → 今期予想EPSの成長率。プラスなら増益予想' },
+  { label: 'PEG',         desc: 'PER今期 ÷ EPS成長率(%)。1倍未満が目安。成長率を考慮した割安度指標' },
+]
+
+function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'usage' | 'indicators'>('usage')
+  return (
+    <>
+      <div
+        className={`${styles.helpOverlay} ${visible ? styles.helpOverlayVisible : ''}`}
+        onClick={onClose}
+      />
+      <div className={`${styles.helpPanel} ${visible ? styles.helpPanelOpen : ''}`}>
+        <div className={styles.helpPanelHead}>
+          <span className={styles.helpPanelTitle}>ヘルプ</span>
+          <button className={styles.helpClose} onClick={onClose}>×</button>
+        </div>
+        <div className={styles.helpTabs}>
+          <button
+            className={`${styles.helpTab} ${activeTab === 'usage' ? styles.helpTabActive : ''}`}
+            onClick={() => setActiveTab('usage')}
+          >使い方</button>
+          <button
+            className={`${styles.helpTab} ${activeTab === 'indicators' ? styles.helpTabActive : ''}`}
+            onClick={() => setActiveTab('indicators')}
+          >指標の意味</button>
+        </div>
+        <div className={styles.helpBody}>
+          {activeTab === 'usage' ? (
+            <div className={styles.helpSection}>
+              {USAGE_ITEMS.map(item => (
+                <div key={item.title} className={styles.helpItem}>
+                  <span className={styles.helpItemTitle}>{item.title}</span>
+                  <span className={styles.helpItemDesc}>{item.desc}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.helpIndicators}>
+              {INDICATOR_ITEMS.map(item => (
+                <div key={item.label} className={styles.helpIndRow}>
+                  <span className={styles.helpIndLabel}>{item.label}</span>
+                  <span className={styles.helpIndDesc}>{item.desc}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   )
 }
 

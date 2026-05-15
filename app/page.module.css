@@ -1351,3 +1351,143 @@
 .lightMode .searchDropdownSnippet { color: #64748b !important; }
 .lightMode .trHighlight td { background: rgba(37,99,235,0.15) !important; }
 .lightMode .wlHighlight td { background: rgba(37,99,235,0.15) !important; }
+
+/* ── HELP BUTTON ──────────────────────────────────────── */
+.helpBtn {
+  padding: 5px 9px; border-radius: 6px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #8fa3be; font-size: 13px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.helpBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+
+/* ── HELP OVERLAY ─────────────────────────────────────── */
+.helpOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0);
+  z-index: 800;
+  pointer-events: none;
+  transition: background .2s;
+}
+.helpOverlayVisible {
+  background: rgba(0,0,0,0.55);
+  pointer-events: auto;
+}
+
+/* ── HELP PANEL ───────────────────────────────────────── */
+.helpPanel {
+  position: fixed; top: 0; right: 0;
+  width: 38%; max-width: 520px; min-width: 320px;
+  height: 100vh;
+  background: #111827;
+  border-left: 1px solid #2a3a52;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+  z-index: 801;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+.helpPanelOpen { transform: translateX(0); }
+
+.helpPanelHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 0;
+  flex-shrink: 0;
+}
+.helpPanelTitle {
+  font-size: 15px; font-weight: 700; color: #e8eef8;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.helpClose {
+  background: rgba(255,255,255,0.05); border: 1px solid #1f2d40;
+  color: #4e6280; width: 28px; height: 28px;
+  border-radius: 6px; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.helpClose:hover { color: #e8eef8; background: rgba(255,255,255,0.09); }
+
+.helpTabs {
+  display: flex; gap: 0;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid #1f2d40;
+  flex-shrink: 0;
+}
+.helpTab {
+  padding: 6px 14px; font-size: 12px;
+  font-family: 'Noto Sans JP', sans-serif;
+  color: #4e6280; background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all .12s;
+  margin-bottom: -1px;
+}
+.helpTab:hover { color: #8fa3be; }
+.helpTabActive { color: #60a5fa; border-bottom-color: #3b82f6; }
+
+.helpBody {
+  flex: 1; overflow-y: auto;
+  padding: 8px 12px 24px;
+}
+
+.helpSection { display: flex; flex-direction: column; }
+.helpItem {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background .1s;
+}
+.helpItem:hover { background: rgba(255,255,255,0.03); border-color: #1f2d40; }
+.helpItemTitle {
+  font-size: 12px; font-weight: 700;
+  color: #e8eef8; font-family: 'Noto Sans JP', sans-serif;
+}
+.helpItemDesc {
+  font-size: 11px; color: #6b7280; line-height: 1.65;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+
+.helpIndicators { display: flex; flex-direction: column; gap: 1px; }
+.helpIndRow {
+  display: grid; grid-template-columns: 100px 1fr;
+  gap: 8px; padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background .1s;
+  align-items: baseline;
+}
+.helpIndRow:hover { background: rgba(255,255,255,0.03); border-color: #1f2d40; }
+.helpIndLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  color: #60a5fa;
+}
+.helpIndDesc {
+  font-size: 11px; color: #6b7280; line-height: 1.6;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+
+/* ── HELP: LIGHT MODE ─────────────────────────────────── */
+.lightMode .helpBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .helpBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .helpPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
+.lightMode .helpPanelTitle { color: #1e293b !important; }
+.lightMode .helpClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
+.lightMode .helpClose:hover { color: #1e293b !important; background: rgba(0,0,0,0.08) !important; }
+.lightMode .helpTabs { border-bottom-color: #cbd5e1 !important; }
+.lightMode .helpTab { color: #64748b !important; }
+.lightMode .helpTabActive { color: #2563eb !important; border-bottom-color: #2563eb !important; }
+.lightMode .helpItem:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
+.lightMode .helpItemTitle { color: #1e293b !important; }
+.lightMode .helpItemDesc { color: #64748b !important; }
+.lightMode .helpIndRow:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
+.lightMode .helpIndLabel { color: #2563eb !important; }
+.lightMode .helpIndDesc { color: #64748b !important; }
+
+@media (max-width: 768px) {
+  .helpPanel { width: 100%; min-width: 0; max-width: 100%; }
+}

@@ -507,10 +507,10 @@ export default function Page() {
             {loading ? '⏸ 中断' : lastUpdate ? '更新済み ↺' : '全更新'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
         </div>
       </header>
 

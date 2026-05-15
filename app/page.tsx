@@ -30,6 +30,11 @@ function lsSet(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota */ }
 }
 
+function fmtJpDate(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getFullYear()).slice(2)}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
 // ── 初期化（マイグレーション含む）──────────────────────────────────────
 function initFavorites(): Set<string> {
   if (typeof window === 'undefined') return new Set(DEFAULT_WATCHLIST)
@@ -471,7 +476,12 @@ export default function Page() {
 
   function saveMemo(code: string, text: string) {
     const prev = stockMeta[code] ?? { genres: [], memo: '' }
-    saveStockMeta(code, { ...prev, memo: text })
+    const trimmed = text.trim()
+    saveStockMeta(code, {
+      ...prev,
+      memo: text,
+      memoUpdatedAt: trimmed ? new Date().toISOString() : undefined,
+    })
   }
   function saveEarningsDate(code: string, date: string) {
     const next = { ...earningsDates, [code]: date }
@@ -707,6 +717,7 @@ export default function Page() {
               row={detailRow}
               fin={detailFin}
               memo={stockMeta[detailCode]?.memo ?? ''}
+              memoUpdatedAt={stockMeta[detailCode]?.memoUpdatedAt}
               onSaveMemo={text => saveMemo(detailCode!, text)}
               apiKey={apiKey}
               earningsDate={earningsDates[detailCode] ?? ''}
@@ -749,7 +760,8 @@ export default function Page() {
 const PER_PAGE = 100
 
 function StockManager({
-  masterDB, favorites, superFavorites, stockMeta, allGenreOptions,
+  masterDB, favorites, superFavorites, stockMeta,
+  allGenreOptions: managedGenreOptions,
   onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onExport,
 }: {
   masterDB: Record<string, MasterRecord>
@@ -777,6 +789,16 @@ function StockManager({
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
+  const allGenreOptions = useMemo(() => {
+    const set = new Set<string>()
+    Object.values(stockMeta).forEach(meta => {
+      meta?.genres?.forEach(g => set.add(g))
+    })
+    return Array.from(set).sort()
+  }, [stockMeta])
+
+  const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
+
   const filteredCodes = useMemo(() => {
     const q = wlSearch.trim().toLowerCase()
     return allCodes.filter(code => {
@@ -787,10 +809,14 @@ function StockManager({
       if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
       if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
       if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+      if (genreFilters.size > 0) {
+        const genres = stockMeta[code]?.genres ?? []
+        if (!genres.some(g => genreFilters.has(g))) return false
+      }
       if (q && !code.toLowerCase().includes(q) && !rec.name.toLowerCase().includes(q)) return false
       return true
     })
-  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch])
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta])
 
   useEffect(() => {
     const q = wlSearch.trim().toLowerCase()
@@ -878,7 +904,7 @@ function StockManager({
 
       <div className={styles.wlGenreBar}>
         <span className={styles.wlGenreLabel}>ジャンル:</span>
-        {allGenreOptions.map(g => (
+        {managedGenreOptions.map(g => (
           <span key={g} className={styles.genreBadgeEditable}>
             {g}
             <button className={styles.genreRemoveBtn} onClick={() => onRemoveGenre(g)} title="削除">×</button>
@@ -930,6 +956,29 @@ function StockManager({
         <span className={styles.wlResultCount}>{filteredCodes.length}件</span>
       </div>
 
+      {allGenreOptions.length > 0 && (
+        <div className={styles.wlGenreFilter}>
+          <span className={styles.wlGenreFilterLabel}>絞込:</span>
+          {genreFilters.size > 0 && (
+            <button
+              className={styles.wlGenreFilterClear}
+              onClick={() => setGenreFilters(new Set())}
+            >全解除</button>
+          )}
+          {allGenreOptions.map(g => (
+            <button
+              key={g}
+              className={`${styles.wlGenreFilterChip} ${genreFilters.has(g) ? styles.wlGenreFilterChipActive : ''}`}
+              onClick={() => setGenreFilters(prev => {
+                const next = new Set(prev)
+                next.has(g) ? next.delete(g) : next.add(g)
+                return next
+              })}
+            >{g}</button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.wlTableScroll}>
         <table className={styles.wlTableInner}>
           <thead>
@@ -956,7 +1005,7 @@ function StockManager({
                 isFav={favorites.has(code)}
                 isSuperFav={superFavorites.has(code)}
                 meta={stockMeta[code] ?? { genres: [], memo: '' }}
-                allGenreOptions={allGenreOptions}
+                allGenreOptions={managedGenreOptions}
                 onToggleFav={() => onToggleFavorite(code)}
                 onToggleSuperFav={() => onToggleSuperFav(code)}
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
@@ -1571,10 +1620,10 @@ function JudgmentBadge({ result, description }: { result: string | null; descrip
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description,
+  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
-  memo: string; onSaveMemo: (t: string) => void
+  memo: string; memoUpdatedAt?: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
   judgment: string | null; description?: string
 }) {
@@ -1643,10 +1692,18 @@ function DetailPanel({
       <Section title="メモ">
         <textarea className={styles.detailMemo} value={localMemo}
           onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />
-        <button className={styles.btnPrimary}
-          style={{ width: '100%', marginTop: 8, ...(saved ? { background: '#34d399' } : {}) }}
-          onClick={save}
-        >{saved ? '保存しました ✓' : 'メモを保存'}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+          <button
+            className={styles.btnPrimary}
+            style={{ flex: 1, ...(saved ? { background: '#34d399' } : {}) }}
+            onClick={save}
+          >{saved ? '保存しました ✓' : 'メモを保存'}</button>
+          {memoUpdatedAt && (
+            <span className={styles.memoTimestamp}>
+              最終更新: {fmtJpDate(memoUpdatedAt)}
+            </span>
+          )}
+        </div>
       </Section>
       <Section title="次回決算予定日">
         {(() => {

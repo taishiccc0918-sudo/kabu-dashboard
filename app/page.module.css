@@ -1205,6 +1205,45 @@
   margin-left: auto;
 }
 
+/* ── 銘柄管理 ジャンル絞り込みバー ──────────────── */
+.wlGenreFilter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1f2d40;
+  flex-shrink: 0;
+}
+.wlGenreFilterLabel {
+  font-size: 10px; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.wlGenreFilterChip {
+  padding: 3px 10px; border-radius: 99px;
+  border: 1px solid #2a3a52; background: transparent;
+  color: #4e6280; font-size: 11px; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
+}
+.wlGenreFilterChip:hover { color: #8fa3be; border-color: #3b82f6; }
+.wlGenreFilterChipActive {
+  border-color: #3b82f6; color: #60a5fa;
+  background: rgba(59,130,246,0.12);
+}
+.wlGenreFilterClear {
+  padding: 3px 10px; border-radius: 99px;
+  border: 1px solid rgba(239,68,68,0.4);
+  background: rgba(239,68,68,0.08);
+  color: #f87171; font-size: 11px; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
+}
+.wlGenreFilterClear:hover { background: rgba(239,68,68,0.15); }
+
+/* メモ最終更新日 */
+.memoTimestamp {
+  font-size: 11px; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap; flex-shrink: 0;
+}
+
 /* ── 銘柄管理テーブルスクロール ─────────────────── */
 .wlTableScroll {
   width: 100%;

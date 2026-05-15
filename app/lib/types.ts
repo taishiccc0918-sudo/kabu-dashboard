@@ -195,8 +195,9 @@ export type TabKey = 'dashboard' | 'card' | 'watchlist'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
 
 export interface StockMeta {
-  genres: string[]   // ジャンルタグ配列
-  memo: string       // 自由メモ（100文字以内）
+  genres: string[]
+  memo: string
+  memoUpdatedAt?: string   // ISO8601 — メモ保存時のtimestamp
 }
 
 export interface KSFRecord {

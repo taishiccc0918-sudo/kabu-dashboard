@@ -173,6 +173,32 @@ export interface StockRow {
 }
 export type SortKey = keyof StockRow
 export type FilterKey = 'all' | 'buy'
+
+// ── 判定エンジン型定義 ──────────────────────────────────────────────
+export type ConditionOperator = '<' | '<=' | '>' | '>=' | '==' | '!='
+
+export type Condition = {
+  metric: string            // StockRow のキー名（例: 'perF', 'pbr', 'roe'）
+  operator: ConditionOperator
+  threshold: number
+}
+
+export type ConditionGroup = {
+  id: string
+  name: string              // 例: '割安株'
+  conditions: Condition[]   // グループ内はAND
+}
+
+export type JudgmentLogic = {
+  id: string
+  name: string              // 例: 'マイロジック'
+  groups: ConditionGroup[]  // グループ間はOR
+}
+
+export type JudgmentSettings = {
+  logics: JudgmentLogic[]
+  activeLogicId: string
+}
 export type TabKey = 'dashboard' | 'card' | 'watchlist'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
 

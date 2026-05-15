@@ -343,6 +343,13 @@
 .mkt_growth   { background: rgba(139,92,246,.12);  color: #a78bfa; }
 .mkt_other    { background: rgba(255,255,255,.05); color: #4e6280; }
 
+/* judgment groups (detail panel) */
+.judgmentGroups {
+  font-size: 11px; color: #fbbf24;
+  margin-top: 4px; margin-bottom: 2px;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+
 /* judgment badge */
 .jBadge {
   display: inline-block; padding: 2px 9px;

@@ -2,8 +2,10 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord, StockMeta,
-  TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
+  TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES, JudgmentSettings,
 } from './lib/types'
+import { evaluateLogic } from './lib/judgmentEngine'
+import { DEFAULT_LOGICS } from './lib/defaultLogics'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
@@ -93,15 +95,17 @@ function initStockMeta(): Record<string, StockMeta> {
 }
 
 export default function Page() {
-  const [apiKey,     setApiKey]     = useState<string>(() => ls('apiKey', ''))
-  const [favorites,  setFavorites]  = useState<Set<string>>(initFavorites)
+  const [mounted,    setMounted]    = useState(false)
+  const [apiKey,     setApiKey]     = useState('')
+  const [favorites,  setFavorites]  = useState<Set<string>>(new Set())
   const favoritesRef = useRef<Set<string>>(new Set())
-  const [superFavorites, setSuperFavorites] = useState<Set<string>>(new Set())
+  const [superFavorites,    setSuperFavorites]    = useState<Set<string>>(new Set())
+  const [judgmentSettings,  setJudgmentSettings]  = useState<JudgmentSettings | null>(null)
   const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>({})
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
-  const [lastUpdate, setLastUpdate] = useState<string>(() => ls('lastUpdate', ''))
+  const [lastUpdate, setLastUpdate] = useState('')
   const [status,     setStatus]     = useState<StatusType>('idle')
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
@@ -115,8 +119,8 @@ export default function Page() {
   const [showFilter,  setShowFilter]  = useState(false)
   const [showHelp,    setShowHelp]    = useState(false)
   const [filterHeart, setFilterHeart] = useState(false)
-  const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
-  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
+  const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
+  const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>([])
   const [search,     setSearch]     = useState('')
   const [showDropdown,     setShowDropdown]     = useState(false)
   const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
@@ -127,22 +131,29 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
   const [forcePc,    setForcePc]    = useState(false)
-  const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
+  const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
   const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
+
+  // localStorage からの読み込みを一箇所に集約し、最後に mounted = true でコンテンツを表示
   useEffect(() => {
-    const saved = localStorage.getItem('darkMode')
-    if (saved !== null) setDarkMode(saved !== 'false')
-  }, [])
-  useEffect(() => {
-    setStockMeta(initStockMeta())
-  }, [])
-  useEffect(() => {
+    const savedDark = localStorage.getItem('darkMode')
+    if (savedDark !== null) setDarkMode(savedDark !== 'false')
+    setFavorites(initFavorites())
+    setApiKey(ls('apiKey', ''))
+    setLastUpdate(ls('lastUpdate', ''))
+    setCustomGenreOptions(ls('customGenreOptions', []))
+    setRemovedDefaultGenres(ls('removedDefaultGenres', []))
+    setEarningsDates(ls('earningsDates', {}))
     setSuperFavorites(new Set(ls<string[]>('superFavorites', [])))
+    setStockMeta(initStockMeta())
+    const savedJudgment = ls<JudgmentSettings | null>('judgmentSettings', null)
+    setJudgmentSettings(savedJudgment ?? DEFAULT_LOGICS)
+    setMounted(true)
   }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
@@ -287,11 +298,25 @@ export default function Page() {
     [favorites, priceDB, finDB, masterDB, stockMeta]
   )
 
+  // ── 判定エンジン ──────────────────────────────────────────────────
+  const activeLogic = useMemo(() => {
+    const s = judgmentSettings ?? DEFAULT_LOGICS
+    return s.logics.find(l => l.id === s.activeLogicId) ?? s.logics[0]
+  }, [judgmentSettings])
+
+  const judgmentResultsMap = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    for (const row of allRows) {
+      map[row.code] = activeLogic ? evaluateLogic(row, activeLogic) : []
+    }
+    return map
+  }, [allRows, activeLogic])
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
     let rows = allRows.filter(r => {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
-      if (filter === 'buy' && r.judgment !== '買い') return false
+      if (filter === 'buy' && (judgmentResultsMap[r.code]?.length ?? 0) === 0) return false
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
       if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
@@ -310,7 +335,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, filterHeart, superFavorites, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, filter, filterHeart, superFavorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
@@ -482,10 +507,10 @@ export default function Page() {
             {loading ? '⏸ 中断' : lastUpdate ? '更新済み ↺' : '全更新'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
         </div>
       </header>
 
@@ -602,7 +627,7 @@ export default function Page() {
         </div>
       )}
 
-      <main className={styles.main}>
+      <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
         {tab === 'dashboard' && (
           <>
             <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
@@ -618,6 +643,7 @@ export default function Page() {
                 highlightCode={highlightCode}
                 superFavorites={superFavorites}
                 onToggleSuperFav={toggleSuperFavorite}
+                judgmentResultsMap={judgmentResultsMap}
               />
             </div>
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
@@ -625,7 +651,7 @@ export default function Page() {
                 {filteredRows.length === 0
                   ? <div className={styles.emptyCell}>該当銘柄なし</div>
                   : filteredRows.map(r => (
-                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} />
+                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
                   ))
                 }
               </div>
@@ -636,7 +662,7 @@ export default function Page() {
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} />
+              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
             ))}
           </div>
         )}
@@ -670,6 +696,7 @@ export default function Page() {
               apiKey={apiKey}
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
+              matchedGroups={judgmentResultsMap[detailCode] ?? []}
             />
           </div>
         </div>
@@ -1175,7 +1202,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -1188,6 +1215,7 @@ function DashboardTable({
   highlightCode: string | null
   superFavorites: Set<string>
   onToggleSuperFav: (code: string) => void
+  judgmentResultsMap: Record<string, string[]>
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1220,7 +1248,7 @@ function DashboardTable({
     { label: 'PEG', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'peg' as keyof StockRow, group: 'other', tooltip: 'PER÷EPS成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷今期予想売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
-    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'judgment' as keyof StockRow, group: 'other', tooltip: '【判定ロジック】\nPER今期の1ヶ月前比 ≤ −5% → 「買い」\n\n意味: 先月より市場がこの銘柄の将来利益を5%以上安く評価するようになった（割安化シグナル）。' },
+    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other', tooltip: '【判定ロジック（新エンジン）】\n割安株: PER今期<15 AND PBR<1.5 AND ROE>8%\nグロース株: 来期売上成長>15% AND 営業利益率>15%\n押し目: 株価1ヶ月変化率≤−5%\nいずれか1グループ以上に該当で「買い」' },
     { label: '四季報',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'Yahoo\nFinance', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: 'かぶたん',   cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
@@ -1262,7 +1290,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} matchedGroups={judgmentResultsMap[r.code] ?? []} />
             ))}
           </tbody>
         </table>
@@ -1272,10 +1300,10 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, matchedGroups }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
-  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void
+  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; matchedGroups: string[]
 }) {
   const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
   const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
@@ -1319,7 +1347,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
-      <td className={styles.hasTooltip} title="PER今期の1ヶ月前比が−5%以下のとき「買い」\n= 市場がこの銘柄の将来利益を1ヶ月前より安く評価している（割安化シグナル）"><JudgmentBadge j={r.judgment} /></td>
+      <td className={styles.hasTooltip} title={matchedGroups.length > 0 ? `該当: ${matchedGroups.join(', ')}` : '買い条件に非該当'}><JudgmentBadge matchedGroups={matchedGroups} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a></td>
@@ -1393,7 +1421,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
 }
 
 // ─── MobileRow ───────────────────────────────────────────────────────
-function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
+function MobileRow({ row: r, onClick, matchedGroups }: { row: StockRow; onClick: () => void; matchedGroups: string[] }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.mobileRow} onClick={onClick}>
@@ -1401,7 +1429,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
         <div className={styles.mobileRowTop}>
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          <JudgmentBadge j={r.judgment} />
+          <JudgmentBadge matchedGroups={matchedGroups} />
         </div>
         <div className={styles.mobileName}>{r.name || '—'}</div>
         <div className={styles.mobileMetaRow}>
@@ -1424,7 +1452,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string; onClick: () => void }) {
+function StockCard({ row: r, apiKey, onClick, matchedGroups }: { row: StockRow; apiKey: string; onClick: () => void; matchedGroups: string[] }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.card} onClick={onClick}>
@@ -1435,7 +1463,7 @@ function StockCard({ row: r, apiKey, onClick }: { row: StockRow; apiKey: string;
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </div>
         <div className={styles.cardRight}>
-          <JudgmentBadge j={r.judgment} />
+          <JudgmentBadge matchedGroups={matchedGroups} />
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -1511,18 +1539,21 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-function JudgmentBadge({ j }: { j: string }) {
-  if (j === '買い') return <span className={`${styles.jBadge} ${styles.jBuy}`}>買い</span>
+function JudgmentBadge({ matchedGroups }: { matchedGroups: string[] }) {
+  if (matchedGroups.length > 0) {
+    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={`該当: ${matchedGroups.join(', ')}`}>買い</span>
+  }
   return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate,
+  row: r, fin: f, memo, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, matchedGroups,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
+  matchedGroups: string[]
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -1540,8 +1571,11 @@ function DetailPanel({
       <div className={styles.detailName}>{r.name || '—'}</div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <JudgmentBadge j={r.judgment} />
+        <JudgmentBadge matchedGroups={matchedGroups} />
       </div>
+      {matchedGroups.length > 0 && (
+        <div className={styles.judgmentGroups}>該当: {matchedGroups.join(', ')}</div>
+      )}
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}
       </div>

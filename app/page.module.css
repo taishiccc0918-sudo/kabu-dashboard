@@ -1443,11 +1443,11 @@
 }
 .helpItem:hover { background: rgba(255,255,255,0.03); border-color: #1f2d40; }
 .helpItemTitle {
-  font-size: 12px; font-weight: 700;
+  font-size: 13px; font-weight: 700;
   color: #e8eef8; font-family: 'Noto Sans JP', sans-serif;
 }
 .helpItemDesc {
-  font-size: 11px; color: #6b7280; line-height: 1.65;
+  font-size: 12px; color: #9ca3af; line-height: 1.65;
   font-family: 'Noto Sans JP', sans-serif;
 }
 
@@ -1463,11 +1463,11 @@
 .helpIndRow:hover { background: rgba(255,255,255,0.03); border-color: #1f2d40; }
 .helpIndLabel {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   color: #60a5fa;
 }
 .helpIndDesc {
-  font-size: 11px; color: #6b7280; line-height: 1.6;
+  font-size: 12px; color: #9ca3af; line-height: 1.6;
   font-family: 'Noto Sans JP', sans-serif;
 }
 
@@ -1483,10 +1483,10 @@
 .lightMode .helpTabActive { color: #2563eb !important; border-bottom-color: #2563eb !important; }
 .lightMode .helpItem:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
 .lightMode .helpItemTitle { color: #1e293b !important; }
-.lightMode .helpItemDesc { color: #64748b !important; }
+.lightMode .helpItemDesc { color: #475569 !important; }
 .lightMode .helpIndRow:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
 .lightMode .helpIndLabel { color: #2563eb !important; }
-.lightMode .helpIndDesc { color: #64748b !important; }
+.lightMode .helpIndDesc { color: #475569 !important; }
 
 @media (max-width: 768px) {
   .helpPanel { width: 100%; min-width: 0; max-width: 100%; }

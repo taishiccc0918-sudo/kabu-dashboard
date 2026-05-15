@@ -10,6 +10,13 @@ import {
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort } from './lib/format'
 import styles from './page.module.css'
 
+interface DropdownResult {
+  code: string
+  name: string
+  matchType: 'code_name' | 'memo'
+  memoSnippet?: string
+}
+
 function ls<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback } catch { return fallback }
@@ -108,6 +115,10 @@ export default function Page() {
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>(() => ls('customGenreOptions', []))
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>(() => ls('removedDefaultGenres', []))
   const [search,     setSearch]     = useState('')
+  const [showDropdown,     setShowDropdown]     = useState(false)
+  const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
+  const [dropdownActive,   setDropdownActive]   = useState(-1)
+  const [highlightCode,    setHighlightCode]    = useState<string | null>(null)
   const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
@@ -115,6 +126,7 @@ export default function Page() {
   const [forcePc,    setForcePc]    = useState(false)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
   const abortSignalRef = useRef({ aborted: false })
+  const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
@@ -282,6 +294,55 @@ export default function Page() {
     return rows
   }, [allRows, search, filter, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
+  // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
+  useEffect(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) { setDropdownResults([]); setDropdownActive(-1); return }
+    const timer = setTimeout(() => {
+      const codeNameHits: DropdownResult[] = []
+      const memoHits: DropdownResult[] = []
+      for (const r of allRows) {
+        if (codeNameHits.length >= 5) break
+        if (r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) {
+          codeNameHits.push({ code: r.code, name: r.name, matchType: 'code_name' })
+        }
+      }
+      for (const [code, meta] of Object.entries(stockMeta)) {
+        if (memoHits.length >= 5) break
+        if (!favorites.has(code) || !meta.memo) continue
+        if (meta.memo.toLowerCase().includes(q)) {
+          if (codeNameHits.some(r => r.code === code)) continue
+          const idx = meta.memo.toLowerCase().indexOf(q)
+          const start = Math.max(0, idx - 20)
+          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
+        }
+      }
+      setDropdownResults([...codeNameHits, ...memoHits])
+      setDropdownActive(-1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, allRows, stockMeta, masterDB, favorites])
+
+  useEffect(() => {
+    if (!highlightCode) return
+    const el = document.querySelector<HTMLElement>(`tr[data-code="${highlightCode}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = setTimeout(() => setHighlightCode(null), 2500)
+    return () => clearTimeout(timer)
+  }, [highlightCode])
+
+  useEffect(() => {
+    function onOutsideDown(e: MouseEvent) {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setShowDropdown(false); setDropdownActive(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideDown)
+    return () => document.removeEventListener('mousedown', onOutsideDown)
+  }, [])
+
   const stats = useMemo(() => ({
     total: allRows.length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
@@ -291,6 +352,18 @@ export default function Page() {
   function handleSort(key: keyof StockRow) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
+  }
+
+  function clearAllFilters() {
+    setFilter('all'); setMktFilter('all'); setGenreFilter('all')
+    setMcapMin(''); setPerFMax(''); setSortKey(null); setSortDir(-1)
+  }
+
+  function scrollToAndHighlight(code: string) {
+    clearAllFilters()
+    setSearch(''); setShowDropdown(false); setDropdownActive(-1)
+    setHighlightCode(null)
+    setTimeout(() => setHighlightCode(code), 0)
   }
 
   const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
@@ -392,13 +465,28 @@ export default function Page() {
       </header>
 
       <div className={`${styles.toolbar} ${tab === 'watchlist' ? styles.toolbarHidden : ''}`} data-toolbar="">
-        <div className={styles.searchWrap}>
+        <div className={styles.searchWrap} ref={searchWrapRef}>
           <span className={styles.searchIcon}>🔍</span>
           <input
             className={styles.searchInput}
-            placeholder="銘柄名・コード検索..."
+            placeholder="銘柄名・コード・メモ検索..."
             value={search}
             onChange={e => setSearch(e.target.value)}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            onKeyDown={e => {
+              if (!showDropdown || !search.trim()) return
+              if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownActive(i => Math.min(i + 1, dropdownResults.length - 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownActive(i => Math.max(i - 1, 0)) }
+              else if (e.key === 'Escape') { setShowDropdown(false); setDropdownActive(-1) }
+              else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { scrollToAndHighlight(dropdownResults[dropdownActive].code) }
+            }}
+          />
+          <SearchDropdown
+            results={dropdownResults}
+            activeIndex={dropdownActive}
+            visible={showDropdown && search.trim().length > 0}
+            onSelect={code => scrollToAndHighlight(code)}
           />
         </div>
         <div className={styles.filterGroup}>
@@ -497,6 +585,7 @@ export default function Page() {
                 sortDir={sortDir}
                 handleSort={handleSort}
                 onRowClick={(code) => setDetailCode(code)}
+                highlightCode={highlightCode}
               />
             </div>
             <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
@@ -592,6 +681,11 @@ function StockManager({
   const [showFavOnly, setShowFavOnly] = useState(false)
   const [mktF, setMktF] = useState('all')
   const [page, setPage] = useState(1)
+  const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
+  const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
+  const [wlDropdownActive,  setWlDropdownActive]  = useState(-1)
+  const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
+  const wlSearchWrapRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -609,7 +703,67 @@ function StockManager({
     })
   }, [allCodes, masterDB, favorites, showFavOnly, mktF, wlSearch])
 
+  useEffect(() => {
+    const q = wlSearch.trim().toLowerCase()
+    if (!q) { setWlDropdownResults([]); setWlDropdownActive(-1); return }
+    const timer = setTimeout(() => {
+      const codeNameHits: DropdownResult[] = []
+      const memoHits: DropdownResult[] = []
+      for (const code of allCodes) {
+        if (codeNameHits.length >= 5) break
+        const rec = masterDB[code]
+        if (!rec) continue
+        if (code.toLowerCase().includes(q) || rec.name.toLowerCase().includes(q)) {
+          codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
+        }
+      }
+      for (const [code, meta] of Object.entries(stockMeta)) {
+        if (memoHits.length >= 5) break
+        if (!favorites.has(code) || !meta.memo) continue
+        if (meta.memo.toLowerCase().includes(q)) {
+          if (codeNameHits.some(r => r.code === code)) continue
+          const idx = meta.memo.toLowerCase().indexOf(q)
+          const start = Math.max(0, idx - 20)
+          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
+        }
+      }
+      setWlDropdownResults([...codeNameHits, ...memoHits])
+      setWlDropdownActive(-1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [wlSearch, allCodes, masterDB, stockMeta, favorites])
+
   useEffect(() => { setPage(1) }, [wlSearch, showFavOnly, mktF])
+
+  useEffect(() => {
+    if (!wlHighlightCode) return
+    const el = document.querySelector<HTMLElement>(`[data-code-wl="${wlHighlightCode}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = setTimeout(() => setWlHighlightCode(null), 2500)
+    return () => clearTimeout(timer)
+  }, [wlHighlightCode])
+
+  useEffect(() => {
+    function onOutsideDown(e: MouseEvent) {
+      if (wlSearchWrapRef.current && !wlSearchWrapRef.current.contains(e.target as Node)) {
+        setWlShowDropdown(false); setWlDropdownActive(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideDown)
+    return () => document.removeEventListener('mousedown', onOutsideDown)
+  }, [])
+
+  function scrollToWlRow(code: string) {
+    setWlShowDropdown(false); setWlDropdownActive(-1)
+    // wlSearch はクリアしない（候補は filteredCodes に既にマッチ済み）
+    // → useEffect(() => setPage(1), [wlSearch]) が発火せずページが保たれる
+    const idx = filteredCodes.indexOf(code)
+    if (idx >= 0) setPage(Math.floor(idx / PER_PAGE) + 1)
+    setWlHighlightCode(null)
+    setTimeout(() => setWlHighlightCode(code), 0)
+  }
 
   const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
@@ -645,12 +799,29 @@ function StockManager({
       </div>
 
       <div className={styles.wlFilterBar}>
-        <input
-          className={styles.wlSearchInput}
-          placeholder="銘柄名・コードで絞り込み..."
-          value={wlSearch}
-          onChange={e => setWlSearch(e.target.value)}
-        />
+        <div style={{ position: 'relative' }} ref={wlSearchWrapRef}>
+          <input
+            className={styles.wlSearchInput}
+            placeholder="銘柄名・コードで絞り込み..."
+            value={wlSearch}
+            onChange={e => setWlSearch(e.target.value)}
+            onFocus={() => setWlShowDropdown(true)}
+            onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
+            onKeyDown={e => {
+              if (!wlShowDropdown || !wlSearch.trim()) return
+              if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
+              else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
+              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { scrollToWlRow(wlDropdownResults[wlDropdownActive].code) }
+            }}
+          />
+          <SearchDropdown
+            results={wlDropdownResults}
+            activeIndex={wlDropdownActive}
+            visible={wlShowDropdown && wlSearch.trim().length > 0}
+            onSelect={code => scrollToWlRow(code)}
+          />
+        </div>
         <button
           className={`${styles.filterBtn} ${showFavOnly ? styles.filterBtnActive : ''}`}
           onClick={() => setShowFavOnly(f => !f)}
@@ -694,6 +865,7 @@ function StockManager({
                 onToggleFav={() => onToggleFavorite(code)}
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
                 onAddGenre={onAddGenre}
+                highlighted={wlHighlightCode === code}
               />
             ))}
           </tbody>
@@ -718,7 +890,7 @@ function StockManager({
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre,
+  code, rec, isFav, meta, allGenreOptions, onToggleFav, onSaveMeta, onAddGenre, highlighted,
 }: {
   code: string
   rec: MasterRecord
@@ -728,6 +900,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
   onToggleFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   onAddGenre: (name: string) => void
+  highlighted: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [localMemo, setLocalMemo] = useState(meta.memo)
@@ -745,7 +918,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
 
   return (
     <>
-      <tr className={styles.wlTr}>
+      <tr data-code-wl={code} className={`${styles.wlTr}${highlighted ? ' ' + styles.wlHighlight : ''}`}>
         <td className={styles.wlTd} style={{textAlign:'center'}}>
           <button
             onClick={onToggleFav}
@@ -948,7 +1121,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -958,6 +1131,7 @@ function DashboardTable({
   sortDir: 1 | -1
   handleSort: (k: keyof StockRow) => void
   onRowClick: (code: string) => void
+  highlightCode: string | null
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1032,7 +1206,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} />
             ))}
           </tbody>
         </table>
@@ -1042,15 +1216,16 @@ function DashboardTable({
 }
 
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
+  highlighted: boolean
 }) {
-  const stickyBg = idx % 2 === 0 ? '#0d1219' : '#111825'
-  const stickyNameBg = idx % 2 === 0 ? '#131825' : '#171d2e'
+  const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
+  const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
-    <tr style={{ cursor: 'pointer' }} onClick={onClick}>
+    <tr data-code={r.code} className={highlighted ? styles.trHighlight : undefined} style={{ cursor: 'pointer' }} onClick={onClick}>
       <td className={styles.tdStar} style={{background: stickyBg}}>★</td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyNameBg}}>{r.name || '—'}</td>
@@ -1425,6 +1600,61 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
           <div className={`${styles.detailItemValue} ${cls ? styles[cls] : ''}`}>{val}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── SearchDropdown（共通UIコンポーネント）────────────────────────────
+function SearchDropdown({
+  results, activeIndex, onSelect, visible,
+}: {
+  results: DropdownResult[]
+  activeIndex: number
+  onSelect: (code: string) => void
+  visible: boolean
+}) {
+  if (!visible) return null
+  const codeNameResults = results.filter(r => r.matchType === 'code_name')
+  const memoResults     = results.filter(r => r.matchType === 'memo')
+  return (
+    <div className={styles.searchDropdownPanel}>
+      {results.length === 0 ? (
+        <div className={styles.searchDropdownEmpty}>該当なし</div>
+      ) : (
+        <>
+          {codeNameResults.length > 0 && (
+            <>
+              <div className={styles.searchDropdownCategory}>銘柄名・コード</div>
+              {codeNameResults.map((r, i) => (
+                <div
+                  key={r.code}
+                  className={`${styles.searchDropdownItem} ${activeIndex === i ? styles.searchDropdownItemActive : ''}`}
+                  onMouseDown={e => { e.preventDefault(); onSelect(r.code) }}
+                >
+                  <span className={styles.searchDropdownCode}>{r.code}</span>
+                  <span className={styles.searchDropdownName}>{r.name}</span>
+                </div>
+              ))}
+            </>
+          )}
+          {memoResults.length > 0 && (
+            <>
+              <div className={styles.searchDropdownCategory}>メモ</div>
+              {memoResults.map((r, i) => (
+                <div
+                  key={r.code}
+                  className={`${styles.searchDropdownItem} ${activeIndex === codeNameResults.length + i ? styles.searchDropdownItemActive : ''}`}
+                  onMouseDown={e => { e.preventDefault(); onSelect(r.code) }}
+                >
+                  <span className={styles.searchDropdownCode}>{r.code}</span>
+                  <span className={styles.searchDropdownName}>{r.name}</span>
+                  {r.memoSnippet && <div className={styles.searchDropdownSnippet}>{r.memoSnippet}</div>}
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }

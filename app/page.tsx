@@ -126,6 +126,7 @@ export default function Page() {
   const [forcePc,    setForcePc]    = useState(false)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>(() => ls('earningsDates', {}))
   const abortSignalRef = useRef({ aborted: false })
+  const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
@@ -332,6 +333,16 @@ export default function Page() {
     return () => clearTimeout(timer)
   }, [highlightCode])
 
+  useEffect(() => {
+    function onOutsideDown(e: MouseEvent) {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setShowDropdown(false); setDropdownActive(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideDown)
+    return () => document.removeEventListener('mousedown', onOutsideDown)
+  }, [])
+
   const stats = useMemo(() => ({
     total: allRows.length,
     up:    allRows.filter(r => (r.chg1d ?? 0) > 0).length,
@@ -454,7 +465,7 @@ export default function Page() {
       </header>
 
       <div className={`${styles.toolbar} ${tab === 'watchlist' ? styles.toolbarHidden : ''}`} data-toolbar="">
-        <div className={styles.searchWrap}>
+        <div className={styles.searchWrap} ref={searchWrapRef}>
           <span className={styles.searchIcon}>🔍</span>
           <input
             className={styles.searchInput}
@@ -674,6 +685,7 @@ function StockManager({
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
   const [wlDropdownActive,  setWlDropdownActive]  = useState(-1)
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
+  const wlSearchWrapRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -733,20 +745,22 @@ function StockManager({
     return () => clearTimeout(timer)
   }, [wlHighlightCode])
 
+  useEffect(() => {
+    function onOutsideDown(e: MouseEvent) {
+      if (wlSearchWrapRef.current && !wlSearchWrapRef.current.contains(e.target as Node)) {
+        setWlShowDropdown(false); setWlDropdownActive(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideDown)
+    return () => document.removeEventListener('mousedown', onOutsideDown)
+  }, [])
+
   function scrollToWlRow(code: string) {
-    setWlShowDropdown(false); setWlDropdownActive(-1); setWlSearch('')
-    // テキストフィルタ解除後の filteredCodes を手計算してページを特定
-    const filtered = allCodes.filter(c => {
-      const rec = masterDB[c]
-      if (!rec) return false
-      if (showFavOnly && !favorites.has(c)) return false
-      if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
-      if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
-      if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
-      return true
-    })
-    const idx = filtered.indexOf(code)
-    setPage(idx >= 0 ? Math.floor(idx / PER_PAGE) + 1 : 1)
+    setWlShowDropdown(false); setWlDropdownActive(-1)
+    // wlSearch はクリアしない（候補は filteredCodes に既にマッチ済み）
+    // → useEffect(() => setPage(1), [wlSearch]) が発火せずページが保たれる
+    const idx = filteredCodes.indexOf(code)
+    if (idx >= 0) setPage(Math.floor(idx / PER_PAGE) + 1)
     setWlHighlightCode(null)
     setTimeout(() => setWlHighlightCode(code), 0)
   }
@@ -785,7 +799,7 @@ function StockManager({
       </div>
 
       <div className={styles.wlFilterBar}>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }} ref={wlSearchWrapRef}>
           <input
             className={styles.wlSearchInput}
             placeholder="銘柄名・コードで絞り込み..."

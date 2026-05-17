@@ -474,6 +474,49 @@ export default function Page() {
     }
   }
 
+  function renameGenre(oldName: string, newName: string) {
+    const trimmed = newName.replace(/[\s　]+/g, ' ').trim()
+    if (!trimmed || trimmed === oldName) return
+
+    // ① stockMeta 一括置換（Set で重複排除）
+    setStockMeta(prev => {
+      const next = { ...prev }
+      for (const [code, meta] of Object.entries(next)) {
+        if (meta.genres.includes(oldName)) {
+          const replaced = meta.genres.map(g => g === oldName ? trimmed : g)
+          next[code] = { ...meta, genres: Array.from(new Set(replaced)) }
+        }
+      }
+      lsSet('stockMetadata', next)
+      return next
+    })
+
+    // ② + ③ removedDefaultGenres / customGenreOptions を一括計算（state 競合防止）
+    const isCustom = customGenreOptions.includes(oldName)
+    let nextRemoved = [...removedDefaultGenres]
+    let nextCustom  = customGenreOptions.filter(g => g !== oldName)
+
+    if (!isCustom) {
+      nextRemoved = [...nextRemoved, oldName]
+    }
+
+    // 変更後のリストで新名の存在確認
+    const visibleAfter = ALL_GENRE_OPTIONS
+      .filter(g => !nextRemoved.includes(g))
+      .concat(nextCustom)
+    if (!visibleAfter.includes(trimmed)) {
+      if (ALL_GENRE_OPTIONS.includes(trimmed)) {
+        // ハードコード元から復活（removedDefaultGenres から除去）
+        nextRemoved = nextRemoved.filter(g => g !== trimmed)
+      } else {
+        nextCustom = [...nextCustom, trimmed]
+      }
+    }
+
+    setRemovedDefaultGenres(nextRemoved); lsSet('removedDefaultGenres', nextRemoved)
+    setCustomGenreOptions(nextCustom);    lsSet('customGenreOptions',    nextCustom)
+  }
+
   function saveMemo(code: string, text: string) {
     const prev = stockMeta[code] ?? { genres: [], memo: '' }
     const trimmed = text.trim()
@@ -704,6 +747,7 @@ export default function Page() {
             onSaveStockMeta={saveStockMeta}
             onAddGenre={addGenreOption}
             onRemoveGenre={removeGenreOption}
+            onRenameGenre={renameGenre}
             onExport={exportToExcel}
           />
         )}
@@ -762,7 +806,7 @@ const PER_PAGE = 100
 function StockManager({
   masterDB, favorites, superFavorites, stockMeta,
   allGenreOptions: managedGenreOptions,
-  onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onExport,
+  onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onRenameGenre, onExport,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
@@ -774,6 +818,7 @@ function StockManager({
   onSaveStockMeta: (code: string, meta: StockMeta) => void
   onAddGenre: (name: string) => void
   onRemoveGenre: (name: string) => void
+  onRenameGenre: (oldName: string, newName: string) => void
   onExport: () => void
 }) {
   const [wlSearch, setWlSearch] = useState('')
@@ -798,6 +843,7 @@ function StockManager({
   }, [stockMeta])
 
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
+  const [editingGenre, setEditingGenre] = useState<string | null>(null)
 
   const filteredCodes = useMemo(() => {
     const q = wlSearch.trim().toLowerCase()
@@ -870,6 +916,22 @@ function StockManager({
     return () => document.removeEventListener('mousedown', onOutsideDown)
   }, [])
 
+  function handleRenameConfirm(oldName: string, rawNewName: string) {
+    const trimmed = rawNewName.replace(/[\s　]+/g, ' ').trim()
+    if (trimmed && trimmed !== oldName) {
+      onRenameGenre(oldName, rawNewName)
+      // 【修正2】genreFilters の選択状態を新名に置換
+      setGenreFilters(prev => {
+        if (!prev.has(oldName)) return prev
+        const next = new Set(prev)
+        next.delete(oldName)
+        next.add(trimmed)
+        return next
+      })
+    }
+    setEditingGenre(null)
+  }
+
   function scrollToWlRow(code: string) {
     setWlShowDropdown(false); setWlDropdownActive(-1)
     // wlSearch はクリアしない（候補は filteredCodes に既にマッチ済み）
@@ -905,10 +967,26 @@ function StockManager({
       <div className={styles.wlGenreBar}>
         <span className={styles.wlGenreLabel}>ジャンル:</span>
         {managedGenreOptions.map(g => (
-          <span key={g} className={styles.genreBadgeEditable}>
-            {g}
-            <button className={styles.genreRemoveBtn} onClick={() => onRemoveGenre(g)} title="削除">×</button>
-          </span>
+          editingGenre === g ? (
+            <GenreRenameInput
+              key={g}
+              defaultValue={g}
+              onConfirm={newName => handleRenameConfirm(g, newName)}
+              onCancel={() => setEditingGenre(null)}
+            />
+          ) : (
+            <span key={g} className={styles.genreBadgeEditable}>
+              {g}
+              {!editingGenre && (
+                <button
+                  className={styles.genreRenameBtn}
+                  onClick={() => setEditingGenre(g)}
+                  title="リネーム"
+                >✏️</button>
+              )}
+              <button className={styles.genreRemoveBtn} onClick={() => onRemoveGenre(g)} title="削除">×</button>
+            </span>
+          )
         ))}
         <AddGenreInput onAdd={onAddGenre} />
       </div>
@@ -1592,6 +1670,32 @@ function InlineGenreAdd({ onAdd }: { onAdd: (name: string) => void }) {
         onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(''); setOpen(false) } }}>追加</button>
       <button className={styles.genreResetBtn} onClick={() => { setVal(''); setOpen(false) }}>✕</button>
     </span>
+  )
+}
+
+// ─── GenreRenameInput ────────────────────────────────────────────────
+function GenreRenameInput({
+  defaultValue, onConfirm, onCancel,
+}: {
+  defaultValue: string
+  onConfirm: (newName: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(defaultValue)
+  const cancelledRef = useRef(false)
+  return (
+    <input
+      className={styles.genreRenameInput}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter')  { e.preventDefault(); onConfirm(value) }
+        if (e.key === 'Escape') { e.preventDefault(); cancelledRef.current = true; onCancel() }
+      }}
+      onBlur={() => { if (!cancelledRef.current) onConfirm(value) }}
+      maxLength={20}
+      autoFocus
+    />
   )
 }
 

@@ -890,6 +890,8 @@ function StockManager({
     return pages
   }
 
+  console.log('[DEBUG] StockManager stockMeta keys:', Object.keys(stockMeta).length, 'allGenreOptions:', allGenreOptions)
+
   return (
     <div className={styles.wlManager}>
       <div className={styles.wlHeader}>

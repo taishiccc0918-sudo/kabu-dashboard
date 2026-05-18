@@ -228,7 +228,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
           opMgn:sales?op/sales:0,
           salesGr:(sales&&fsales)?fsales/sales-1:0,
-          nySalesGr:(fsales&&nySales)?nySales/fsales-1:0,
+          nySalesGr:(sales&&nySales)?nySales/sales-1:0,
         },
         shOut,
       }
@@ -300,7 +300,7 @@ export async function fetchAllFinancials(
       roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
       opMgn:sales?op/sales:0,
       salesGr:(sales&&fsales)?fsales/sales-1:0,
-      nySalesGr:(fsales&&nySales)?nySales/fsales-1:0,
+      nySalesGr:(sales&&nySales)?nySales/sales-1:0,
     }
   }
 

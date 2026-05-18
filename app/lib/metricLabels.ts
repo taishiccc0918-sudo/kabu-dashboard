@@ -9,7 +9,7 @@ export const METRIC_LABELS: Record<string, { label: string; unit: string; isPerc
   // 収益性・成長性
   roe:       { label: 'ROE',               unit: '%',  isPercent: true  },
   opMgn:     { label: '営業利益率',         unit: '%',  isPercent: true  },
-  epsGr:     { label: 'EPS成長率',          unit: '%',  isPercent: true  },
+  epsGr:     { label: 'EPS来期成長率',        unit: '%',  isPercent: true  },
   peg:       { label: 'PEG',               unit: '',   isPercent: false },
   nySalesGr: { label: '来期売上成長率',      unit: '%',  isPercent: true  },
 

@@ -57,7 +57,7 @@ export function buildStockRow(
   const bps    = f?.bps   ?? 0
   const fdiv   = f?.fdiv  ?? f?.divAnn ?? 0
 
-  const epsGr = (eps && feps)   ? feps  / eps   - 1 : null
+  const epsGr = (eps && nyeps)  ? nyeps / eps   - 1 : null
   const perA  = (close && eps)   ? close / eps   : null
   const perF  = (close && feps)  ? close / feps  : null
   const perN  = (close && nyeps) ? close / nyeps : null

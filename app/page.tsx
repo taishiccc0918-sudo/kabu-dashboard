@@ -1097,6 +1097,61 @@ function StockManager({
   )
 }
 
+// ─── MemoTooltip ─────────────────────────────────────────────────────
+function MemoTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false)
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({})
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  function scheduleShow() {
+    if (!text) return
+    if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null }
+    showTimerRef.current = setTimeout(() => {
+      if (!wrapRef.current) return
+      const r = wrapRef.current.getBoundingClientRect()
+      const spaceAbove = r.top
+      const spaceBelow = window.innerHeight - r.bottom
+      const placeAbove = spaceAbove > 220 || spaceAbove > spaceBelow
+      const left = Math.max(4, Math.min(r.left, window.innerWidth - 420))
+      setTooltipStyle({
+        position: 'fixed',
+        left,
+        ...(placeAbove
+          ? { bottom: window.innerHeight - r.top + 6 }
+          : { top: r.bottom + 6 }),
+      })
+      setVisible(true)
+    }, 200)
+  }
+
+  function scheduleHide() {
+    if (showTimerRef.current) { clearTimeout(showTimerRef.current); showTimerRef.current = null }
+    hideTimerRef.current = setTimeout(() => setVisible(false), 100)
+  }
+
+  function cancelHide() {
+    if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null }
+  }
+
+  useEffect(() => () => {
+    if (showTimerRef.current) clearTimeout(showTimerRef.current)
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+  }, [])
+
+  return (
+    <div ref={wrapRef} className={styles.memoTooltipWrap} onMouseEnter={scheduleShow} onMouseLeave={scheduleHide}>
+      {children}
+      {visible && text && (
+        <div className={styles.memoTooltip} style={tooltipStyle} onMouseEnter={cancelHide} onMouseLeave={scheduleHide}>
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
   code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, highlighted,
@@ -1161,15 +1216,16 @@ const StockManagerRow = React.memo(function StockManagerRow({
           </div>
         </td>
         <td className={styles.wlTd}>
-          <input
-            className={styles.wlMemoInput}
-            placeholder="メモ"
-            value={localMemo}
-            title={localMemo || undefined}
-            onChange={e => setLocalMemo(e.target.value)}
-            onBlur={() => onSaveMeta({ ...meta, memo: localMemo })}
-            onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
-          />
+          <MemoTooltip text={editing ? '' : localMemo}>
+            <input
+              className={styles.wlMemoInput}
+              placeholder="メモ"
+              value={localMemo}
+              onChange={e => setLocalMemo(e.target.value)}
+              onBlur={() => onSaveMeta({ ...meta, memo: localMemo })}
+              onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
+            />
+          </MemoTooltip>
         </td>
         <td className={styles.wlTd} style={{whiteSpace:'nowrap'}}>
           <div style={{display:'flex', gap:4}}>

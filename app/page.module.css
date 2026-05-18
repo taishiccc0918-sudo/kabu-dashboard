@@ -1088,6 +1088,25 @@
 }
 .wlMemoInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
 .wlMemoInput::placeholder { color: #2a3a52; }
+
+/* ── カスタムメモツールチップ ──────────────────────────────── */
+.memoTooltipWrap { width: 100%; }
+.memoTooltip {
+  width: max-content; max-width: 400px; max-height: 300px;
+  overflow-y: auto;
+  background: #1e293b;
+  color: #f1f5f9;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  font-size: 13px; line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  z-index: 9999;
+  pointer-events: auto;
+  font-family: 'Noto Sans JP', sans-serif;
+  border: 1px solid rgba(255,255,255,0.08);
+}
 .wlChipCode {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px; font-weight: 700; color: #60a5fa;

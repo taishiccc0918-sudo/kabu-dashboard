@@ -155,6 +155,7 @@ export default function Page() {
   const [showHelp,     setShowHelp]     = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [filterHeart,  setFilterHeart]  = useState(false)
+  const [filterFav,    setFilterFav]    = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>([])
   const [search,     setSearch]     = useState('')
@@ -359,6 +360,7 @@ export default function Page() {
       if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
       if (filter === 'buy' && judgmentResultsMap[r.code] == null) return false
       if (filterHeart && !superFavorites.has(r.code)) return false
+      if (filterFav   && !favorites.has(r.code))      return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
       if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
       if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
@@ -376,7 +378,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, filterHeart, superFavorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, filter, filterHeart, filterFav, superFavorites, favorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
@@ -648,7 +650,12 @@ export default function Page() {
             className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
             onClick={() => setFilterHeart(h => !h)}
             title="超お気に入り（♥）銘柄のみ表示"
-          >♥のみ</button>
+          >♥</button>
+          <button
+            className={`${styles.filterBtn} ${filterFav ? styles.filterBtnActive : ''}`}
+            onClick={() => setFilterFav(f => !f)}
+            title="お気に入り（★）銘柄のみ表示"
+          >★</button>
         </div>
         <div className={styles.filterDivider} />
         <div className={styles.filterGroup}>
@@ -1011,15 +1018,15 @@ function StockManager({
         </div>
         <div className={styles.wlHeaderFilters}>
           <button
-            className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
-            title="お気に入りのみ表示"
-          >★</button>
-          <button
             className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
             onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
             title="超お気に入り（♥）のみ表示"
           >♥</button>
+          <button
+            className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
+            title="お気に入りのみ表示"
+          >★</button>
           <div style={{ position: 'relative' }} ref={wlSearchWrapRef}>
             <input
               className={styles.wlHeaderSearch}

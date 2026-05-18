@@ -857,7 +857,7 @@
 }
 
 /* ── ジャンル複数タグ ───────────────────────────── */
-.tdGenres { padding: 0 6px; }
+.tdGenres { padding: 0 6px; overflow: hidden; }
 .tdGenres .genreBadge { margin: 1px 2px; }
 
 /* ── ジャンル編集UI ──────────────────────────────── */

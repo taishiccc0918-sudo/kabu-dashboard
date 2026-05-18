@@ -1089,6 +1089,18 @@
 .wlMemoInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
 .wlMemoInput::placeholder { color: #2a3a52; }
 
+/* ── 決算日入力 ────────────────────────────────────────────── */
+.wlEarningsInput {
+  width: 100%;
+  background: rgba(255,255,255,0.03); border: 1px solid #1f2d40;
+  color: #c8d8e8; padding: 4px 8px;
+  border-radius: 4px; font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: border-color .1s; box-sizing: border-box;
+  color-scheme: dark;
+}
+.wlEarningsInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+
 /* ── カスタムメモツールチップ ──────────────────────────────── */
 .memoTooltipWrap { width: 100%; }
 .memoTooltip {
@@ -1107,6 +1119,8 @@
   font-family: 'Noto Sans JP', sans-serif;
   border: 1px solid rgba(255,255,255,0.08);
 }
+.memoTooltipDivider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0 6px; }
+.memoTooltipDate { font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
 .wlChipCode {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px; font-weight: 700; color: #60a5fa;
@@ -1656,6 +1670,7 @@
 .lightMode .wlChipCode { color: #2563eb !important; }
 .lightMode .wlMemoInput { background: #fff !important; border-color: #cbd5e1 !important; color: #1e293b !important; }
 .lightMode .wlMemoInput::placeholder { color: #94a3b8 !important; }
+.lightMode .wlEarningsInput { background: #fff !important; border-color: #cbd5e1 !important; color: #1e293b !important; color-scheme: light; }
 .lightMode .genreTag { border-color: #94a3b8 !important; background: rgba(0,0,0,0.04) !important; color: #334155 !important; }
 .lightMode .genreTagOn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
 .lightMode .genreEditToggleBtn { border-color: #94a3b8 !important; color: #475569 !important; }

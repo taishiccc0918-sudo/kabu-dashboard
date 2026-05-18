@@ -777,6 +777,8 @@ export default function Page() {
             onRemoveGenre={removeGenreOption}
             onRenameGenre={renameGenre}
             onExport={exportToExcel}
+            earningsDates={earningsDates}
+            onSaveEarningsDate={saveEarningsDate}
           />
         )}
       </main>
@@ -835,6 +837,7 @@ function StockManager({
   masterDB, favorites, superFavorites, stockMeta,
   allGenreOptions: managedGenreOptions,
   onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onRenameGenre, onExport,
+  earningsDates, onSaveEarningsDate,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
@@ -848,6 +851,8 @@ function StockManager({
   onRemoveGenre: (name: string) => void
   onRenameGenre: (oldName: string, newName: string) => void
   onExport: () => void
+  earningsDates: Record<string, string>
+  onSaveEarningsDate: (code: string, date: string) => void
 }) {
   const [wlSearch, setWlSearch] = useState('')
   const [showFavOnly,   setShowFavOnly]   = useState(false)
@@ -1052,6 +1057,7 @@ function StockManager({
                 />
               </th>
               <th className={styles.wlTh}>メモ</th>
+              <th className={styles.wlTh} style={{width:120}}>決算日</th>
               <th className={styles.wlTh} style={{width:180}}>リンク</th>
             </tr>
           </thead>
@@ -1074,6 +1080,8 @@ function StockManager({
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
                 onAddGenre={onAddGenre}
                 onRenameGenre={handleRename}
+                earningsDate={earningsDates[code] ?? ''}
+                onSaveEarningsDate={onSaveEarningsDate}
                 highlighted={wlHighlightCode === code}
               />
             ))}
@@ -1098,7 +1106,7 @@ function StockManager({
 }
 
 // ─── MemoTooltip ─────────────────────────────────────────────────────
-function MemoTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+function MemoTooltip({ text, updatedAt, children }: { text: string; updatedAt?: string; children: React.ReactNode }) {
   const [visible, setVisible] = useState(false)
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({})
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1145,7 +1153,13 @@ function MemoTooltip({ text, children }: { text: string; children: React.ReactNo
       {children}
       {visible && text && (
         <div className={styles.memoTooltip} style={tooltipStyle} onMouseEnter={cancelHide} onMouseLeave={scheduleHide}>
-          {text}
+          <div>{text}</div>
+          {updatedAt && (
+            <>
+              <div className={styles.memoTooltipDivider} />
+              <div className={styles.memoTooltipDate}>最終更新: {fmtJpDate(updatedAt)}</div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1154,7 +1168,7 @@ function MemoTooltip({ text, children }: { text: string; children: React.ReactNo
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, highlighted,
+  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted,
 }: {
   code: string
   rec: MasterRecord
@@ -1167,10 +1181,13 @@ const StockManagerRow = React.memo(function StockManagerRow({
   onSaveMeta: (meta: StockMeta) => void
   onAddGenre: (name: string) => void
   onRenameGenre?: (oldName: string, newName: string) => void
+  earningsDate: string
+  onSaveEarningsDate: (code: string, date: string) => void
   highlighted: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [localMemo, setLocalMemo] = useState(meta.memo)
+  const [localDate, setLocalDate] = useState(earningsDate)
   const [editingGenreInRow, setEditingGenreInRow] = useState<string | null>(null)
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
 
@@ -1181,8 +1198,9 @@ const StockManagerRow = React.memo(function StockManagerRow({
     onSaveMeta({ ...meta, genres: next })
   }
 
-  // メモがpropsで変わったとき（他の行の更新等）は同期
+  // メモ・決算日がpropsで変わったとき（外部変更等）は同期
   useEffect(() => { setLocalMemo(meta.memo) }, [meta.memo])
+  useEffect(() => { setLocalDate(earningsDate) }, [earningsDate])
 
   return (
     <>
@@ -1216,7 +1234,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
           </div>
         </td>
         <td className={styles.wlTd}>
-          <MemoTooltip text={editing ? '' : localMemo}>
+          <MemoTooltip text={editing ? '' : localMemo} updatedAt={editing ? undefined : meta.memoUpdatedAt}>
             <input
               className={styles.wlMemoInput}
               placeholder="メモ"
@@ -1226,6 +1244,16 @@ const StockManagerRow = React.memo(function StockManagerRow({
               onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}
             />
           </MemoTooltip>
+        </td>
+        <td className={styles.wlTd}>
+          <input
+            type="date"
+            className={styles.wlEarningsInput}
+            value={localDate}
+            onChange={e => setLocalDate(e.target.value)}
+            onBlur={() => onSaveEarningsDate(code, localDate)}
+            onKeyDown={e => { if (e.key === 'Enter') { onSaveEarningsDate(code, localDate); e.currentTarget.blur() } }}
+          />
         </td>
         <td className={styles.wlTd} style={{whiteSpace:'nowrap'}}>
           <div style={{display:'flex', gap:4}}>
@@ -1238,7 +1266,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
       </tr>
       {editing && (
         <tr className={styles.wlEditRow}>
-          <td colSpan={7} className={styles.wlEditTd}>
+          <td colSpan={8} className={styles.wlEditTd}>
             <div className={styles.wlGenreEditPanel}>
               {allGenreOptions.map(g => (
                 <span key={g} className={styles.genreChipWrap}>

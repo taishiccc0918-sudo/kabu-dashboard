@@ -1026,12 +1026,6 @@ function StockManager({
               >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
             ))}
           </div>
-          <GenreDropdown
-            genres={managedGenreOptions}
-            onAdd={onAddGenre}
-            onRename={handleRename}
-            onDelete={onRemoveGenre}
-          />
           <span className={styles.wlHeaderCount}>{filteredCodes.length}件</span>
         </div>
         <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
@@ -1661,78 +1655,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: St
   )
 }
 
-// ─── GenreDropdown（A: ジャンル管理プルダウン）────────────────────────
-function GenreDropdown({ genres, onAdd, onRename, onDelete }: {
-  genres: string[]
-  onAdd: (name: string) => void
-  onRename: (oldName: string, newName: string) => void
-  onDelete: (name: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [renaming, setRenaming] = useState<string | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEscapeClose(open, () => { setOpen(false); setRenaming(null) })
-
-  useEffect(() => {
-    if (!open) return
-    function onDown(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false); setRenaming(null)
-      }
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  const filtered = genres.filter(g => !search.trim() || g.includes(search.trim()))
-
-  return (
-    <div style={{ position: 'relative' }} ref={wrapRef}>
-      <button className={styles.genreDropdownBtn} onClick={() => setOpen(o => !o)}>
-        ジャンル▼
-      </button>
-      {open && (
-        <div className={styles.genrePanel}>
-          <input
-            className={styles.genrePanelSearch}
-            placeholder="🔍 ジャンル検索"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            autoFocus
-          />
-          <div className={styles.genrePanelList}>
-            {filtered.map(g => (
-              <div key={g} className={styles.genrePanelItem}>
-                {renaming === g ? (
-                  <GenreRenameInput
-                    defaultValue={g}
-                    onConfirm={newName => { onRename(g, newName); setRenaming(null) }}
-                    onCancel={() => setRenaming(null)}
-                  />
-                ) : (
-                  <>
-                    <span className={styles.genrePanelItemName}>{g}</span>
-                    <div className={styles.genrePanelActions}>
-                      <button className={styles.genrePanelRenameBtn} onClick={() => setRenaming(g)} title="リネーム">✏️</button>
-                      <button className={styles.genrePanelDeleteBtn} onClick={() => onDelete(g)} title="削除">×</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className={styles.genrePanelFooter}>
-            <InlineGenreAdd onAdd={(name) => { onAdd(name); setSearch('') }} />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── GenreFilterDropdown（B: 列ヘッダーフィルター）────────────────────
+// ─── GenreFilterDropdown（列ヘッダーフィルター）────────────────────────
 function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
   genres: string[]
   activeFilters: Set<string>
@@ -1797,7 +1720,7 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
             autoFocus
           />
           <div className={styles.genreFilterSelectAll} onClick={toggleAll}>
-            <span className={styles.genreFilterCheck}>{allSelected ? '☑' : '☐'}</span>
+            <span className={`${styles.genreFilterCheck} ${allSelected ? styles.genreFilterCheckOn : ''}`} />
             <span>{allSelected ? '全解除' : '全選択'}</span>
           </div>
           <div className={styles.genreFilterList}>
@@ -1807,7 +1730,7 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
                 next.has(g) ? next.delete(g) : next.add(g)
                 setPending(next)
               }}>
-                <span className={styles.genreFilterCheck}>{pending.has(g) ? '☑' : '☐'}</span>
+                <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
                 <span className={styles.genreFilterLabel}>{g}</span>
               </div>
             ))}

@@ -1408,7 +1408,7 @@
   display: flex; align-items: center; gap: 7px;
   padding: 6px 10px; cursor: pointer;
   border-bottom: 1px solid #1f2d40;
-  font-size: 11px; color: #8fa3be;
+  font-size: 11px; color: #c8d8e8;
   font-family: 'Noto Sans JP', sans-serif;
   transition: background .1s; flex-shrink: 0;
 }
@@ -1417,11 +1417,28 @@
 .genreFilterItem {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 10px; cursor: pointer; transition: background .1s;
-  font-size: 11px; color: #8fa3be;
+  font-size: 11px; color: #c8d8e8;
   font-family: 'Noto Sans JP', sans-serif;
 }
 .genreFilterItem:hover { background: rgba(255,255,255,0.04); }
-.genreFilterCheck { font-size: 12px; flex-shrink: 0; }
+.genreFilterCheck {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 1.5px solid #4a5568; border-radius: 3px;
+  background: transparent; position: relative;
+  transition: border-color .12s, background .12s;
+  display: inline-block; box-sizing: border-box;
+}
+.genreFilterItem:hover .genreFilterCheck,
+.genreFilterSelectAll:hover .genreFilterCheck { border-color: #3b82f6; }
+.genreFilterCheckOn {
+  background: #3b82f6 !important; border-color: #3b82f6 !important;
+}
+.genreFilterCheckOn::after {
+  content: ''; position: absolute;
+  left: 3px; top: 0; width: 5px; height: 9px;
+  border: 2px solid #fff; border-top: none; border-left: none;
+  transform: rotate(45deg);
+}
 .genreFilterLabel { flex: 1; }
 .genreFilterDivider { height: 1px; background: #1f2d40; flex-shrink: 0; }
 .genreFilterActions {
@@ -2022,10 +2039,14 @@
 .lightMode .genreFilterPanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
 .lightMode .genreFilterSearch { background: #f8fafc !important; border-bottom-color: #e2e8f0 !important; color: #1e293b !important; }
 .lightMode .genreFilterSearch::placeholder { color: #94a3b8 !important; }
-.lightMode .genreFilterSelectAll { color: #475569 !important; border-bottom-color: #e2e8f0 !important; }
+.lightMode .genreFilterSelectAll { color: #334155 !important; border-bottom-color: #e2e8f0 !important; }
 .lightMode .genreFilterSelectAll:hover { background: rgba(0,0,0,0.03) !important; }
-.lightMode .genreFilterItem { color: #475569 !important; }
+.lightMode .genreFilterItem { color: #334155 !important; }
 .lightMode .genreFilterItem:hover { background: rgba(0,0,0,0.03) !important; }
+.lightMode .genreFilterCheck { border-color: #94a3b8 !important; }
+.lightMode .genreFilterItem:hover .genreFilterCheck,
+.lightMode .genreFilterSelectAll:hover .genreFilterCheck { border-color: #2563eb !important; }
+.lightMode .genreFilterCheckOn { background: #2563eb !important; border-color: #2563eb !important; }
 .lightMode .genreFilterDivider { background: #e2e8f0 !important; }
 .lightMode .genreFilterApplyBtn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
 .lightMode .genreFilterApplyBtn:hover { background: rgba(37,99,235,0.2) !important; }

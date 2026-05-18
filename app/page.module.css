@@ -884,9 +884,74 @@
   height: calc(100vh - 80px); /* 52px header + 28px statusBar */
 }
 .wlHeader {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 24px 12px;
+  display: flex; align-items: center;
+  padding: 10px 20px;
   border-bottom: 1px solid #1f2d40;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── ヘッダー内フィルター群 ─────────────────────────── */
+.wlHeaderFilters {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1; min-width: 0;
+}
+
+/* ★/♥ アイコンボタン */
+.wlIconFilterBtn {
+  width: 28px; height: 28px;
+  border-radius: 5px; border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #4e6280; font-size: 13px;
+  cursor: pointer; transition: all .12s; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.wlIconFilterBtn:hover { color: #e8eef8; border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.wlIconFilterBtnActive {
+  border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.15);
+}
+.wlIconFilterBtnHeart:hover { border-color: #f43f5e; color: #f43f5e; background: rgba(244,63,94,0.1); }
+.wlIconFilterBtnHeartActive {
+  border-color: #f43f5e !important; color: #f43f5e !important;
+  background: rgba(244,63,94,0.12) !important;
+}
+
+/* ヘッダー内検索 */
+.wlHeaderSearch {
+  flex: 1; max-width: 200px; min-width: 100px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid #2a3a52; color: #e8eef8;
+  padding: 5px 10px; border-radius: 6px;
+  font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
+  box-sizing: border-box; transition: border-color .15s;
+}
+.wlHeaderSearch:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
+.wlHeaderSearch::placeholder { color: #4e6280; }
+
+/* セグメンテッド市場フィルター */
+.wlMktSegment {
+  display: flex; border-radius: 5px; overflow: hidden;
+  border: 1px solid #2a3a52; flex-shrink: 0;
+}
+.wlMktBtn {
+  padding: 4px 9px; border: none;
+  border-left: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.02);
+  color: #4e6280; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .1s; white-space: nowrap;
+}
+.wlMktBtn:first-child { border-left: none; }
+.wlMktBtn:hover { color: #8fa3be; background: rgba(255,255,255,0.06); }
+.wlMktBtnActive { color: #e8eef8 !important; background: rgba(59,130,246,0.2) !important; }
+.wlMktBtn_prime.wlMktBtnActive   { background: rgba(59,130,246,0.2) !important; color: #60a5fa !important; }
+.wlMktBtn_standard.wlMktBtnActive { background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
+.wlMktBtn_growth.wlMktBtnActive  { background: rgba(139,92,246,0.2) !important; color: #a78bfa !important; }
+
+/* ヘッダー内件数 */
+.wlHeaderCount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #4e6280; white-space: nowrap; flex-shrink: 0;
 }
 .wlTitle {
   font-size: 15px; font-weight: 700; color: #e8eef8;
@@ -1448,6 +1513,23 @@
 .lightMode .searchDropdownEmpty { color: #64748b !important; }
 .lightMode .searchDropdownCategory { color: #64748b !important; border-top-color: #e2e8f0 !important; }
 .lightMode .searchDropdownItem:hover { background: rgba(37,99,235,0.06) !important; }
+
+/* ── ライトモード: 銘柄管理ヘッダーフィルター ─── */
+.lightMode .wlIconFilterBtn { border-color: #94a3b8 !important; background: #f8fafc !important; color: #475569 !important; }
+.lightMode .wlIconFilterBtn:hover { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.07) !important; }
+.lightMode .wlIconFilterBtnActive { border-color: #d97706 !important; color: #b45309 !important; background: rgba(217,119,6,0.1) !important; }
+.lightMode .wlIconFilterBtnHeart:hover { border-color: #e11d48 !important; color: #e11d48 !important; background: rgba(225,29,72,0.07) !important; }
+.lightMode .wlIconFilterBtnHeartActive { border-color: #e11d48 !important; color: #be123c !important; background: rgba(225,29,72,0.1) !important; }
+.lightMode .wlHeaderSearch { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .wlHeaderSearch::placeholder { color: #94a3b8 !important; }
+.lightMode .wlHeaderSearch:focus { border-color: #2563eb !important; background: rgba(37,99,235,0.04) !important; }
+.lightMode .wlMktSegment { border-color: #94a3b8 !important; }
+.lightMode .wlMktBtn { border-left-color: #94a3b8 !important; background: #f8fafc !important; color: #475569 !important; }
+.lightMode .wlMktBtn:hover { background: #e2e8f0 !important; color: #1e293b !important; }
+.lightMode .wlMktBtn_prime.wlMktBtnActive { background: rgba(37,99,235,0.12) !important; color: #1d4ed8 !important; }
+.lightMode .wlMktBtn_standard.wlMktBtnActive { background: rgba(5,150,105,0.12) !important; color: #047857 !important; }
+.lightMode .wlMktBtn_growth.wlMktBtnActive { background: rgba(109,40,217,0.12) !important; color: #6d28d9 !important; }
+.lightMode .wlHeaderCount { color: #64748b !important; }
 
 /* ── ライトモード: ステータスバー ───────────── */
 .lightMode .statusBar { background: rgba(248,250,252,0.97) !important; border-top-color: #cbd5e1 !important; color: #475569 !important; }

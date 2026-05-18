@@ -52,8 +52,8 @@ export function buildStockRow(
 
   const close  = p.close ?? 0
   const eps    = f?.eps   ?? 0
-  const feps   = f?.feps  ?? 0
-  const nyeps  = f?.nyEPS ?? 0
+  const feps   = f?.feps  ?? null   // null = 業績予想非開示
+  const nyeps  = f?.nyEPS ?? null   // null = 来期予想非開示
   const bps    = f?.bps   ?? 0
   const fdiv   = f?.fdiv  ?? f?.divAnn ?? 0
 

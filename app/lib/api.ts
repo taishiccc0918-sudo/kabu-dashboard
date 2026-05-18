@@ -21,6 +21,11 @@ function n(v: unknown): number {
   const num = Number(v)
   return isNaN(num) ? 0 : num
 }
+function nOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const num = Number(v)
+  return isNaN(num) ? null : num
+}
 
 export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: string; dateDisp: string }> {
   const today = new Date()
@@ -183,6 +188,15 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
     }
     return 0
   }
+  function bestValOrNull(stmts: Record<string,string>[], ...keys: string[]): number | null {
+    for (const key of keys) {
+      for (let i = stmts.length - 1; i >= 0; i--) {
+        const v = nOrNull(stmts[i][key])
+        if (v !== null && v !== 0) return v
+      }
+    }
+    return null
+  }
   // 429専用バックオフ: 2秒→5秒→10秒→20秒
   const retryWaits429 = [2000, 5000, 10000, 20000]
   let retry429 = 0
@@ -209,7 +223,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const sales  = fyVal('Sales') || bestVal(all,'Sales')
       const op     = fyVal('OP')    || bestVal(all,'OP')
       const np     = fyVal('NP')    || bestVal(all,'NP')
-      const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
+      const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
       if (['8306','285A','6758','6861'].includes(code)) {
         console.log(`[fins/summary:${code}] stmts=${stmts.length} perType=${fy.CurPerType} FEPS=${fy.FEPS} EPS=${fy.EPS} Sales=${fy.Sales} discDate=${fy.DiscDate}`)
         console.log(`[fins/summary:${code}] keys:`, Object.keys(fy).join(','))
@@ -220,7 +234,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       return {
         fin: {
           sales,op,odp:bestVal(all,'OdP'),np,eps:fyVal('EPS')||bestVal(all,'EPS'),feps,
-          nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
+          nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNull(all,'NxFEPS'),
           bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
           fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
           fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
@@ -264,6 +278,15 @@ export async function fetchAllFinancials(
     }
     return 0
   }
+  function bestValOrNull(stmts: Record<string,string>[], ...keys: string[]): number | null {
+    for (const key of keys) {
+      for (let i = stmts.length - 1; i >= 0; i--) {
+        const v = nOrNull(stmts[i][key])
+        if (v !== null && v !== 0) return v
+      }
+    }
+    return null
+  }
 
   function processStmts(code: string, stmts: Record<string,string>[]) {
     if (!stmts || stmts.length === 0) return
@@ -286,13 +309,13 @@ export async function fetchAllFinancials(
     const sales  = fyVal('Sales') || bestVal(all,'Sales')
     const op     = fyVal('OP')    || bestVal(all,'OP')
     const np     = fyVal('NP')    || bestVal(all,'NP')
-    const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
+    const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
     const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
-      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
+      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNull(all,'NxFEPS'),
       bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
       fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
       fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),

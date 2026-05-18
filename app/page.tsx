@@ -1604,12 +1604,12 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
         title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
       >{r.perA ? fmtN(r.perA) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''}`}
-        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : undefined}
-      >{r.perF ? fmtN(r.perF) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
-        title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : undefined}
-      >{r.perN ? fmtN(r.perN) : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
+        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
+      >{r.perF != null ? fmtN(r.perF) : fin?.feps === null ? '非開示' : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`}
+        title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : fin?.nyEPS === null ? '来期予想EPS非開示' : undefined}
+      >{r.perN != null ? fmtN(r.perN) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip}`}
         style={{background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)}}
         title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
@@ -1617,8 +1617,8 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
-      <td className={styles.tdPct} style={{color: pctCellColor(r.epsGr)}}>{r.epsGr !== null ? fmtPct(r.epsGr) : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg ? fmtN(r.peg, 2) : '—'}</td>
+      <td className={`${styles.tdPct} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsGr !== null ? pctCellColor(r.epsGr) : undefined}}>{r.epsGr !== null ? fmtPct(r.epsGr) : fin?.nyEPS === null ? '非開示' : '—'}</td>
+      <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
       <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>

@@ -118,8 +118,8 @@ export interface FinRecord {
   odp: number
   np: number
   eps: number
-  feps: number
-  nyEPS: number
+  feps: number | null
+  nyEPS: number | null
   bps: number
   equity: number
   assets: number

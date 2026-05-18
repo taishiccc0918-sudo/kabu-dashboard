@@ -881,7 +881,7 @@
 .wlManager {
   padding: 0; width: 100%;
   display: flex; flex-direction: column;
-  height: calc(100vh - 52px);
+  height: calc(100vh - 80px); /* 52px header + 28px statusBar */
 }
 .wlHeader {
   display: flex; align-items: center; justify-content: space-between;
@@ -1019,6 +1019,7 @@
   border-radius: 4px; font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
   transition: border-color .1s; box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wlMemoInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
 .wlMemoInput::placeholder { color: #2a3a52; }
@@ -1447,6 +1448,13 @@
 .lightMode .searchDropdownEmpty { color: #64748b !important; }
 .lightMode .searchDropdownCategory { color: #64748b !important; border-top-color: #e2e8f0 !important; }
 .lightMode .searchDropdownItem:hover { background: rgba(37,99,235,0.06) !important; }
+
+/* ── ライトモード: ステータスバー ───────────── */
+.lightMode .statusBar { background: rgba(248,250,252,0.97) !important; border-top-color: #cbd5e1 !important; color: #475569 !important; }
+.lightMode .statusDot { background: #10b981 !important; }
+.lightMode .statusError { background: #ef4444 !important; }
+.lightMode .progressBar { background: #e2e8f0 !important; }
+.lightMode .progressFill { background: #3b82f6 !important; }
 .lightMode .searchDropdownItemActive { background: rgba(37,99,235,0.1) !important; }
 .lightMode .searchDropdownCode { color: #2563eb !important; }
 .lightMode .searchDropdownName { color: #1e293b !important; }

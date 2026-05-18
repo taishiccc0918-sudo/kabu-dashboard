@@ -1177,6 +1177,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
             className={styles.wlMemoInput}
             placeholder="メモ"
             value={localMemo}
+            title={localMemo || undefined}
             onChange={e => setLocalMemo(e.target.value)}
             onBlur={() => onSaveMeta({ ...meta, memo: localMemo })}
             onKeyDown={e => { if (e.key === 'Enter') { onSaveMeta({ ...meta, memo: localMemo }); e.currentTarget.blur() } }}

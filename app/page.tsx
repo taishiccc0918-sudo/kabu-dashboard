@@ -354,6 +354,11 @@ export default function Page() {
     [activeLogic]
   )
 
+  const maxDiscDate = useMemo(() => {
+    const dates = Object.values(finDB).map(f => f.discDate).filter(Boolean)
+    return dates.length > 0 ? [...dates].sort().at(-1)! : ''
+  }, [finDB])
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
     let rows = allRows.filter(r => {
@@ -583,7 +588,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
           <label className={styles.apiLabel}>
@@ -1586,7 +1591,9 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         <span className={styles.starSymbol}>★</span>
       </td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
-      <td className={`${styles.tdName} ${styles.stickyCol1}`} style={{background: stickyNameBg}}>{r.name || '—'}</td>
+      <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
+        title={fin?.discDate ? `開示: ${fin.discDate.replace(/-/g,'/')} (${fin.perType === 'FY' ? 'FY通期' : fin.perType || '—'})` : undefined}
+      >{r.name || '—'}</td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>

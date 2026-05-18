@@ -202,9 +202,13 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const fy = latestFY ?? stmts[stmts.length-1]
       const nfy = latestNonFY ?? fy
       const all = stmts
+      const fyVal = (...keys: string[]) => { for (const k of keys) { const v = n(fy[k]); if (v !== 0) return v } return 0 }
       const shOut = bestVal(all,'ShOutFY','ShOut')
-      const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
-      const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
+      const equity = fyVal('Eq')    || bestVal(all,'Eq')
+      const assets = fyVal('TA')    || bestVal(all,'TA')
+      const sales  = fyVal('Sales') || bestVal(all,'Sales')
+      const op     = fyVal('OP')    || bestVal(all,'OP')
+      const np     = fyVal('NP')    || bestVal(all,'NP')
       const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
       if (['8306','285A','6758','6861'].includes(code)) {
         console.log(`[fins/summary:${code}] stmts=${stmts.length} perType=${fy.CurPerType} FEPS=${fy.FEPS} EPS=${fy.EPS} Sales=${fy.Sales} discDate=${fy.DiscDate}`)
@@ -215,9 +219,9 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
       return {
         fin: {
-          sales,op,odp:bestVal(all,'OdP'),np,eps:bestVal(all,'EPS'),feps,
+          sales,op,odp:bestVal(all,'OdP'),np,eps:fyVal('EPS')||bestVal(all,'EPS'),feps,
           nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
-          bps:bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
+          bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
           fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
           fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
           nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
@@ -274,18 +278,22 @@ export async function fetchAllFinancials(
     const fy = latestFY ?? stmts[stmts.length-1]
     const nfy = latestNonFY ?? fy
     const all = stmts
+    const fyVal = (...keys: string[]) => { for (const k of keys) { const v = n(fy[k]); if (v !== 0) return v } return 0 }
     const shOut = bestVal(all,'ShOutFY','ShOut')
     if (shOut > 0) shOutDB[code] = shOut
-    const equity=bestVal(all,'Eq'), assets=bestVal(all,'TA')
-    const sales=bestVal(all,'Sales'), op=bestVal(all,'OP'), np=bestVal(all,'NP')
+    const equity = fyVal('Eq')    || bestVal(all,'Eq')
+    const assets = fyVal('TA')    || bestVal(all,'TA')
+    const sales  = fyVal('Sales') || bestVal(all,'Sales')
+    const op     = fyVal('OP')    || bestVal(all,'OP')
+    const np     = fyVal('NP')    || bestVal(all,'NP')
     const feps=n(fy.FEPS)||n(nfy.FEPS)||bestVal(all,'FEPS')
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
     const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
-      eps:bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
-      bps:bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
+      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS:n(fy.NxFEPS)||n(nfy.NxFEPS)||bestVal(all,'NxFEPS'),
+      bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
       fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
       fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
       nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),

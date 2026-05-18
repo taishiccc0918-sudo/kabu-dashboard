@@ -48,6 +48,7 @@
   padding: 3px 10px; border-radius: 4px;
 }
 .lastUpdate strong { color: #60a5fa; font-weight: 600; }
+.discDateLabel { margin-left: 14px; font-size: 12px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
 
 .headerRight { display: flex; align-items: center; gap: 8px; }
 .apiLabel { font-size: 11px; color: #4e6280; font-family: 'JetBrains Mono', 'Courier New', monospace; }

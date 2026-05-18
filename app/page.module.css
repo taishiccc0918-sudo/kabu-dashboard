@@ -1321,6 +1321,139 @@
 }
 .wlGenreFilterClear:hover { background: rgba(239,68,68,0.15); }
 
+/* ── ジャンル管理ドロップダウン（A） ─────────────────────── */
+.genreDropdownBtn {
+  padding: 4px 10px; border-radius: 5px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #4e6280; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .12s; white-space: nowrap; flex-shrink: 0;
+}
+.genreDropdownBtn:hover { color: #8fa3be; border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+.genrePanel {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  width: 220px; max-height: 400px;
+  background: #111827; border: 1px solid #2a3a52;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 350; display: flex; flex-direction: column;
+  animation: fadeIn .12s ease;
+}
+.genrePanelSearch {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.05); border: none;
+  border-bottom: 1px solid #2a3a52;
+  color: #e8eef8; padding: 8px 12px;
+  font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
+  border-radius: 8px 8px 0 0; outline: none;
+}
+.genrePanelSearch::placeholder { color: #4e6280; }
+.genrePanelList { flex: 1; overflow-y: auto; padding: 4px 0; }
+.genrePanelItem {
+  display: flex; align-items: center; padding: 5px 12px; gap: 6px;
+  transition: background .1s;
+}
+.genrePanelItem:hover { background: rgba(255,255,255,0.04); }
+.genrePanelItemName {
+  flex: 1; font-size: 12px; color: #c8d8e8;
+  font-family: 'Noto Sans JP', sans-serif; min-width: 0;
+}
+.genrePanelActions {
+  display: flex; gap: 3px; flex-shrink: 0;
+  opacity: 0; transition: opacity .12s;
+}
+.genrePanelItem:hover .genrePanelActions { opacity: 1; }
+.genrePanelRenameBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; padding: 2px 5px; color: #4e6280;
+  border-radius: 3px; transition: background .1s; line-height: 1;
+}
+.genrePanelRenameBtn:hover { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.genrePanelDeleteBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; padding: 0 5px; color: #f87171; opacity: 0.6;
+  border-radius: 3px; transition: all .1s; line-height: 1;
+}
+.genrePanelDeleteBtn:hover { opacity: 1; background: rgba(239,68,68,0.12); }
+.genrePanelFooter {
+  border-top: 1px solid #1f2d40; padding: 8px 12px; flex-shrink: 0;
+}
+
+/* ── ジャンルフィルタードロップダウン（B） ─────────────────── */
+.genreFilterBtn {
+  background: none; border: 1px solid transparent; cursor: pointer;
+  font-size: 9px; color: #4e6280; padding: 1px 3px;
+  border-radius: 3px; transition: all .12s; line-height: 1;
+  margin-left: 4px; vertical-align: middle;
+}
+.genreFilterBtn:hover { color: #8fa3be; border-color: #2a3a52; }
+.genreFilterBtnActive { color: #3b82f6 !important; border-color: #3b82f6 !important; }
+.genreFilterPanel {
+  width: 200px; max-height: 380px;
+  background: #111827; border: 1px solid #2a3a52;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  z-index: 1000; display: flex; flex-direction: column;
+  animation: fadeIn .12s ease; font-weight: 400;
+}
+.genreFilterSearch {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.05); border: none;
+  border-bottom: 1px solid #2a3a52;
+  color: #e8eef8; padding: 7px 10px;
+  font-size: 11px; font-family: 'Noto Sans JP', sans-serif;
+  border-radius: 8px 8px 0 0; outline: none;
+}
+.genreFilterSearch::placeholder { color: #4e6280; }
+.genreFilterSelectAll {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 10px; cursor: pointer;
+  border-bottom: 1px solid #1f2d40;
+  font-size: 11px; color: #8fa3be;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: background .1s; flex-shrink: 0;
+}
+.genreFilterSelectAll:hover { background: rgba(255,255,255,0.04); }
+.genreFilterList { flex: 1; overflow-y: auto; padding: 2px 0; }
+.genreFilterItem {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; cursor: pointer; transition: background .1s;
+  font-size: 11px; color: #8fa3be;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.genreFilterItem:hover { background: rgba(255,255,255,0.04); }
+.genreFilterCheck { font-size: 12px; flex-shrink: 0; }
+.genreFilterLabel { flex: 1; }
+.genreFilterDivider { height: 1px; background: #1f2d40; flex-shrink: 0; }
+.genreFilterActions {
+  display: flex; gap: 6px; padding: 8px 10px; flex-shrink: 0;
+}
+.genreFilterApplyBtn {
+  flex: 1; padding: 5px 8px; border-radius: 5px;
+  border: 1px solid #3b82f6; background: rgba(59,130,246,0.15);
+  color: #60a5fa; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: background .12s;
+}
+.genreFilterApplyBtn:hover { background: rgba(59,130,246,0.28); }
+.genreFilterClearBtn {
+  flex: 1; padding: 5px 8px; border-radius: 5px;
+  border: 1px solid #2a3a52; background: rgba(255,255,255,0.03);
+  color: #8fa3be; font-size: 11px;
+  font-family: 'Noto Sans JP', sans-serif;
+  cursor: pointer; transition: all .12s;
+}
+.genreFilterClearBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.07); }
+
+/* ── 行内ジャンルチップ（リネームボタン付き）─────────────── */
+.genreChipWrap { display: inline-flex; align-items: center; }
+.genreChipRenameBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 9px; padding: 0 1px; line-height: 1;
+  opacity: 0; transition: opacity .12s; color: #4e6280;
+}
+.genreChipWrap:hover .genreChipRenameBtn { opacity: 0.8; }
+.genreChipRenameBtn:hover { opacity: 1 !important; }
+
 /* メモ最終更新日 */
 .memoTimestamp {
   font-size: 11px; color: #4e6280;
@@ -1870,6 +2003,35 @@
 .lightMode .helpIndRow:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
 .lightMode .helpIndLabel { color: #2563eb !important; }
 .lightMode .helpIndDesc { color: #475569 !important; }
+
+/* ── GENRE DROPDOWN / FILTER: LIGHT MODE ──────────────── */
+.lightMode .genreDropdownBtn { border-color: #94a3b8 !important; color: #475569 !important; background: #f8fafc !important; }
+.lightMode .genreDropdownBtn:hover { border-color: #2563eb !important; color: #1e293b !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .genrePanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
+.lightMode .genrePanelSearch { background: #f8fafc !important; border-bottom-color: #e2e8f0 !important; color: #1e293b !important; }
+.lightMode .genrePanelSearch::placeholder { color: #94a3b8 !important; }
+.lightMode .genrePanelItem:hover { background: rgba(0,0,0,0.03) !important; }
+.lightMode .genrePanelItemName { color: #1e293b !important; }
+.lightMode .genrePanelRenameBtn { color: #94a3b8 !important; }
+.lightMode .genrePanelRenameBtn:hover { background: rgba(37,99,235,0.1) !important; color: #2563eb !important; }
+.lightMode .genrePanelDeleteBtn { color: #dc2626 !important; }
+.lightMode .genrePanelFooter { border-top-color: #e2e8f0 !important; }
+.lightMode .genreFilterBtn { color: #94a3b8 !important; }
+.lightMode .genreFilterBtn:hover { color: #475569 !important; border-color: #94a3b8 !important; }
+.lightMode .genreFilterBtnActive { color: #2563eb !important; border-color: #2563eb !important; }
+.lightMode .genreFilterPanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
+.lightMode .genreFilterSearch { background: #f8fafc !important; border-bottom-color: #e2e8f0 !important; color: #1e293b !important; }
+.lightMode .genreFilterSearch::placeholder { color: #94a3b8 !important; }
+.lightMode .genreFilterSelectAll { color: #475569 !important; border-bottom-color: #e2e8f0 !important; }
+.lightMode .genreFilterSelectAll:hover { background: rgba(0,0,0,0.03) !important; }
+.lightMode .genreFilterItem { color: #475569 !important; }
+.lightMode .genreFilterItem:hover { background: rgba(0,0,0,0.03) !important; }
+.lightMode .genreFilterDivider { background: #e2e8f0 !important; }
+.lightMode .genreFilterApplyBtn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
+.lightMode .genreFilterApplyBtn:hover { background: rgba(37,99,235,0.2) !important; }
+.lightMode .genreFilterClearBtn { border-color: #94a3b8 !important; color: #475569 !important; background: #f8fafc !important; }
+.lightMode .genreFilterClearBtn:hover { color: #1e293b !important; background: rgba(0,0,0,0.04) !important; }
+.lightMode .genreChipRenameBtn { color: #64748b !important; }
 
 @media (max-width: 768px) {
   .helpPanel { width: 100%; min-width: 0; max-width: 100%; }

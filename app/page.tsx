@@ -35,6 +35,34 @@ function fmtJpDate(iso: string): string {
   return `${String(d.getFullYear()).slice(2)}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+// ── Escape スタック（LIFO: 最後に開いたパネルのみ閉じる）────────────────
+const _escapeStack: Array<() => void> = []
+let _escapeListenerAttached = false
+function initEscapeListener() {
+  if (typeof document === 'undefined' || _escapeListenerAttached) return
+  _escapeListenerAttached = true
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _escapeStack.length > 0) {
+      e.preventDefault()
+      _escapeStack[_escapeStack.length - 1]()
+    }
+  })
+}
+function useEscapeClose(open: boolean, close: () => void) {
+  const closeRef = useRef(close)
+  useEffect(() => { closeRef.current = close }, [close])
+  useEffect(() => {
+    if (!open) return
+    initEscapeListener()
+    const fn = () => closeRef.current()
+    _escapeStack.push(fn)
+    return () => {
+      const idx = _escapeStack.lastIndexOf(fn)
+      if (idx >= 0) _escapeStack.splice(idx, 1)
+    }
+  }, [open])
+}
+
 // ── 初期化（マイグレーション含む）──────────────────────────────────────
 function initFavorites(): Set<string> {
   if (typeof window === 'undefined') return new Set(DEFAULT_WATCHLIST)
@@ -843,7 +871,6 @@ function StockManager({
   }, [stockMeta])
 
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
-  const [editingGenre, setEditingGenre] = useState<string | null>(null)
 
   const filteredCodes = useMemo(() => {
     const q = wlSearch.trim().toLowerCase()
@@ -916,11 +943,10 @@ function StockManager({
     return () => document.removeEventListener('mousedown', onOutsideDown)
   }, [])
 
-  function handleRenameConfirm(oldName: string, rawNewName: string) {
+  const handleRename = useCallback((oldName: string, rawNewName: string) => {
     const trimmed = rawNewName.replace(/[\s　]+/g, ' ').trim()
     if (trimmed && trimmed !== oldName) {
       onRenameGenre(oldName, rawNewName)
-      // 【修正2】genreFilters の選択状態を新名に置換
       setGenreFilters(prev => {
         if (!prev.has(oldName)) return prev
         const next = new Set(prev)
@@ -929,8 +955,7 @@ function StockManager({
         return next
       })
     }
-    setEditingGenre(null)
-  }
+  }, [onRenameGenre])
 
   function scrollToWlRow(code: string) {
     setWlShowDropdown(false); setWlDropdownActive(-1)
@@ -1001,6 +1026,12 @@ function StockManager({
               >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
             ))}
           </div>
+          <GenreDropdown
+            genres={managedGenreOptions}
+            onAdd={onAddGenre}
+            onRename={handleRename}
+            onDelete={onRemoveGenre}
+          />
           <span className={styles.wlHeaderCount}>{filteredCodes.length}件</span>
         </div>
         <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
@@ -1008,55 +1039,6 @@ function StockManager({
         </button>
       </div>
 
-      <div className={styles.wlGenreBar}>
-        <span className={styles.wlGenreLabel}>ジャンル:</span>
-        {managedGenreOptions.map(g => (
-          editingGenre === g ? (
-            <GenreRenameInput
-              key={g}
-              defaultValue={g}
-              onConfirm={newName => handleRenameConfirm(g, newName)}
-              onCancel={() => setEditingGenre(null)}
-            />
-          ) : (
-            <span key={g} className={styles.genreBadgeEditable}>
-              {g}
-              {!editingGenre && (
-                <button
-                  className={styles.genreRenameBtn}
-                  onClick={() => setEditingGenre(g)}
-                  title="リネーム"
-                >✏️</button>
-              )}
-              <button className={styles.genreRemoveBtn} onClick={() => onRemoveGenre(g)} title="削除">×</button>
-            </span>
-          )
-        ))}
-        <AddGenreInput onAdd={onAddGenre} />
-      </div>
-
-      {allGenreOptions.length > 0 && (
-        <div className={styles.wlGenreFilter}>
-          <span className={styles.wlGenreFilterLabel}>絞込:</span>
-          {genreFilters.size > 0 && (
-            <button
-              className={styles.wlGenreFilterClear}
-              onClick={() => setGenreFilters(new Set())}
-            >全解除</button>
-          )}
-          {allGenreOptions.map(g => (
-            <button
-              key={g}
-              className={`${styles.wlGenreFilterChip} ${genreFilters.has(g) ? styles.wlGenreFilterChipActive : ''}`}
-              onClick={() => setGenreFilters(prev => {
-                const next = new Set(prev)
-                next.has(g) ? next.delete(g) : next.add(g)
-                return next
-              })}
-            >{g}</button>
-          ))}
-        </div>
-      )}
 
       <div className={styles.wlTableScroll}>
         <table className={styles.wlTableInner}>
@@ -1066,7 +1048,15 @@ function StockManager({
               <th className={styles.wlTh} style={{width:68}}>コード</th>
               <th className={styles.wlTh} style={{width:190}}>銘柄名</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
-              <th className={styles.wlTh} style={{width:220}}>ジャンル</th>
+              <th className={styles.wlTh} style={{width:220}}>
+                ジャンル
+                <GenreFilterDropdown
+                  genres={allGenreOptions}
+                  activeFilters={genreFilters}
+                  onApply={filters => setGenreFilters(filters)}
+                  onClear={() => setGenreFilters(new Set())}
+                />
+              </th>
               <th className={styles.wlTh}>メモ</th>
               <th className={styles.wlTh} style={{width:180}}>リンク</th>
             </tr>
@@ -1089,6 +1079,7 @@ function StockManager({
                 onToggleSuperFav={() => onToggleSuperFav(code)}
                 onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
                 onAddGenre={onAddGenre}
+                onRenameGenre={handleRename}
                 highlighted={wlHighlightCode === code}
               />
             ))}
@@ -1114,7 +1105,7 @@ function StockManager({
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, highlighted,
+  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, highlighted,
 }: {
   code: string
   rec: MasterRecord
@@ -1126,10 +1117,12 @@ const StockManagerRow = React.memo(function StockManagerRow({
   onToggleSuperFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   onAddGenre: (name: string) => void
+  onRenameGenre?: (oldName: string, newName: string) => void
   highlighted: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [localMemo, setLocalMemo] = useState(meta.memo)
+  const [editingGenreInRow, setEditingGenreInRow] = useState<string | null>(null)
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
 
   const genres = meta.genres
@@ -1198,10 +1191,27 @@ const StockManagerRow = React.memo(function StockManagerRow({
           <td colSpan={7} className={styles.wlEditTd}>
             <div className={styles.wlGenreEditPanel}>
               {allGenreOptions.map(g => (
-                <button key={g}
-                  className={`${styles.genreTag} ${genres.includes(g) ? styles.genreTagOn : ''}`}
-                  onClick={() => toggleGenre(g)}
-                >{g}</button>
+                <span key={g} className={styles.genreChipWrap}>
+                  {editingGenreInRow === g ? (
+                    <GenreRenameInput
+                      defaultValue={g}
+                      onConfirm={newName => { onRenameGenre?.(g, newName); setEditingGenreInRow(null) }}
+                      onCancel={() => setEditingGenreInRow(null)}
+                    />
+                  ) : (
+                    <>
+                      <button
+                        className={`${styles.genreTag} ${genres.includes(g) ? styles.genreTagOn : ''}`}
+                        onClick={() => toggleGenre(g)}
+                      >{g}</button>
+                      <button
+                        className={styles.genreChipRenameBtn}
+                        onClick={() => setEditingGenreInRow(g)}
+                        title="リネーム"
+                      >✏️</button>
+                    </>
+                  )}
+                </span>
               ))}
               <InlineGenreAdd onAdd={(name) => { onAddGenre(name); toggleGenre(name) }} />
             </div>
@@ -1648,6 +1658,168 @@ function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: St
         <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
       </div>
     </div>
+  )
+}
+
+// ─── GenreDropdown（A: ジャンル管理プルダウン）────────────────────────
+function GenreDropdown({ genres, onAdd, onRename, onDelete }: {
+  genres: string[]
+  onAdd: (name: string) => void
+  onRename: (oldName: string, newName: string) => void
+  onDelete: (name: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEscapeClose(open, () => { setOpen(false); setRenaming(null) })
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false); setRenaming(null)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const filtered = genres.filter(g => !search.trim() || g.includes(search.trim()))
+
+  return (
+    <div style={{ position: 'relative' }} ref={wrapRef}>
+      <button className={styles.genreDropdownBtn} onClick={() => setOpen(o => !o)}>
+        ジャンル▼
+      </button>
+      {open && (
+        <div className={styles.genrePanel}>
+          <input
+            className={styles.genrePanelSearch}
+            placeholder="🔍 ジャンル検索"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.genrePanelList}>
+            {filtered.map(g => (
+              <div key={g} className={styles.genrePanelItem}>
+                {renaming === g ? (
+                  <GenreRenameInput
+                    defaultValue={g}
+                    onConfirm={newName => { onRename(g, newName); setRenaming(null) }}
+                    onCancel={() => setRenaming(null)}
+                  />
+                ) : (
+                  <>
+                    <span className={styles.genrePanelItemName}>{g}</span>
+                    <div className={styles.genrePanelActions}>
+                      <button className={styles.genrePanelRenameBtn} onClick={() => setRenaming(g)} title="リネーム">✏️</button>
+                      <button className={styles.genrePanelDeleteBtn} onClick={() => onDelete(g)} title="削除">×</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className={styles.genrePanelFooter}>
+            <InlineGenreAdd onAdd={(name) => { onAdd(name); setSearch('') }} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── GenreFilterDropdown（B: 列ヘッダーフィルター）────────────────────
+function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
+  genres: string[]
+  activeFilters: Set<string>
+  onApply: (filters: Set<string>) => void
+  onClear: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [pending, setPending] = useState<Set<string>>(new Set(activeFilters))
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({})
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEscapeClose(open, () => setOpen(false))
+
+  useEffect(() => { setPending(new Set(activeFilters)) }, [activeFilters])
+
+  useEffect(() => {
+    if (!open) return
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const left = Math.max(4, r.left - 200 + r.width + 4)
+      setPanelStyle({ position: 'fixed', top: r.bottom + 4, left })
+    }
+    function onDown(e: MouseEvent) {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const filtered = genres.filter(g => !search.trim() || g.includes(search.trim()))
+  const allSelected = filtered.length > 0 && filtered.every(g => pending.has(g))
+
+  function toggleAll() {
+    const next = new Set(pending)
+    if (allSelected) { filtered.forEach(g => next.delete(g)) }
+    else             { filtered.forEach(g => next.add(g)) }
+    setPending(next)
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className={`${styles.genreFilterBtn} ${activeFilters.size > 0 ? styles.genreFilterBtnActive : ''}`}
+        onClick={() => setOpen(o => !o)}
+        title="ジャンルで絞り込み"
+      >▼</button>
+      {open && (
+        <div className={styles.genreFilterPanel} ref={panelRef} style={panelStyle}>
+          <input
+            className={styles.genreFilterSearch}
+            placeholder="🔍 ジャンル検索"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.genreFilterSelectAll} onClick={toggleAll}>
+            <span className={styles.genreFilterCheck}>{allSelected ? '☑' : '☐'}</span>
+            <span>{allSelected ? '全解除' : '全選択'}</span>
+          </div>
+          <div className={styles.genreFilterList}>
+            {filtered.map(g => (
+              <div key={g} className={styles.genreFilterItem} onClick={() => {
+                const next = new Set(pending)
+                next.has(g) ? next.delete(g) : next.add(g)
+                setPending(next)
+              }}>
+                <span className={styles.genreFilterCheck}>{pending.has(g) ? '☑' : '☐'}</span>
+                <span className={styles.genreFilterLabel}>{g}</span>
+              </div>
+            ))}
+          </div>
+          <div className={styles.genreFilterDivider} />
+          <div className={styles.genreFilterActions}>
+            <button className={styles.genreFilterApplyBtn} onClick={() => { onApply(pending); setOpen(false) }}>適用</button>
+            <button className={styles.genreFilterClearBtn} onClick={() => { onClear(); setPending(new Set()); setOpen(false) }}>クリア</button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

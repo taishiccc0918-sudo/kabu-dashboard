@@ -229,7 +229,8 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
         console.log(`[fins/summary:${code}] keys:`, Object.keys(fy).join(','))
       }
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
-      const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
+      const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
+      const nySales=nySalesRaw??0
       const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
       return {
         fin: {
@@ -242,7 +243,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
           opMgn:sales?op/sales:0,
           salesGr:(sales&&fsales)?fsales/sales-1:0,
-          nySalesGr:(sales&&nySales)?nySales/sales-1:0,
+          nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
         },
         shOut,
       }
@@ -311,7 +312,8 @@ export async function fetchAllFinancials(
     const np     = fyVal('NP')    || bestVal(all,'NP')
     const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
-    const nySales=n(fy.NxFSales)||n(nfy.NxFSales)||bestVal(all,'NxFSales')
+    const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
+    const nySales=nySalesRaw??0
     const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
@@ -323,7 +325,7 @@ export async function fetchAllFinancials(
       roe:equity?np/equity:0, eqRat:assets?equity/assets:0,
       opMgn:sales?op/sales:0,
       salesGr:(sales&&fsales)?fsales/sales-1:0,
-      nySalesGr:(sales&&nySales)?nySales/sales-1:0,
+      nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
     }
   }
 

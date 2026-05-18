@@ -1610,17 +1610,17 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`}
         title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : fin?.nyEPS === null ? '来期予想EPS非開示' : undefined}
       >{r.perN != null ? fmtN(r.perN) : fin?.nyEPS === null ? '非開示' : '—'}</td>
-      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip}`}
-        style={{background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)}}
-        title={r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
-      >{fmtPct(r.perFChg1m)}</td>
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
+        style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
+        title={fin?.feps === null ? '業績予想を開示していない銘柄です' : r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
+      >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsGr !== null ? pctCellColor(r.epsGr) : undefined}}>{r.epsGr !== null ? fmtPct(r.epsGr) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
-      <td className={styles.tdPct} style={{color: pctCellColor(r.nySalesGr)}}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—'}</td>
+      <td className={`${styles.tdPct} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
       <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()}><a href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn} style={{lineHeight:1.1}}>Yahoo<br/>Finance</a></td>

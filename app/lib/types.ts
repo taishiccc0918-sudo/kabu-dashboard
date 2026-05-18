@@ -133,7 +133,7 @@ export interface FinRecord {
   eqRat: number
   opMgn: number
   salesGr: number
-  nySalesGr: number
+  nySalesGr: number | null
   fsales: number
   fop: number
   nySales: number

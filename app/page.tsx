@@ -928,7 +928,6 @@ function StockManager({
     return () => clearTimeout(timer)
   }, [wlSearch, allCodes, masterDB, stockMeta, favorites])
 
-  useEffect(() => { setPage(1) }, [wlSearch, showFavOnly, mktF])
 
   useEffect(() => {
     if (!wlHighlightCode) return
@@ -964,9 +963,30 @@ function StockManager({
 
   function scrollToWlRow(code: string) {
     setWlShowDropdown(false); setWlDropdownActive(-1)
-    // wlSearch はクリアしない（候補は filteredCodes に既にマッチ済み）
-    // → useEffect(() => setPage(1), [wlSearch]) が発火せずページが保たれる
-    const idx = filteredCodes.indexOf(code)
+
+    let idx = filteredCodes.indexOf(code)
+
+    if (idx < 0) {
+      // wlSearch テキストフィルターで除外されているケース（メモ検索結果等）
+      // wlSearch を除いた現在のフィルター条件でインデックスを再計算してからクリア
+      const noSearchCodes = allCodes.filter(c => {
+        const rec = masterDB[c]
+        if (!rec) return false
+        if (showFavOnly   && !favorites.has(c))      return false
+        if (showHeartOnly && !superFavorites.has(c)) return false
+        if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
+        if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
+        if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+        if (genreFilters.size > 0) {
+          const genres = stockMeta[c]?.genres ?? []
+          if (!genres.some(g => genreFilters.has(g))) return false
+        }
+        return true
+      })
+      idx = noSearchCodes.indexOf(code)
+      setWlSearch('')
+    }
+
     if (idx >= 0) setPage(Math.floor(idx / PER_PAGE) + 1)
     setWlHighlightCode(null)
     setTimeout(() => setWlHighlightCode(code), 0)
@@ -992,12 +1012,12 @@ function StockManager({
         <div className={styles.wlHeaderFilters}>
           <button
             className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-            onClick={() => setShowFavOnly(f => !f)}
+            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
             title="お気に入りのみ表示"
           >★</button>
           <button
             className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
-            onClick={() => setShowHeartOnly(h => !h)}
+            onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
             title="超お気に入り（♥）のみ表示"
           >♥</button>
           <div style={{ position: 'relative' }} ref={wlSearchWrapRef}>
@@ -1005,7 +1025,7 @@ function StockManager({
               className={styles.wlHeaderSearch}
               placeholder="🔍 検索"
               value={wlSearch}
-              onChange={e => setWlSearch(e.target.value)}
+              onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setPage(1) }}
               onFocus={() => setWlShowDropdown(true)}
               onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
               onKeyDown={e => {
@@ -1027,7 +1047,7 @@ function StockManager({
             {(['all','prime','standard','growth'] as const).map(k => (
               <button key={k}
                 className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${mktF === k ? styles.wlMktBtnActive : ''}`}
-                onClick={() => setMktF(k)}
+                onClick={() => { setMktF(k); setPage(1) }}
               >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
             ))}
           </div>

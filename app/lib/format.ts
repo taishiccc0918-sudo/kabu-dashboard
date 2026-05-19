@@ -71,12 +71,11 @@ export function buildStockRow(
   const fdiv   = f?.fdiv  ?? f?.divAnn ?? 0
 
   const epsCurGr = (eps && feps != null) ? feps / eps - 1 : null
-  const epsGr    = (eps && nyeps)        ? nyeps / eps - 1 : null
   const perA  = (close && eps)   ? close / eps   : null
   const perF  = (close && feps)  ? close / feps  : null
   const pbr   = (close && bps)   ? close / bps   : null
   const divY  = (close && fdiv)  ? fdiv  / close : null
-  const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
+  const peg   = (perF != null && epsCurGr !== null && epsCurGr !== 0) ? perF / (epsCurGr * 100) : null
 
   // 新計算式: (現在PER) / (過去PER) - 1 = (close * pastFeps) / (pastClose * feps) - 1
   // pastFeps が null の場合は null を返す（≠ 非開示。IPO直後等でデータなし）
@@ -109,7 +108,6 @@ export function buildStockRow(
     roe:        f?.roe    ?? null,
     divY,
     epsCurGr,
-    epsGr,
     peg,
     opMgn:      f?.opMgn  ?? null,
     nySalesGr:  f?.nySalesGr ?? null,

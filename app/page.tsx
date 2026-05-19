@@ -1517,7 +1517,6 @@ function DashboardTable({
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
     { label: 'EPS今期成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, group: 'other', tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
-    { label: 'EPS来期成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other', tooltip: 'EPS（1株あたり利益）の成長率（来期予想EPS÷最新FY実績EPS−1）。\n高成長の目安は15%超。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷最新FY確定売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
     { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other', tooltip: '【判定ロジック（新エンジン）】\n割安株: PER今期<15 AND PBR<1.5 AND ROE>8%\nグロース株: 来期売上成長>15% AND 営業利益率>15%\n押し目: 株価1ヶ月変化率≤−5%\nいずれか1グループ以上に該当で「買い」' },
@@ -1527,7 +1526,7 @@ function DashboardTable({
     { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,92,64,64,92,108,64,72,64,84,72,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,92,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1560,7 +1559,7 @@ function DashboardTable({
           {colGroup}
           <tbody>
             {filteredRows.length === 0 ? (
-              <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={27} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
               <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
             ))}
@@ -1625,7 +1624,6 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>
-      <td className={`${styles.tdPct} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsGr !== null ? pctCellColor(r.epsGr) : undefined}}>{r.epsGr !== null ? fmtPct(r.epsGr) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={`${styles.tdPct} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
       <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
@@ -1997,7 +1995,6 @@ function DetailPanel({
           ['ROE',        null, r.roe  ? fmtPct(r.roe) : '—', r.roe && r.roe > 0.1 ? 'up' : ''],
           ['配当利回り', null, r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],
           ['EPS今期成長率',null, r.epsCurGr !== null ? fmtPct(r.epsCurGr) : '—', pctClass(r.epsCurGr)],
-          ['EPS来期成長率',null, r.epsGr !== null ? fmtPct(r.epsGr) : '—', pctClass(r.epsGr)],
           ['PEGレシオ',  null, r.peg  ? fmtN(r.peg,2) : '—', r.peg && r.peg < 1 ? 'up' : ''],
           ['時価総額(億)',null, r.mcap ? r.mcap.toLocaleString() : '—', ''],
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],

@@ -164,7 +164,6 @@ export interface StockRow {
   roe: number | null
   divY: number | null
   epsCurGr: number | null
-  epsGr: number | null
   peg: number | null
   opMgn: number | null
   nySalesGr: number | null

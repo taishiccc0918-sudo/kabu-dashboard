@@ -158,10 +158,13 @@ export interface StockRow {
   perF: number | null
   perN: number | null
   perFChg1w: number | null
+  perFChg1wPrev: number | null
   perFChg1m: number | null
   perFChg1mPrev: number | null
   perFChg3m: number | null
+  perFChg3mPrev: number | null
   perFChg1y: number | null
+  perFChg1yPrev: number | null
   pbr: number | null
   roe: number | null
   divY: number | null

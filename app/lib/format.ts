@@ -70,7 +70,10 @@ export function buildStockRow(
     return close / pastClose - 1
   }
   const prev1m = (p as { prev1m?: number }).prev1m
-  const perFChg1mPrev = (prev1m && feps) ? prev1m / feps : null
+  const perFChg1wPrev  = (p.prev1w && feps) ? p.prev1w  / feps : null
+  const perFChg1mPrev  = (prev1m   && feps) ? prev1m    / feps : null
+  const perFChg3mPrev  = (p.prev3m && feps) ? p.prev3m  / feps : null
+  const perFChg1yPrev  = (p.prev1y && feps) ? p.prev1y  / feps : null
 
   const meta = stockMeta[code]
   const genres = meta?.genres ?? []
@@ -88,10 +91,13 @@ export function buildStockRow(
     mcap:       p.mcap  ?? 0,
     perA, perF, perN,
     perFChg1w:  perFAt(p.prev1w),
+    perFChg1wPrev,
     perFChg1m:  perFAt(prev1m),
     perFChg1mPrev,
     perFChg3m:  perFAt(p.prev3m),
+    perFChg3mPrev,
     perFChg1y:  perFAt(p.prev1y),
+    perFChg1yPrev,
     pbr,
     roe:        f?.roe    ?? null,
     divY,

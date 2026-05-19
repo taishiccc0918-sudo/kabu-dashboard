@@ -1512,7 +1512,10 @@ function DashboardTable({
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
     { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per', tooltip: '株価÷来期予想EPS。\n来期の成長性を加味した割安度。\n来期の業績改善が見込まれるか確認できる。' },
-    { label: 'PER今期の1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
+    { label: 'PER今期\n1週間前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1w' as keyof StockRow, group: 'per', tooltip: '1週間前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1W前XX倍→現在YY倍/差・比)' },
+    { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '1ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1M前XX倍→現在YY倍/差・比)' },
+    { label: 'PER今期\n3ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg3m' as keyof StockRow, group: 'per', tooltip: '3ヶ月前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(3M前XX倍→現在YY倍/差・比)' },
+    { label: 'PER今期\n1年前比',   cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1y' as keyof StockRow, group: 'per', tooltip: '1年前のPER今期→現在のPER今期の変化。\nセルにホバーで詳細(1Y前XX倍→現在YY倍/差・比)' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER÷EPS来期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
@@ -1527,7 +1530,7 @@ function DashboardTable({
     { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,140,64,64,88,92,64,92,108,64,72,64,84,72,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,76,76,76,76,64,64,88,92,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1546,7 +1549,7 @@ function DashboardTable({
                   className={`${col.cls} ${col.key ? styles.thSort : ''} ${col.tooltip ? styles.thTooltip : ''}`}
                   style={col.width ? {width: col.width, minWidth: col.width} : undefined}
                   onClick={col.key ? () => handleSort(col.key!) : undefined}
-                  title={col.tooltip}
+                  title={col.tooltip ?? col.label.replace(/\n/g, ' ')}
                 >
                   {col.label}
                 </th>
@@ -1560,7 +1563,7 @@ function DashboardTable({
           {colGroup}
           <tbody>
             {filteredRows.length === 0 ? (
-              <tr><td colSpan={28} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={31} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
               <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
             ))}
@@ -1611,9 +1614,21 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : fin?.nyEPS === null ? '来期予想EPS非開示' : undefined}
       >{r.perN != null ? fmtN(r.perN) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
+        style={fin?.feps !== null ? {background: pctBg(r.perFChg1w), color: pctCellColor(r.perFChg1w)} : undefined}
+        title={fin?.feps === null ? '業績予想を開示していない銘柄です' : r.perFChg1wPrev && r.perF ? `1W前: ${fmtN(r.perFChg1wPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1wPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1w)}` : undefined}
+      >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1w)}</td>
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : r.perFChg1mPrev && r.perF ? `1M前: ${fmtN(r.perFChg1mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
+        style={fin?.feps !== null ? {background: pctBg(r.perFChg3m), color: pctCellColor(r.perFChg3m)} : undefined}
+        title={fin?.feps === null ? '業績予想を開示していない銘柄です' : r.perFChg3mPrev && r.perF ? `3M前: ${fmtN(r.perFChg3mPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg3mPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg3m)}` : undefined}
+      >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg3m)}</td>
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
+        style={fin?.feps !== null ? {background: pctBg(r.perFChg1y), color: pctCellColor(r.perFChg1y)} : undefined}
+        title={fin?.feps === null ? '業績予想を開示していない銘柄です' : r.perFChg1yPrev && r.perF ? `1Y前: ${fmtN(r.perFChg1yPrev)}倍 → 現在: ${fmtN(r.perF)}倍 ／ 差: ${(r.perF - r.perFChg1yPrev).toFixed(1)}倍 ／ 比: ${fmtPct(r.perFChg1y)}` : undefined}
+      >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1y)}</td>
       <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>

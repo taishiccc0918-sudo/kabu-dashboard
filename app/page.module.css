@@ -217,13 +217,14 @@
 .table thead th {
   background: #1a2535;
   padding: 7px 8px;
-  font-size: 12px; font-weight: 600;
+  font-size: 11px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   color: #9ca3af;
   white-space: pre-line;
   word-break: keep-all;
   line-height: 1.35;
   vertical-align: middle;
+  overflow: hidden;
   text-overflow: clip;
   position: sticky;
   top: 96px;

@@ -87,27 +87,17 @@ async function fetchPastDate(baseDate: string, daysBack: number, rangeDays: numb
   const base = new Date(parseInt(baseDate.slice(0,4)), parseInt(baseDate.slice(4,6))-1, parseInt(baseDate.slice(6,8)))
   const target = new Date(base)
   target.setDate(target.getDate() - daysBack)
-  console.log(`[fetchPastDate] base=${baseDate} daysBack=${daysBack} target=${localDateStr(target)}`)
   for (let offset = 0; offset <= rangeDays; offset++) {
     const d = new Date(target)
     d.setDate(d.getDate() - offset)
-    const dow = d.getDay()
+    if (d.getDay() === 0 || d.getDay() === 6) continue
     const candidate = localDateStr(d)
-    if (dow === 0 || dow === 6) {
-      console.log(`[fetchPastDate]   offset=${offset} ${candidate} dow=${dow} → SKIP(weekend)`)
-      continue
-    }
     try {
       const data = await jqFetch(`/equities/bars/daily?date=${candidate}&includeAUSession=false`, apiKey)
       const rows = (data as { data?: unknown[] }).data ?? []
-      console.log(`[fetchPastDate]   offset=${offset} ${candidate} rows=${rows.length} → ${rows.length > 0 ? 'RETURN' : 'SKIP(empty)'}`)
       if (rows.length > 0) return candidate
-    } catch (e) {
-      console.warn(`[fetchPastDate]   offset=${offset} ${candidate} → ERROR: ${e instanceof Error ? e.message : e}`)
-      continue
-    }
+    } catch { continue }
   }
-  console.warn(`[fetchPastDate] daysBack=${daysBack}: no date found, returning null`)
   return null
 }
 
@@ -122,7 +112,6 @@ export async function fetchPrices(
   const db: Record<string, PriceRecord> = {}
   const wlSet = new Set(watchlist)
   onProgress?.('株価データ取得中...')
-  console.log(`[fetchPrices] latestDate=${latestDate}`)
   const [d1w, d1m, d3m, d1y, prevDate] = await Promise.all([
     fetchPastDate(latestDate, 7, 7, apiKey),
     fetchPastDate(latestDate, 30, 7, apiKey),
@@ -130,7 +119,6 @@ export async function fetchPrices(
     fetchPastDate(latestDate, 365, 7, apiKey),
     fetchPastDate(latestDate, 1, 3, apiKey),
   ])
-  console.log(`[fetchPrices] dates → latest=${latestDate} prev1d=${prevDate} 1w=${d1w} 1m=${d1m} 3m=${d3m} 1y=${d1y}`)
   const allDates = [latestDate, prevDate, d1w, d1m, d3m, d1y].filter(Boolean) as string[]
   const uniqueDates = Array.from(new Set(allDates))
   const results = await Promise.all(
@@ -139,21 +127,11 @@ export async function fetchPrices(
         const data = await jqFetch(`/equities/bars/daily?date=${date}&includeAUSession=false`, apiKey)
         const rows = (data as { data?: Record<string,string>[] }).data ?? []
         const map: Record<string, number> = {}
-        let rawDumped = false
         for (const row of rows) {
           const raw = row.Code ?? ''
           const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
-          if (!rawDumped && wlSet.has(code)) {
-            console.log(`[fetchPrices RAW] date=${date} code=${code} fields=`, JSON.stringify(row).slice(0, 400))
-            rawDumped = true
-          }
           if (!wlSet.has(code)) continue
-          const adjClose = n(row.AdjustmentClose)
-          const rawClose = n(row.Close)
-          const close = adjClose || rawClose
-          if (['4062','8306','6861'].includes(code)) {
-            console.log(`[fetchPrices]   ${date} code=${code} AdjClose=${adjClose} Close=${rawClose} → used=${close}`)
-          }
+          const close = n(row.AdjC) || n(row.C)
           if (close > 0) map[code] = close
         }
         return { date, map }
@@ -170,10 +148,6 @@ export async function fetchPrices(
     const prev3m = d3m ? (byDate[d3m]?.[code] ?? 0) : 0
     const prev1y = d1y ? (byDate[d1y]?.[code] ?? 0) : 0
     const chg = (a: number, b: number): number | undefined => (a > 0 && b > 0) ? (a/b - 1) : undefined
-    if (['4062','8306','6861'].includes(code)) {
-      console.log(`[fetchPrices] ${code}: close=${close} prev1d=${prev1d}(${prevDate}) prev1w=${prev1w}(${d1w}) prev1y=${prev1y}(${d1y})`)
-      console.log(`[fetchPrices] ${code}: chg1d=${chg(close,prev1d)?.toFixed(4)} chg1w=${chg(close,prev1w)?.toFixed(4)} chg1y=${chg(close,prev1y)?.toFixed(4)}`)
-    }
     db[code] = {
       close, mcap: 0,
       chg1d: chg(close, prev1d),

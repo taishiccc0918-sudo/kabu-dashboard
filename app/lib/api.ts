@@ -139,9 +139,14 @@ export async function fetchPrices(
         const data = await jqFetch(`/equities/bars/daily?date=${date}&includeAUSession=false`, apiKey)
         const rows = (data as { data?: Record<string,string>[] }).data ?? []
         const map: Record<string, number> = {}
+        let rawDumped = false
         for (const row of rows) {
           const raw = row.Code ?? ''
           const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
+          if (!rawDumped && wlSet.has(code)) {
+            console.log(`[fetchPrices RAW] date=${date} code=${code} fields=`, JSON.stringify(row).slice(0, 400))
+            rawDumped = true
+          }
           if (!wlSet.has(code)) continue
           const adjClose = n(row.AdjustmentClose)
           const rawClose = n(row.Close)

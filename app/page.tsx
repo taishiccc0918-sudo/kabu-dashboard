@@ -11,7 +11,7 @@ import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
 } from './lib/api'
-import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort } from './lib/format'
+import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale } from './lib/format'
 import styles from './page.module.css'
 
 interface DropdownResult {
@@ -1593,7 +1593,16 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
         title={fin?.discDate ? `開示: ${fin.discDate.replace(/-/g,'/')} (${fin.perType === 'FY' ? 'FY通期' : fin.perType || '—'})` : undefined}
-      >{r.name || '—'}</td>
+      >
+        {r.name || '—'}
+        {fin?.discDate && isDataStale(fin.discDate) && (
+          <span
+            className={styles.staleIcon}
+            onClick={e => e.stopPropagation()}
+            title={`直近決算: ${fin.discDate.replace(/-/g,'/')}（${daysSince(fin.discDate)}日経過）${earningsDates[r.code] ? ` ／ 次決算予定: ${earningsDates[r.code].replace(/-/g, '/')}` : ''}`}
+          >⚠</span>
+        )}
+      </td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
       <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>

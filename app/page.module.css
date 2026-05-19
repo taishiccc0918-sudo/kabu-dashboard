@@ -300,6 +300,14 @@
   position: sticky; left: 48px; z-index: 5;
   background: #111827;
 }
+.staleIcon {
+  color: #fbbf24;
+  font-size: 0.8em;
+  margin-left: 4px;
+  cursor: help;
+  opacity: 0.85;
+  vertical-align: middle;
+}
 .tdName {
   padding: 0 10px;
   font-weight: 500; font-size: 12px;

@@ -26,6 +26,19 @@ export function pctCellColor(v: number | null | undefined): string {
   if (v < 0) return abs >= 0.05 ? '#f43f5e' : 'rgba(248,113,113,0.65)'
   return '#6b7280'
 }
+export function daysSince(dateStr: string): number {
+  if (!dateStr) return 0
+  const now = new Date()
+  // Date.UTC でローカル日付成分を使うことでTZオフセットの影響を排除
+  const todayMs = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const parts = dateStr.split('-').map(Number)
+  const targetMs = Date.UTC(parts[0], parts[1] - 1, parts[2])
+  return Math.max(0, Math.floor((todayMs - targetMs) / 86400000))
+}
+export function isDataStale(dateStr: string, days = 90): boolean {
+  if (!dateStr) return false
+  return daysSince(dateStr) >= days
+}
 export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('プライム'))     return { label: 'Prime',    cls: 'prime' }
   if (mkt.includes('スタンダード')) return { label: 'Standard', cls: 'standard' }

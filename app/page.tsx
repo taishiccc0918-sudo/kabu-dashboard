@@ -1511,12 +1511,12 @@ function DashboardTable({
     { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
-    { label: 'PER来期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perN' as keyof StockRow, group: 'per', tooltip: '株価÷来期予想EPS。\n来期の成長性を加味した割安度。\n来期の業績改善が見込まれるか確認できる。' },
     { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '過去FEPS基準の真のPER変化率（1ヶ月前）。\n(現在PER÷1M前PER−1)。業績修正と株価変動を分離できる。\nセルにホバーで詳細（過去FEPS・現在FEPSも表示）' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER÷EPS来期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
+    { label: 'EPS今期成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, group: 'other', tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
     { label: 'EPS来期成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsGr' as keyof StockRow, group: 'other', tooltip: 'EPS（1株あたり利益）の成長率（来期予想EPS÷最新FY実績EPS−1）。\n高成長の目安は15%超。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷最新FY確定売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
@@ -1527,7 +1527,7 @@ function DashboardTable({
     { label: '公式HP',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,76,64,64,88,92,64,92,108,64,72,64,84,72,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,92,64,64,92,108,64,72,64,84,72,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -1616,9 +1616,6 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${(fin?.perType || fin?.fepsShifted) ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
         title={fin?.fepsShifted ? `今期予想EPS基準 ※FY確定後のため次期予想EPSを充当 / 開示: ${fin.discDate}` : fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
       >{r.perF != null ? fmtN(r.perF) : fin?.feps === null ? '非開示' : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`}
-        title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : fin?.nyEPS === null ? '来期予想EPS非開示' : undefined}
-      >{r.perN != null ? fmtN(r.perN) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
@@ -1627,6 +1624,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
+      <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsGr !== null ? pctCellColor(r.epsGr) : undefined}}>{r.epsGr !== null ? fmtPct(r.epsGr) : fin?.nyEPS === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={`${styles.tdPct} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
@@ -1995,10 +1993,10 @@ function DetailPanel({
         <Grid2 items={[
           ['PER実績',    null, r.perA ? fmtN(r.perA) : '—', ''],
           ['PER今期',    null, r.perF ? fmtN(r.perF) : '—', ''],
-          ['PER来期',    null, r.perN ? fmtN(r.perN) : '—', ''],
           ['PBR',        null, r.pbr  ? fmtN(r.pbr)  : '—', ''],
           ['ROE',        null, r.roe  ? fmtPct(r.roe) : '—', r.roe && r.roe > 0.1 ? 'up' : ''],
           ['配当利回り', null, r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],
+          ['EPS今期成長率',null, r.epsCurGr !== null ? fmtPct(r.epsCurGr) : '—', pctClass(r.epsCurGr)],
           ['EPS来期成長率',null, r.epsGr !== null ? fmtPct(r.epsGr) : '—', pctClass(r.epsGr)],
           ['PEGレシオ',  null, r.peg  ? fmtN(r.peg,2) : '—', r.peg && r.peg < 1 ? 'up' : ''],
           ['時価総額(億)',null, r.mcap ? r.mcap.toLocaleString() : '—', ''],

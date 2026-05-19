@@ -2,13 +2,13 @@ export const METRIC_LABELS: Record<string, { label: string; unit: string; isPerc
   // バリュエーション
   perA:      { label: 'PER実績',           unit: '倍', isPercent: false },
   perF:      { label: 'PER今期',           unit: '倍', isPercent: false },
-  perN:      { label: 'PER来期',           unit: '倍', isPercent: false },
   pbr:       { label: 'PBR',               unit: '倍', isPercent: false },
   perFChg1m:  { label: 'PER今期1ヶ月変化率', unit: '%',  isPercent: true  },
 
   // 収益性・成長性
   roe:       { label: 'ROE',               unit: '%',  isPercent: true  },
   opMgn:     { label: '営業利益率',         unit: '%',  isPercent: true  },
+  epsCurGr:  { label: 'EPS今期成長率',        unit: '%',  isPercent: true  },
   epsGr:     { label: 'EPS来期成長率',        unit: '%',  isPercent: true  },
   peg:       { label: 'PEG',               unit: '',   isPercent: false },
   nySalesGr: { label: '来期売上成長率',      unit: '%',  isPercent: true  },

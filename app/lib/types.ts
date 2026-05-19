@@ -158,12 +158,12 @@ export interface StockRow {
   mcap: number
   perA: number | null
   perF: number | null
-  perN: number | null
   perFChg1m: number | null
   perFChg1mPrev: number | null
   pbr: number | null
   roe: number | null
   divY: number | null
+  epsCurGr: number | null
   epsGr: number | null
   peg: number | null
   opMgn: number | null

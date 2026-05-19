@@ -70,10 +70,10 @@ export function buildStockRow(
   const bps    = f?.bps   ?? 0
   const fdiv   = f?.fdiv  ?? f?.divAnn ?? 0
 
-  const epsGr = (eps && nyeps)  ? nyeps / eps   - 1 : null
+  const epsCurGr = (eps && feps != null) ? feps / eps - 1 : null
+  const epsGr    = (eps && nyeps)        ? nyeps / eps - 1 : null
   const perA  = (close && eps)   ? close / eps   : null
   const perF  = (close && feps)  ? close / feps  : null
-  const perN  = (close && nyeps) ? close / nyeps : null
   const pbr   = (close && bps)   ? close / bps   : null
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
@@ -102,12 +102,13 @@ export function buildStockRow(
     chg3m:      p.chg3m ?? null,
     chg1y:      p.chg1y ?? null,
     mcap:       p.mcap  ?? 0,
-    perA, perF, perN,
+    perA, perF,
     perFChg1m:  perFChgAt(prev1m, f?.feps1m ?? null),
     perFChg1mPrev,
     pbr,
     roe:        f?.roe    ?? null,
     divY,
+    epsCurGr,
     epsGr,
     peg,
     opMgn:      f?.opMgn  ?? null,

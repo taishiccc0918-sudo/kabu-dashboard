@@ -1389,12 +1389,12 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
       const data = json?.data ?? []
       let stockPrices: number[]
       if (mode === 'daily') {
-        stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
+        stockPrices = data.map((d: Record<string,number>) => d.AdjustmentClose ?? d.Close ?? 0).filter((v: number) => v > 0)
       } else {
         const monthly: Record<string, number> = {}
         for (const d of data) {
           const mon = (d.Date as string)?.slice(0,7) ?? ''
-          if (mon) monthly[mon] = d.AdjC ?? d.C ?? 0
+          if (mon) monthly[mon] = d.AdjustmentClose ?? d.Close ?? 0
         }
         stockPrices = Object.values(monthly).filter(v => v > 0)
       }

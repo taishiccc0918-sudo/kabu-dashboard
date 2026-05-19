@@ -26,6 +26,12 @@ function nOrNull(v: unknown): number | null {
   const num = Number(v)
   return isNaN(num) ? null : num
 }
+function localDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}${m}${day}`
+}
 
 export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: string; dateDisp: string }> {
   const today = new Date()
@@ -34,7 +40,7 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
     d.setDate(d.getDate() - i)
     const day = d.getDay()
     if (day === 0 || day === 6) continue
-    const yyyymmdd = d.toISOString().slice(0, 10).replace(/-/g, '')
+    const yyyymmdd = localDateStr(d)
     try {
       const data = await jqFetch(`/equities/bars/daily?date=${yyyymmdd}&includeAUSession=false`, apiKey)
       const rows = (data as { data?: unknown[] }).data ?? []
@@ -46,7 +52,7 @@ export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: stri
   }
   const fallback = new Date(today)
   fallback.setDate(fallback.getDate() - 2)
-  const s = fallback.toISOString().slice(0, 10).replace(/-/g, '')
+  const s = localDateStr(fallback)
   return { dateStr: s, dateDisp: `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` }
 }
 
@@ -85,7 +91,7 @@ async function fetchPastDate(baseDate: string, daysBack: number, rangeDays: numb
     const d = new Date(target)
     d.setDate(d.getDate() - offset)
     if (d.getDay() === 0 || d.getDay() === 6) continue
-    const yyyymmdd = d.toISOString().slice(0,10).replace(/-/g,'')
+    const yyyymmdd = localDateStr(d)
     try {
       const data = await jqFetch(`/equities/bars/daily?date=${yyyymmdd}&includeAUSession=false`, apiKey)
       const rows = (data as { data?: unknown[] }).data ?? []
@@ -111,7 +117,7 @@ export async function fetchPrices(
     fetchPastDate(latestDate, 30, 7, apiKey),
     fetchPastDate(latestDate, 90, 7, apiKey),
     fetchPastDate(latestDate, 365, 7, apiKey),
-    fetchPastDate(latestDate, 1, 5, apiKey),
+    fetchPastDate(latestDate, 1, 3, apiKey),
   ])
   const allDates = [latestDate, prevDate, d1w, d1m, d3m, d1y].filter(Boolean) as string[]
   const uniqueDates = Array.from(new Set(allDates))
@@ -125,7 +131,7 @@ export async function fetchPrices(
           const raw = row.Code ?? ''
           const code = raw.length === 5 && raw.endsWith('0') ? raw.slice(0,4) : raw
           if (!wlSet.has(code)) continue
-          const close = n(row.C) || n(row.AdjC) || n(row.Close) || n(row.AdjustmentClose)
+          const close = n(row.AdjustmentClose) || n(row.Close)
           if (close > 0) map[code] = close
         }
         return { date, map }

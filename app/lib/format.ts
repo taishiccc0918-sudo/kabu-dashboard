@@ -65,15 +65,17 @@ export function buildStockRow(
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF && epsGr && epsGr > 0) ? perF / (epsGr * 100) : null
 
-  function perFAt(pastClose: number | undefined): number | null {
-    if (!pastClose || !close || !feps) return null
-    return close / pastClose - 1
+  // 新計算式: (現在PER) / (過去PER) - 1 = (close * pastFeps) / (pastClose * feps) - 1
+  // pastFeps が null の場合は null を返す（≠ 非開示。IPO直後等でデータなし）
+  function perFChgAt(pastClose: number | undefined, pastFeps: number | null): number | null {
+    if (!pastClose || !close || !feps || !pastFeps) return null
+    return (close * pastFeps) / (pastClose * feps) - 1
   }
   const prev1m = (p as { prev1m?: number }).prev1m
-  const perFChg1wPrev  = (p.prev1w && feps) ? p.prev1w  / feps : null
-  const perFChg1mPrev  = (prev1m   && feps) ? prev1m    / feps : null
-  const perFChg3mPrev  = (p.prev3m && feps) ? p.prev3m  / feps : null
-  const perFChg1yPrev  = (p.prev1y && feps) ? p.prev1y  / feps : null
+  // perFChgXmPrev = 過去時点の実PER（過去株価 / 過去FEPS）
+  const perFChg1mPrev  = (prev1m   && f?.feps1m) ? prev1m    / f.feps1m : null
+  const perFChg3mPrev  = (p.prev3m && f?.feps3m) ? p.prev3m  / f.feps3m : null
+  const perFChg1yPrev  = (p.prev1y && f?.feps1y) ? p.prev1y  / f.feps1y : null
 
   const meta = stockMeta[code]
   const genres = meta?.genres ?? []
@@ -90,13 +92,11 @@ export function buildStockRow(
     chg1y:      p.chg1y ?? null,
     mcap:       p.mcap  ?? 0,
     perA, perF, perN,
-    perFChg1w:  perFAt(p.prev1w),
-    perFChg1wPrev,
-    perFChg1m:  perFAt(prev1m),
+    perFChg1m:  perFChgAt(prev1m,   f?.feps1m ?? null),
     perFChg1mPrev,
-    perFChg3m:  perFAt(p.prev3m),
+    perFChg3m:  perFChgAt(p.prev3m, f?.feps3m ?? null),
     perFChg3mPrev,
-    perFChg1y:  perFAt(p.prev1y),
+    perFChg1y:  perFChgAt(p.prev1y, f?.feps1y ?? null),
     perFChg1yPrev,
     pbr,
     roe:        f?.roe    ?? null,

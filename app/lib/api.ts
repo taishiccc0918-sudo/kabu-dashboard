@@ -32,6 +32,25 @@ function localDateStr(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}${m}${day}`
 }
+// DiscDate比較用 YYYY-MM-DD 形式（toISOString()のTZずれを避ける）
+function cutoffDateStr(daysAgo: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+// 過去時点での最新FEPS: DiscDate < cutoff のレコードのうち最新のFEPSを返す
+function getHistoricalFEPS(stmts: Record<string,string>[], daysAgo: number): number | null {
+  const cutoff = cutoffDateStr(daysAgo)
+  let best: string | null = null
+  let bestFeps: number | null = null
+  for (const s of stmts) {
+    if (!s.DiscDate || s.DiscDate >= cutoff) continue
+    const v = nOrNull(s.FEPS)
+    if (v === null || v === 0) continue
+    if (best === null || s.DiscDate > best) { best = s.DiscDate; bestFeps = v }
+  }
+  return bestFeps
+}
 
 export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: string; dateDisp: string }> {
   const today = new Date()
@@ -250,6 +269,9 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           opMgn:sales?op/sales:0,
           salesGr:(sales&&fsales)?fsales/sales-1:0,
           nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
+          feps1m: getHistoricalFEPS(all, 30),
+          feps3m: getHistoricalFEPS(all, 90),
+          feps1y: getHistoricalFEPS(all, 365),
         },
         shOut,
       }
@@ -332,6 +354,9 @@ export async function fetchAllFinancials(
       opMgn:sales?op/sales:0,
       salesGr:(sales&&fsales)?fsales/sales-1:0,
       nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
+      feps1m: getHistoricalFEPS(all, 30),
+      feps3m: getHistoricalFEPS(all, 90),
+      feps1y: getHistoricalFEPS(all, 365),
     }
   }
 

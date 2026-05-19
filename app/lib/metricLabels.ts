@@ -4,7 +4,6 @@ export const METRIC_LABELS: Record<string, { label: string; unit: string; isPerc
   perF:      { label: 'PER今期',           unit: '倍', isPercent: false },
   perN:      { label: 'PER来期',           unit: '倍', isPercent: false },
   pbr:       { label: 'PBR',               unit: '倍', isPercent: false },
-  perFChg1w:  { label: 'PER今期1週間変化率', unit: '%',  isPercent: true  },
   perFChg1m:  { label: 'PER今期1ヶ月変化率', unit: '%',  isPercent: true  },
   perFChg3m:  { label: 'PER今期3ヶ月変化率', unit: '%',  isPercent: true  },
   perFChg1y:  { label: 'PER今期1年変化率',   unit: '%',  isPercent: true  },

@@ -38,6 +38,20 @@ function cutoffDateStr(daysAgo: number): string {
   d.setDate(d.getDate() - daysAgo)
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
+// FEPS選択: FY確定発表後でFEPSが空欄の場合はnullを返す（PER今期を非開示扱いにする）
+function selectFEPS(
+  fy: Record<string,string>,
+  nfy: Record<string,string>,
+  all: Record<string,string>[],
+  bestValOrNullFn: (stmts: Record<string,string>[], ...keys: string[]) => number | null
+): number | null {
+  const fyFeps = nOrNull(fy.FEPS)
+  if (fyFeps !== null) return fyFeps
+  // fy.FEPS が空欄かつ fy が nfy より新しい → 通期確定済みで今期予想が消滅
+  if (fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return null
+  // nfy のほうが新しい（または同日）→ 四半期予想を継続使用
+  return nOrNull(nfy.FEPS) ?? bestValOrNullFn(all, 'FEPS')
+}
 // 過去時点での最新FEPS: DiscDate < cutoff のレコードのうち最新のFEPSを返す
 function getHistoricalFEPS(stmts: Record<string,string>[], daysAgo: number): number | null {
   const cutoff = cutoffDateStr(daysAgo)
@@ -248,18 +262,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const sales  = fyVal('Sales') || bestVal(all,'Sales')
       const op     = fyVal('OP')    || bestVal(all,'OP')
       const np     = fyVal('NP')    || bestVal(all,'NP')
-      const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
-      if (['8306','285A','6758','6861'].includes(code)) {
-        console.log(`[fins/summary:${code}] stmts=${stmts.length} perType=${fy.CurPerType} FEPS=${fy.FEPS} EPS=${fy.EPS} Sales=${fy.Sales} discDate=${fy.DiscDate}`)
-        console.log(`[fins/summary:${code}] keys:`, Object.keys(fy).join(','))
-      }
-      if (code === '5803') {
-        console.log(`[DEBUG:5803/fetchFinancialOne] stmts(${stmts.length}件):`)
-        stmts.forEach((s,i) => console.log(`  [${i}] DiscDate=${s.DiscDate} perType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS} Sales=${s.Sales}`))
-        console.log(`[DEBUG:5803] 採用fy : DiscDate=${fy.DiscDate} perType=${fy.CurPerType} EPS=${fy.EPS} FEPS=${fy.FEPS} NxFEPS=${fy.NxFEPS}`)
-        console.log(`[DEBUG:5803] 採用nfy: DiscDate=${nfy.DiscDate} perType=${nfy.CurPerType} EPS=${nfy.EPS} FEPS=${nfy.FEPS} NxFEPS=${nfy.NxFEPS}`)
-        console.log(`[DEBUG:5803] 結果: eps=${fyVal('EPS')||bestVal(all,'EPS')} feps=${feps} sales=${sales}`)
-      }
+      const feps = selectFEPS(fy, nfy, all, bestValOrNull)
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
       const nySales=nySalesRaw??0
@@ -343,14 +346,7 @@ export async function fetchAllFinancials(
     const sales  = fyVal('Sales') || bestVal(all,'Sales')
     const op     = fyVal('OP')    || bestVal(all,'OP')
     const np     = fyVal('NP')    || bestVal(all,'NP')
-    const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
-    if (code === '5803') {
-      console.log(`[DEBUG:5803] stmts(${stmts.length}件):`)
-      stmts.forEach((s,i) => console.log(`  [${i}] DiscDate=${s.DiscDate} CurPerType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS} Sales=${s.Sales}`))
-      console.log(`[DEBUG:5803] 採用fy : DiscDate=${fy.DiscDate} perType=${fy.CurPerType} EPS=${fy.EPS} FEPS=${fy.FEPS} NxFEPS=${fy.NxFEPS}`)
-      console.log(`[DEBUG:5803] 採用nfy: DiscDate=${nfy.DiscDate} perType=${nfy.CurPerType} EPS=${nfy.EPS} FEPS=${nfy.FEPS} NxFEPS=${nfy.NxFEPS}`)
-      console.log(`[DEBUG:5803] 結果: eps=${fyVal('EPS')||bestVal(all,'EPS')} feps=${feps} sales=${sales}`)
-    }
+    const feps = selectFEPS(fy, nfy, all, bestValOrNull)
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
     const nySales=nySalesRaw??0

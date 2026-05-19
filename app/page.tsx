@@ -1613,8 +1613,8 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
         title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
       >{r.perA ? fmtN(r.perA) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.perType ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
-        title={fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${(fin?.perType || fin?.fepsShifted) ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
+        title={fin?.fepsShifted ? `今期予想EPS基準 ※FY確定後のため次期予想EPSを充当 / 開示: ${fin.discDate}` : fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
       >{r.perF != null ? fmtN(r.perF) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''} ${fin?.nyEPS === null ? styles.tdNonDisclosure : ''}`}
         title={fin?.discDate ? `来期予想EPS基準 / 参照決算: ${fin.discDate}` : fin?.nyEPS === null ? '来期予想EPS非開示' : undefined}

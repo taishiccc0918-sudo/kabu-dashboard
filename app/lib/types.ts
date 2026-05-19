@@ -139,6 +139,7 @@ export interface FinRecord {
   nySales: number
   nyOP: number
   feps1m: number | null   // 1ヶ月前時点のFEPS（過去PER計算用）
+  fepsShifted?: boolean   // FY確定後に次期予想EPSをPER今期に充当した場合true
 }
 export interface MasterRecord {
   name: string

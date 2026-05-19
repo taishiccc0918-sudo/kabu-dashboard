@@ -38,7 +38,7 @@ function cutoffDateStr(daysAgo: number): string {
   d.setDate(d.getDate() - daysAgo)
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
-// FEPS選択: FY確定発表後でFEPSが空欄の場合はnullを返す（PER今期を非開示扱いにする）
+// FEPS選択: FY確定後でFEPS空欄の場合は次期予想EPS(NxFEPS)にフォールバック
 function selectFEPS(
   fy: Record<string,string>,
   nfy: Record<string,string>,
@@ -47,10 +47,25 @@ function selectFEPS(
 ): number | null {
   const fyFeps = nOrNull(fy.FEPS)
   if (fyFeps !== null) return fyFeps
-  // fy.FEPS が空欄かつ fy が nfy より新しい → 通期確定済みで今期予想が消滅
-  if (fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return null
+  // fy.FEPS が空欄かつ fy が nfy より新しい → 通期確定済み → 次期予想EPSを今期として充当
+  if (fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return nOrNull(fy.NxFEPS) ?? null
   // nfy のほうが新しい（または同日）→ 四半期予想を継続使用
   return nOrNull(nfy.FEPS) ?? bestValOrNullFn(all, 'FEPS')
+}
+// 来期EPS選択: FEPS充当(shifted)の場合は来期予想をnullにする（四季報と整合）
+function selectNyEPS(
+  fy: Record<string,string>,
+  nfy: Record<string,string>,
+  all: Record<string,string>[],
+  bestValOrNullFn: (stmts: Record<string,string>[], ...keys: string[]) => number | null
+): { nyEPS: number | null; fepsShifted: boolean } {
+  if (nOrNull(fy.FEPS) === null && fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) {
+    return { nyEPS: null, fepsShifted: true }
+  }
+  return {
+    nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNullFn(all, 'NxFEPS'),
+    fepsShifted: false,
+  }
 }
 // 過去時点での最新FEPS: DiscDate < cutoff のレコードのうち最新のFEPSを返す
 function getHistoricalFEPS(stmts: Record<string,string>[], daysAgo: number): number | null {
@@ -263,14 +278,14 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const op     = fyVal('OP')    || bestVal(all,'OP')
       const np     = fyVal('NP')    || bestVal(all,'NP')
       const feps = selectFEPS(fy, nfy, all, bestValOrNull)
+      const { nyEPS, fepsShifted } = selectNyEPS(fy, nfy, all, bestValOrNull)
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
       const nySales=nySalesRaw??0
       const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
       return {
         fin: {
-          sales,op,odp:bestVal(all,'OdP'),np,eps:fyVal('EPS')||bestVal(all,'EPS'),feps,
-          nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNull(all,'NxFEPS'),
+          sales,op,odp:bestVal(all,'OdP'),np,eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS,
           bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
           fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
           fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
@@ -280,6 +295,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           salesGr:(sales&&fsales)?fsales/sales-1:0,
           nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
           feps1m: getHistoricalFEPS(all, 30),
+          fepsShifted,
         },
         shOut,
       }
@@ -347,13 +363,14 @@ export async function fetchAllFinancials(
     const op     = fyVal('OP')    || bestVal(all,'OP')
     const np     = fyVal('NP')    || bestVal(all,'NP')
     const feps = selectFEPS(fy, nfy, all, bestValOrNull)
+    const { nyEPS, fepsShifted } = selectNyEPS(fy, nfy, all, bestValOrNull)
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
     const nySales=nySalesRaw??0
     const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
-      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNull(all,'NxFEPS'),
+      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS,
       bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
       fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
       fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
@@ -363,6 +380,7 @@ export async function fetchAllFinancials(
       salesGr:(sales&&fsales)?fsales/sales-1:0,
       nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
       feps1m: getHistoricalFEPS(all, 30),
+      fepsShifted,
     }
   }
 

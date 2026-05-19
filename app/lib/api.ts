@@ -253,6 +253,13 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
         console.log(`[fins/summary:${code}] stmts=${stmts.length} perType=${fy.CurPerType} FEPS=${fy.FEPS} EPS=${fy.EPS} Sales=${fy.Sales} discDate=${fy.DiscDate}`)
         console.log(`[fins/summary:${code}] keys:`, Object.keys(fy).join(','))
       }
+      if (code === '5803') {
+        console.log(`[DEBUG:5803/fetchFinancialOne] stmts(${stmts.length}件):`)
+        stmts.forEach((s,i) => console.log(`  [${i}] DiscDate=${s.DiscDate} perType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS} Sales=${s.Sales}`))
+        console.log(`[DEBUG:5803] 採用fy : DiscDate=${fy.DiscDate} perType=${fy.CurPerType} EPS=${fy.EPS} FEPS=${fy.FEPS} NxFEPS=${fy.NxFEPS}`)
+        console.log(`[DEBUG:5803] 採用nfy: DiscDate=${nfy.DiscDate} perType=${nfy.CurPerType} EPS=${nfy.EPS} FEPS=${nfy.FEPS} NxFEPS=${nfy.NxFEPS}`)
+        console.log(`[DEBUG:5803] 結果: eps=${fyVal('EPS')||bestVal(all,'EPS')} feps=${feps} sales=${sales}`)
+      }
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
       const nySales=nySalesRaw??0

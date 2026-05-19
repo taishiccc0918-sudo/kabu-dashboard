@@ -129,9 +129,9 @@ export interface FinRecord {
   nextAnnouncementDate?: string  // 次回決算予定日 (YYYY-MM-DD)
   discDate: string
   perType: string
-  roe: number
+  roe: number | null
   eqRat: number
-  opMgn: number
+  opMgn: number | null
   salesGr: number
   nySalesGr: number | null
   fsales: number

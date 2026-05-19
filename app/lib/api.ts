@@ -270,8 +270,6 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           salesGr:(sales&&fsales)?fsales/sales-1:0,
           nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
           feps1m: getHistoricalFEPS(all, 30),
-          feps3m: getHistoricalFEPS(all, 90),
-          feps1y: getHistoricalFEPS(all, 365),
         },
         shOut,
       }
@@ -355,8 +353,6 @@ export async function fetchAllFinancials(
       salesGr:(sales&&fsales)?fsales/sales-1:0,
       nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
       feps1m: getHistoricalFEPS(all, 30),
-      feps3m: getHistoricalFEPS(all, 90),
-      feps1y: getHistoricalFEPS(all, 365),
     }
   }
 

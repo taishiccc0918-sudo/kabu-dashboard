@@ -5,8 +5,6 @@ export const METRIC_LABELS: Record<string, { label: string; unit: string; isPerc
   perN:      { label: 'PER来期',           unit: '倍', isPercent: false },
   pbr:       { label: 'PBR',               unit: '倍', isPercent: false },
   perFChg1m:  { label: 'PER今期1ヶ月変化率', unit: '%',  isPercent: true  },
-  perFChg3m:  { label: 'PER今期3ヶ月変化率', unit: '%',  isPercent: true  },
-  perFChg1y:  { label: 'PER今期1年変化率',   unit: '%',  isPercent: true  },
 
   // 収益性・成長性
   roe:       { label: 'ROE',               unit: '%',  isPercent: true  },

@@ -74,8 +74,6 @@ export function buildStockRow(
   const prev1m = (p as { prev1m?: number }).prev1m
   // perFChgXmPrev = 過去時点の実PER（過去株価 / 過去FEPS）
   const perFChg1mPrev  = (prev1m   && f?.feps1m) ? prev1m    / f.feps1m : null
-  const perFChg3mPrev  = (p.prev3m && f?.feps3m) ? p.prev3m  / f.feps3m : null
-  const perFChg1yPrev  = (p.prev1y && f?.feps1y) ? p.prev1y  / f.feps1y : null
 
   const meta = stockMeta[code]
   const genres = meta?.genres ?? []
@@ -92,12 +90,8 @@ export function buildStockRow(
     chg1y:      p.chg1y ?? null,
     mcap:       p.mcap  ?? 0,
     perA, perF, perN,
-    perFChg1m:  perFChgAt(prev1m,   f?.feps1m ?? null),
+    perFChg1m:  perFChgAt(prev1m, f?.feps1m ?? null),
     perFChg1mPrev,
-    perFChg3m:  perFChgAt(p.prev3m, f?.feps3m ?? null),
-    perFChg3mPrev,
-    perFChg1y:  perFChgAt(p.prev1y, f?.feps1y ?? null),
-    perFChg1yPrev,
     pbr,
     roe:        f?.roe    ?? null,
     divY,

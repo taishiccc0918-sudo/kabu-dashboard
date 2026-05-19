@@ -139,8 +139,6 @@ export interface FinRecord {
   nySales: number
   nyOP: number
   feps1m: number | null   // 1ヶ月前時点のFEPS（過去PER計算用）
-  feps3m: number | null   // 3ヶ月前時点のFEPS
-  feps1y: number | null   // 1年前時点のFEPS
 }
 export interface MasterRecord {
   name: string
@@ -162,10 +160,6 @@ export interface StockRow {
   perN: number | null
   perFChg1m: number | null
   perFChg1mPrev: number | null
-  perFChg3m: number | null
-  perFChg3mPrev: number | null
-  perFChg1y: number | null
-  perFChg1yPrev: number | null
   pbr: number | null
   roe: number | null
   divY: number | null

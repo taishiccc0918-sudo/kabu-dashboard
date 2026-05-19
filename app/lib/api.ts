@@ -337,6 +337,13 @@ export async function fetchAllFinancials(
     const op     = fyVal('OP')    || bestVal(all,'OP')
     const np     = fyVal('NP')    || bestVal(all,'NP')
     const feps = nOrNull(fy.FEPS) ?? nOrNull(nfy.FEPS) ?? bestValOrNull(all,'FEPS')
+    if (code === '5803') {
+      console.log(`[DEBUG:5803] stmts(${stmts.length}件):`)
+      stmts.forEach((s,i) => console.log(`  [${i}] DiscDate=${s.DiscDate} CurPerType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS} Sales=${s.Sales}`))
+      console.log(`[DEBUG:5803] 採用fy : DiscDate=${fy.DiscDate} perType=${fy.CurPerType} EPS=${fy.EPS} FEPS=${fy.FEPS} NxFEPS=${fy.NxFEPS}`)
+      console.log(`[DEBUG:5803] 採用nfy: DiscDate=${nfy.DiscDate} perType=${nfy.CurPerType} EPS=${nfy.EPS} FEPS=${nfy.FEPS} NxFEPS=${nfy.NxFEPS}`)
+      console.log(`[DEBUG:5803] 結果: eps=${fyVal('EPS')||bestVal(all,'EPS')} feps=${feps} sales=${sales}`)
+    }
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
     const nySales=nySalesRaw??0

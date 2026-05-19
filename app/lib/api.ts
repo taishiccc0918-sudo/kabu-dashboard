@@ -279,13 +279,24 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const np     = fyVal('NP')    || bestVal(all,'NP')
       const feps = selectFEPS(fy, nfy, all, bestValOrNull)
       const { nyEPS, fepsShifted } = selectNyEPS(fy, nfy, all, bestValOrNull)
+      const eps = fyVal('EPS') || bestVal(all, 'EPS')
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
       const nySales=nySalesRaw??0
       const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+      if (code === '9468') {
+        console.log('=== [DEBUG:9468] fetchFinancialOne 全stmts ===')
+        stmts.forEach((s, i) => {
+          console.log(`[DEBUG:9468] [${i}] DiscDate=${s.DiscDate} CurPerType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS}`)
+        })
+        console.log(`[DEBUG:9468] latestFY:`, latestFY ? { DiscDate: latestFY.DiscDate, CurPerType: latestFY.CurPerType, EPS: latestFY.EPS, FEPS: latestFY.FEPS, NxFEPS: latestFY.NxFEPS } : null)
+        console.log(`[DEBUG:9468] latestNonFY:`, latestNonFY ? { DiscDate: latestNonFY.DiscDate, CurPerType: latestNonFY.CurPerType, EPS: latestNonFY.EPS, FEPS: latestNonFY.FEPS } : null)
+        console.log(`[DEBUG:9468] fyVal('EPS')=${n(fy.EPS)} bestVal('EPS')=${bestVal(all,'EPS')}`)
+        console.log(`[DEBUG:9468] 最終: eps=${eps} feps=${feps} nyEPS=${nyEPS}`)
+      }
       return {
         fin: {
-          sales,op,odp:bestVal(all,'OdP'),np,eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS,
+          sales,op,odp:bestVal(all,'OdP'),np,eps,feps,nyEPS,
           bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
           fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
           fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
@@ -364,13 +375,24 @@ export async function fetchAllFinancials(
     const np     = fyVal('NP')    || bestVal(all,'NP')
     const feps = selectFEPS(fy, nfy, all, bestValOrNull)
     const { nyEPS, fepsShifted } = selectNyEPS(fy, nfy, all, bestValOrNull)
+    const eps = fyVal('EPS') || bestVal(all, 'EPS')
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
     const nySales=nySalesRaw??0
     const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+    if (code === '9468') {
+      console.log('=== [DEBUG:9468] processStmts 全stmts ===')
+      stmts.forEach((s, i) => {
+        console.log(`[DEBUG:9468] [${i}] DiscDate=${s.DiscDate} CurPerType=${s.CurPerType} EPS=${s.EPS} FEPS=${s.FEPS} NxFEPS=${s.NxFEPS}`)
+      })
+      console.log(`[DEBUG:9468] latestFY:`, latestFY ? { DiscDate: latestFY.DiscDate, CurPerType: latestFY.CurPerType, EPS: latestFY.EPS, FEPS: latestFY.FEPS, NxFEPS: latestFY.NxFEPS } : null)
+      console.log(`[DEBUG:9468] latestNonFY:`, latestNonFY ? { DiscDate: latestNonFY.DiscDate, CurPerType: latestNonFY.CurPerType, EPS: latestNonFY.EPS, FEPS: latestNonFY.FEPS } : null)
+      console.log(`[DEBUG:9468] fyVal('EPS')=${n(fy.EPS)} bestVal('EPS')=${bestVal(all,'EPS')}`)
+      console.log(`[DEBUG:9468] 最終: eps=${eps} feps=${feps} nyEPS=${nyEPS}`)
+    }
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
-      eps:fyVal('EPS')||bestVal(all,'EPS'),feps,nyEPS,
+      eps,feps,nyEPS,
       bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
       fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
       fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),

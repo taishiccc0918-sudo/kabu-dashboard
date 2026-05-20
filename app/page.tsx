@@ -1369,14 +1369,29 @@ function normalizeSeries(prices: number[]): number[] {
 function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   const [mode, setMode] = useState<ChartMode>('daily')
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, weekly: null, monthly: null })
+  const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ daily: false, weekly: false, monthly: false })
   const [chartLoading, setChartLoading] = useState(false)
+  const [visible, setVisible] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const areaRef = useRef<HTMLDivElement>(null)
 
   const fmt = (d: Date) => d.toISOString().slice(0,10).replace(/-/g,'')
 
   useEffect(() => {
-    if (!apiKey || !code) return
+    const el = areaRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { rootMargin: '200px', threshold: 0.1 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!visible || !apiKey || !code) return
     if (cachedData[mode] !== null) return
+    if (errored[mode]) return
     setChartLoading(true)
     const today = new Date()
     const from = new Date(today)
@@ -1419,9 +1434,10 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
       ]
       setCachedData(prev => ({ ...prev, [mode]: series }))
     }).catch(() => {
+      setErrored(prev => ({ ...prev, [mode]: true }))
       setCachedData(prev => ({ ...prev, [mode]: [] }))
     }).finally(() => setChartLoading(false))
-  }, [code, apiKey, mode])
+  }, [code, apiKey, mode, visible])
 
   useEffect(() => {
     const draw = () => {
@@ -1466,10 +1482,16 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     requestAnimationFrame(draw)
   }, [cachedData, mode, code])
 
+  function retry() {
+    setErrored(prev => ({ ...prev, [mode]: false }))
+    setCachedData(prev => ({ ...prev, [mode]: null }))
+  }
+
   const currentData = cachedData[mode]
   const hasData = currentData !== null && currentData[0]?.prices.length >= 2
+  const isError = errored[mode]
   return (
-    <div className={styles.chartArea}>
+    <div ref={areaRef} className={styles.chartArea}>
       <div className={styles.chartTabs}>
         {(['daily','weekly','monthly'] as ChartMode[]).map(m => (
           <button key={m} className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
@@ -1479,8 +1501,13 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
         ))}
       </div>
       <canvas ref={canvasRef} className={styles.chartCanvas} style={{ display: hasData && !chartLoading ? 'block' : 'none' }} />
-      {chartLoading && <div className={styles.chartLoading}>読込中...</div>}
-      {!chartLoading && !hasData && <div className={styles.chartLoading}>データなし</div>}
+      {(() => {
+        if (!visible) return <div className={styles.chartLoading} />
+        if (chartLoading) return <div className={styles.chartLoading}>読込中...</div>
+        if (isError) return <div className={styles.chartLoading}><button className={styles.chartRetryBtn} onClick={e => { e.stopPropagation(); retry() }}>再読込</button></div>
+        if (!hasData && currentData !== null) return <div className={styles.chartLoading}>データなし</div>
+        return null
+      })()}
     </div>
   )
 }

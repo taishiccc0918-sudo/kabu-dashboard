@@ -1768,6 +1768,34 @@
 }
 .themeToggle:hover { background: rgba(255,255,255,0.08); border-color: #3b82f6; }
 
+/* ── 認証ボタン ─────────────────────────────────────────────── */
+.loginBtn {
+  padding: 5px 10px; border-radius: 6px;
+  border: 1px solid #3b82f6; background: rgba(59,130,246,0.15);
+  color: #93c5fd; font-size: 12px; cursor: pointer;
+  white-space: nowrap; transition: all .15s;
+}
+.loginBtn:hover { background: rgba(59,130,246,0.28); color: #bfdbfe; }
+
+.userMenu {
+  display: flex; align-items: center; gap: 4px;
+}
+.userName {
+  font-size: 11px; color: var(--text3);
+  max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.logoutBtn {
+  padding: 4px 6px; border-radius: 6px;
+  border: 1px solid #374151; background: transparent;
+  color: #9ca3af; font-size: 12px; cursor: pointer; transition: all .15s;
+}
+.logoutBtn:hover { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
+
+.lightMode .loginBtn { border-color: #2563eb; background: rgba(37,99,235,0.1); color: #1d4ed8; }
+.lightMode .loginBtn:hover { background: rgba(37,99,235,0.2); }
+.lightMode .userName { color: #64748b; }
+.lightMode .logoutBtn { border-color: #cbd5e1; color: #64748b; }
+
 /* ── LIGHT MODE OVERRIDES ───────────────────────────── */
 /* .lightMode クラスが .root に付いている場合のみ適用。既存ダーク用CSSは変更なし。 */
 

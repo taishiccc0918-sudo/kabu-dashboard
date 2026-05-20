@@ -13,6 +13,7 @@ import {
 } from './lib/api'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale } from './lib/format'
 import styles from './page.module.css'
+import { createClient } from './lib/supabase/client'
 
 interface DropdownResult {
   code: string
@@ -28,6 +29,15 @@ function ls<T>(key: string, fallback: T): T {
 function lsSet(key: string, val: unknown) {
   if (typeof window === 'undefined') return
   try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota */ }
+}
+
+// ── Supabase シングルトン（環境変数未設定時は null）────────────────
+let _sbClient: ReturnType<typeof createClient> | null = null
+function getSb() {
+  if (typeof window === 'undefined') return null
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null
+  if (!_sbClient) _sbClient = createClient()
+  return _sbClient
 }
 
 function localDateStr(): string {
@@ -206,6 +216,12 @@ export default function Page() {
   const [chartRefreshKey, setChartRefreshKey] = useState(0)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
+
+  // ── 認証ユーザー状態 ───────────────────────────────────────────────
+  type AuthUser = { id: string; email?: string; name?: string }
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const userRef = useRef<AuthUser | null>(null)
+  useEffect(() => { userRef.current = user }, [user])
   const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
@@ -213,6 +229,59 @@ export default function Page() {
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   useEffect(() => { lsSet('forcePc', forcePc) }, [forcePc])
+
+  // ── Supabase: ★/♥/メモを DB からロード（ログイン時）────────────────
+  const loadFromSupabase = useCallback(async (userId: string) => {
+    const sb = getSb()
+    if (!sb) return
+    const [{ data: favData }, { data: memoData }] = await Promise.all([
+      sb.from('favorites').select('code, type').eq('user_id', userId),
+      sb.from('memos').select('code, memo, updated_at').eq('user_id', userId),
+    ])
+    if (favData) {
+      const stars  = new Set(favData.filter(f => f.type === 'star').map(f => f.code as string))
+      const hearts = new Set(favData.filter(f => f.type === 'heart').map(f => f.code as string))
+      setFavorites(stars)
+      setSuperFavorites(hearts)
+      lsSet('favorites', Array.from(stars))
+      lsSet('superFavorites', Array.from(hearts))
+    }
+    if (memoData) {
+      setStockMeta(prev => {
+        const next = { ...prev }
+        for (const m of memoData) {
+          const code = m.code as string
+          if (!next[code]) next[code] = { genres: (DEFAULT_GENRES[code] ?? '').split(',').filter(Boolean), memo: '' }
+          next[code] = { ...next[code], memo: m.memo as string, memoUpdatedAt: m.updated_at as string }
+        }
+        lsSet('stockMetadata', next)
+        return next
+      })
+    }
+  }, [])
+
+  // ── Supabase: 認証リスナー ──────────────────────────────────────────
+  useEffect(() => {
+    const sb = getSb()
+    if (!sb) return
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email }
+        setUser(u)
+        loadFromSupabase(session.user.id)
+      }
+    })
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email }
+        setUser(u)
+        if (event === 'SIGNED_IN') loadFromSupabase(session.user.id)
+      } else {
+        setUser(null)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [loadFromSupabase])
 
   // localStorage からの読み込みを一箇所に集約し、最後に mounted = true でコンテンツを表示
   useEffect(() => {
@@ -347,13 +416,27 @@ export default function Page() {
     }
   }, [apiKey, loading])
 
+  // ── Supabase 同期ヘルパー ─────────────────────────────────────────
+  function sbSyncFav(code: string, type: 'star' | 'heart', add: boolean) {
+    const u = userRef.current; const sb = getSb()
+    if (!u || !sb) return
+    if (add) sb.from('favorites').upsert({ user_id: u.id, code, type }).then(() => {})
+    else sb.from('favorites').delete().eq('user_id', u.id).eq('code', code).eq('type', type).then(() => {})
+  }
+  function sbSyncMemo(code: string, memo: string) {
+    const u = userRef.current; const sb = getSb()
+    if (!u || !sb) return
+    sb.from('memos').upsert({ user_id: u.id, code, memo, updated_at: new Date().toISOString() }).then(() => {})
+  }
+
   // ── お気に入り操作 ────────────────────────────────────────────────
   function toggleFavorite(code: string) {
     setFavorites(prev => {
       const next = new Set(prev)
-      if (next.has(code)) next.delete(code)
-      else next.add(code)
+      const adding = !next.has(code)
+      if (adding) next.add(code); else next.delete(code)
       lsSet('favorites', Array.from(next))
+      sbSyncFav(code, 'star', adding)
       return next
     })
   }
@@ -362,9 +445,10 @@ export default function Page() {
     if (!isSuper && !favorites.has(code)) toggleFavorite(code)
     setSuperFavorites(prev => {
       const next = new Set(prev)
-      if (next.has(code)) next.delete(code)
-      else next.add(code)
+      const adding = !next.has(code)
+      if (adding) next.add(code); else next.delete(code)
       lsSet('superFavorites', Array.from(next))
+      sbSyncFav(code, 'heart', adding)
       return next
     })
   }
@@ -615,6 +699,7 @@ export default function Page() {
       memo: text,
       memoUpdatedAt: trimmed ? new Date().toISOString() : undefined,
     })
+    sbSyncMemo(code, text)
   }
   function saveEarningsDate(code: string, date: string) {
     const next = { ...earningsDates, [code]: date }
@@ -664,6 +749,23 @@ export default function Page() {
             {forcePc ? 'SP版' : 'PC版'}
           </button>
           <button className={styles.settingsBtn} onClick={() => setShowSettings(s => !s)} title="判定設定">⚙️</button>
+          {/* ── ログイン/ログアウト（Supabase設定済みの場合のみ表示）── */}
+          {getSb() && (
+            user ? (
+              <div className={styles.userMenu}>
+                <span className={styles.userName} title={user.email}>{user.name?.split(' ')[0] ?? '👤'}</span>
+                <button className={styles.logoutBtn} onClick={() => getSb()?.auth.signOut()} title="ログアウト">⏻</button>
+              </div>
+            ) : (
+              <button
+                className={styles.loginBtn}
+                onClick={() => getSb()?.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } })}
+                title="Googleアカウントでログインするとスマホ/PCでデータが同期されます"
+              >
+                🔑 ログイン
+              </button>
+            )
+          )}
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
           </button>

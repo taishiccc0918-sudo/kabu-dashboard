@@ -591,21 +591,17 @@ export default function Page() {
           <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
-          <label className={styles.apiLabel}>
-            API Key{apiKey ? <span style={{color:'#34d399',marginLeft:5,fontSize:10}}>✓ 保存済み</span> : ''}
-          </label>
-          <input
-            type="password"
-            className={styles.apiInput}
-            placeholder="J-Quants APIキーを入力..."
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-          />
+          {!apiKey && (
+            <button className={styles.apiKeyWarning} onClick={() => setShowSettings(true)} title="⚙ をクリックしてAPIキーを設定してください">
+              ⚙ APIキー未設定
+            </button>
+          )}
           <button
-            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''} ${loading ? styles.btnAbort : ''}`}
+            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''}`}
             onClick={fetchAll}
+            disabled={loading}
           >
-            {loading ? '⏸ 中断' : lastUpdate ? '更新済み ↺' : '全更新'}
+            {loading ? '更新中...' : lastUpdate ? '更新済み ↺' : '更新する'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
@@ -821,6 +817,8 @@ export default function Page() {
         onClose={() => setShowSettings(false)}
         judgmentSettings={judgmentSettings}
         onSettingsChange={handleSettingsChange}
+        apiKey={apiKey}
+        onApiKeyChange={setApiKey}
       />
 
       <div className={styles.statusBar}>
@@ -1500,7 +1498,7 @@ function DashboardTable({
   const cols: { label: string; cls: string; key: keyof StockRow | null; group: string; width?: number; tooltip?: string }[] = [
     { label: '', cls: styles.thLeft, key: null, width: 48, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, group: '' },
-    { label: '銘柄名', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '' },
+    { label: '銘柄名 ⓘ', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, group: '', tooltip: '⚠ マークの意味:\n直近の財務開示から90日以上経過した銘柄を示します。\n上場企業は通常3か月ごとに決算開示しますが、開示が遅れている場合や3Q/4Q決算をまたぐ期間中に表示されます。\nこのマークが付いている銘柄は財務指標が古いデータに基づく可能性があります。' },
     { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, group: '' },
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, group: '', tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
@@ -2182,12 +2180,14 @@ function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void
 
 // ─── SettingsPanel ────────────────────────────────────────────────────
 function SettingsPanel({
-  visible, onClose, judgmentSettings, onSettingsChange,
+  visible, onClose, judgmentSettings, onSettingsChange, apiKey, onApiKeyChange,
 }: {
   visible: boolean
   onClose: () => void
   judgmentSettings: JudgmentSettings | null
   onSettingsChange: (s: JudgmentSettings) => void
+  apiKey: string
+  onApiKeyChange: (key: string) => void
 }) {
   const [local, setLocal] = useState<JudgmentSettings | null>(null)
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -2282,8 +2282,22 @@ function SettingsPanel({
       />
       <div className={`${styles.judgmentPanel} ${visible ? styles.judgmentPanelOpen : ''}`}>
         <div className={styles.judgmentPanelHead}>
-          <span className={styles.judgmentPanelTitle}>判定ロジック設定</span>
+          <span className={styles.judgmentPanelTitle}>設定</span>
           <button className={styles.judgmentClose} onClick={onClose}>×</button>
+        </div>
+
+        <div className={styles.settingsApiSection}>
+          <label className={styles.apiLabel}>
+            J-Quants API Key{apiKey && <span style={{color:'#4ade80',marginLeft:8,fontSize:11}}>✓ 保存済み</span>}
+          </label>
+          <input
+            type="password"
+            className={styles.apiInput}
+            value={apiKey}
+            onChange={e => onApiKeyChange(e.target.value)}
+            placeholder="ID Token を貼り付け"
+            style={{width:'100%',boxSizing:'border-box'}}
+          />
         </div>
 
         <div className={styles.judgmentLogicRow}>

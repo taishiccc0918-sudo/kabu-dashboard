@@ -1268,6 +1268,24 @@
   color: #fff !important;
 }
 
+/* ── APIキー未設定警告 ──────────────────────────────── */
+.apiKeyWarning {
+  font-size: 11px; font-family: 'Noto Sans JP', sans-serif;
+  color: #fbbf24; background: rgba(251,191,36,0.1);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: 4px; padding: 4px 10px;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s;
+}
+.apiKeyWarning:hover { background: rgba(251,191,36,0.18); }
+
+/* ── 設定パネル APIキーセクション ────────────────────── */
+.settingsApiSection {
+  padding: 14px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
 /* ── お気に入りボタン ─────────────────────────────── */
 .favBtn {
   background: none; border: none; cursor: pointer;

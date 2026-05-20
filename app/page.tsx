@@ -30,6 +30,32 @@ function lsSet(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota */ }
 }
 
+function localDateStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function getChartCache(code: string, mode: string): unknown[] | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(`chart_cache_${code}_${mode}`)
+    if (!raw) return null
+    const { data, date } = JSON.parse(raw) as { data: unknown[]; date: string }
+    if (date !== localDateStr()) return null
+    return data
+  } catch { return null }
+}
+function setChartCache(code: string, mode: string, data: unknown[]) {
+  try {
+    localStorage.setItem(`chart_cache_${code}_${mode}`, JSON.stringify({ data, date: localDateStr() }))
+  } catch { /* quota exceeded */ }
+}
+function clearChartCaches() {
+  if (typeof window === 'undefined') return
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('chart_cache_')).forEach(k => localStorage.removeItem(k))
+  } catch { /* ignore */ }
+}
+
 function fmtJpDate(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getFullYear()).slice(2)}年${d.getMonth() + 1}月${d.getDate()}日`
@@ -168,6 +194,7 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
   const [forcePc,    setForcePc]    = useState(false)
+  const [chartRefreshKey, setChartRefreshKey] = useState(0)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
   const searchWrapRef  = useRef<HTMLDivElement>(null)
@@ -287,6 +314,8 @@ export default function Page() {
       const elapsedStr = elapsedSec < 60 ? `${elapsedSec}秒` : `${Math.floor(elapsedSec/60)}分${elapsedSec%60}秒`
       st(`完了 — ${gotCount}/${total}銘柄取得 基準日: ${dateDisp}${failMsg} (所要${elapsedStr})`, 100)
       setStatus('ok')
+      clearChartCaches()
+      setChartRefreshKey(k => k + 1)
       setTab('dashboard')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -766,7 +795,7 @@ export default function Page() {
         {tab === 'card' && (
           <div className={styles.cardGrid}>
             {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
+              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} />
             ))}
           </div>
         )}
@@ -1366,7 +1395,7 @@ function normalizeSeries(prices: number[]): number[] {
   return prices.map(v => v / base)
 }
 
-function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
+function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: string; refreshKey?: number }) {
   const [mode, setMode] = useState<ChartMode>('daily')
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, weekly: null, monthly: null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ daily: false, weekly: false, monthly: false })
@@ -1374,6 +1403,7 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   const [visible, setVisible] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const areaRef = useRef<HTMLDivElement>(null)
+  const lastRefreshKeyRef = useRef(refreshKey)
 
   const fmt = (d: Date) => d.toISOString().slice(0,10).replace(/-/g,'')
 
@@ -1390,8 +1420,22 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
 
   useEffect(() => {
     if (!visible || !apiKey || !code) return
-    if (cachedData[mode] !== null) return
-    if (errored[mode]) return
+    const isForcedRefresh = refreshKey !== lastRefreshKeyRef.current
+    lastRefreshKeyRef.current = refreshKey
+
+    if (!isForcedRefresh) {
+      if (cachedData[mode] !== null) return
+      if (errored[mode]) return
+      const cached = getChartCache(code, mode)
+      if (cached) {
+        setCachedData(prev => ({ ...prev, [mode]: cached as SeriesData[] }))
+        return
+      }
+    } else {
+      setCachedData({ daily: null, weekly: null, monthly: null })
+      setErrored({ daily: false, weekly: false, monthly: false })
+    }
+
     setChartLoading(true)
     const today = new Date()
     const from = new Date(today)
@@ -1432,12 +1476,13 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
         { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
         { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
       ]
+      setChartCache(code, mode, series)
       setCachedData(prev => ({ ...prev, [mode]: series }))
     }).catch(() => {
       setErrored(prev => ({ ...prev, [mode]: true }))
       setCachedData(prev => ({ ...prev, [mode]: [] }))
     }).finally(() => setChartLoading(false))
-  }, [code, apiKey, mode, visible])
+  }, [code, apiKey, mode, visible, refreshKey])
 
   useEffect(() => {
     const draw = () => {
@@ -1772,7 +1817,7 @@ function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; 
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null; description?: string }) {
+function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey = 0 }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null; description?: string; refreshKey?: number }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.card} onClick={onClick}>
@@ -1808,7 +1853,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: St
       </div>
       {apiKey && (
         <div onClick={e => e.stopPropagation()}>
-          <MiniChart code={r.code} apiKey={apiKey} />
+          <MiniChart code={r.code} apiKey={apiKey} refreshKey={refreshKey} />
         </div>
       )}
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>

@@ -202,6 +202,7 @@ export default function Page() {
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
+  useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
 
   // localStorage からの読み込みを一箇所に集約し、最後に mounted = true でコンテンツを表示
   useEffect(() => {
@@ -217,6 +218,13 @@ export default function Page() {
     setStockMeta(initStockMeta())
     const savedJudgment = ls<JudgmentSettings | null>('judgmentSettings', null)
     setJudgmentSettings(savedJudgment ?? DEFAULT_LOGICS)
+    // 表示モード: 保存済み優先、なければ画面幅で自動判定
+    const savedTab = ls<string>('preferredTab', '')
+    if (savedTab === 'card' || savedTab === 'dashboard') {
+      setTab(savedTab as TabKey)
+    } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setTab('card')
+    }
     setMounted(true)
   }, [])
 
@@ -632,8 +640,8 @@ export default function Page() {
           >
             {loading ? '更新中...' : lastUpdate ? '更新済み ↺' : '更新する'}
           </button>
-          <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
-          <button className={styles.helpBtn} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
+          <button className={`${styles.btnSecondary} ${styles.spHide} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={`${styles.helpBtn} ${styles.spHide}`} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
           <button className={styles.settingsBtn} onClick={() => setShowSettings(s => !s)} title="判定設定">⚙️</button>
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}

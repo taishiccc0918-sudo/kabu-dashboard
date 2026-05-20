@@ -606,31 +606,53 @@
   font-size: 10px; color: #4e6280;
 }
 
+/* SP専用非表示クラス（PC時は通常表示） */
+.spHide { /* PC: visible by default */ }
+
 /* ── RESPONSIVE OVERRIDES ────────────────────────── */
 @media (max-width: 768px) {
-  /* ヘッダー */
+  /* ヘッダー - 2段レイアウト */
   .header {
     height: auto; flex-wrap: wrap;
-    padding: 8px 14px; gap: 6px;
+    padding: 8px 12px; gap: 4px;
     position: sticky; top: 0;
   }
-  .headerLeft { width: 100%; }
-  .headerRight { width: 100%; justify-content: space-between; }
-  .apiLabel { font-size: 10px; }
-  .apiInput { flex: 1; min-width: 0; width: auto; font-size: 11px; }
-  .logo { font-size: 14px; }
-  .lastUpdate { font-size: 10px; }
+  .headerLeft {
+    width: 100%; gap: 8px; min-width: 0;
+    flex: 1 1 100%;
+  }
+  .headerRight {
+    width: 100%; flex: 1 1 100%;
+    justify-content: flex-end; gap: 6px;
+  }
+  .logo { font-size: 14px; flex-shrink: 0; }
+  .lastUpdate { font-size: 10px; min-width: 0; overflow: hidden; }
+  .spHide { display: none !important; }
+  .apiKeyWarning { font-size: 10px; padding: 3px 8px; }
 
-  /* ツールバー */
+  /* ツールバー - 2段: 検索(全幅) + フィルター群 */
   .toolbar {
     height: auto; padding: 6px 10px;
     flex-wrap: wrap; gap: 5px;
-    position: sticky;
-    top: 72px; /* スマホヘッダー高さに合わせる */
+    position: sticky; top: 68px;
+    align-items: center;
   }
-  .searchInput { width: 130px; }
-  .tabGroup { margin-left: 0; }
-  .pcToggleBtn { display: block; } /* スマホで表示 */
+  .searchWrap { width: 100%; order: -1; }
+  .searchInput { width: 100% !important; font-size: 16px !important; box-sizing: border-box; }
+  .searchInput:focus { width: 100% !important; }
+  .spacer { display: none; }
+  .filterDivider { display: none; }
+  .tabGroup { margin-left: auto; }
+  .pcToggleBtn { font-size: 10px; padding: 3px 7px; }
+
+  /* タッチターゲット（推奨44px） */
+  .btnPrimary  { min-height: 36px; padding: 0 14px; }
+  .btnSecondary { min-height: 36px; }
+  .filterBtn   { min-height: 32px; padding: 3px 8px; }
+  .tabBtn      { min-height: 32px; padding: 4px 10px; }
+  .settingsBtn { min-height: 36px; min-width: 36px; }
+  .helpBtn     { min-height: 36px; min-width: 36px; }
+  .themeToggle { min-height: 36px; min-width: 36px; }
 
   /* PC表示は非表示、スマホリストを表示 */
   .pcOnly   { display: none; }
@@ -640,13 +662,14 @@
   .forcePcOn { display: block !important; overflow-x: auto; }
   .forceMobileOff { display: none !important; }
 
-  /* カードグリッド */
+  /* カードグリッド - 2列（タブレット） */
   .cardGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     padding: 8px; gap: 8px;
   }
   .card { border-radius: 8px; padding: 12px; }
-  .cardPrice { font-size: 20px; }
+  .cardPrice { font-size: 18px; }
+  .cardMetrics { grid-template-columns: 1fr 1fr; }
 
   /* ディテールパネル */
   .detailPanel {
@@ -656,6 +679,13 @@
     animation: slideUp .2s ease;
   }
   .statusBar { font-size: 9px; padding: 0 10px; }
+}
+
+/* 小型スマホ（375px前後） - 1列グリッド */
+@media (max-width: 480px) {
+  .cardGrid { grid-template-columns: 1fr; }
+  .cardMetrics { grid-template-columns: 1fr 1fr 1fr; }
+  .filterBtn { font-size: 10px; padding: 3px 6px; }
 }
 
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

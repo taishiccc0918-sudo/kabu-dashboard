@@ -960,7 +960,7 @@ function StockManager({
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
 
   const filteredCodes = useMemo(() => {
-    const q = wlSearch.trim().toLowerCase()
+    const q = normalizeSearchText(wlSearch.trim())
     return allCodes.filter(code => {
       const rec = masterDB[code]
       if (!rec) return false
@@ -973,13 +973,14 @@ function StockManager({
         const genres = stockMeta[code]?.genres ?? []
         if (!genres.some(g => genreFilters.has(g))) return false
       }
-      if (q && !code.toLowerCase().includes(q) && !rec.name.toLowerCase().includes(q)) return false
+      if (q && !normalizeSearchText(code + ' ' + rec.name).includes(q)) return false
       return true
     })
   }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta])
 
   useEffect(() => {
-    const q = wlSearch.trim().toLowerCase()
+    const q = normalizeSearchText(wlSearch.trim())
+    const rawQ = wlSearch.trim().toLowerCase()
     if (!q) { setWlDropdownResults([]); setWlDropdownActive(-1); return }
     const timer = setTimeout(() => {
       const codeNameHits: DropdownResult[] = []
@@ -988,18 +989,19 @@ function StockManager({
         if (codeNameHits.length >= 5) break
         const rec = masterDB[code]
         if (!rec) continue
-        if (code.toLowerCase().includes(q) || rec.name.toLowerCase().includes(q)) {
+        if (normalizeSearchText(code + ' ' + rec.name).includes(q)) {
           codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
         }
       }
       for (const [code, meta] of Object.entries(stockMeta)) {
         if (memoHits.length >= 5) break
         if (!favorites.has(code) || !meta.memo) continue
-        if (meta.memo.toLowerCase().includes(q)) {
+        if (normalizeSearchText(meta.memo).includes(q)) {
           if (codeNameHits.some(r => r.code === code)) continue
-          const idx = meta.memo.toLowerCase().indexOf(q)
+          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
+          const idx = rawIdx >= 0 ? rawIdx : 0
           const start = Math.max(0, idx - 20)
-          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
           const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
           memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
         }
@@ -1141,7 +1143,8 @@ function StockManager({
       </div>
 
 
-      <div className={styles.wlTableScroll}>
+      {/* PC: テーブル表示 */}
+      <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
         <table className={styles.wlTableInner}>
           <thead>
             <tr>
@@ -1189,6 +1192,29 @@ function StockManager({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* SP: コンパクト1行リスト */}
+      <div className={`${styles.wlSpList} ${styles.mobileOnly}`}>
+        {allCodes.length === 0
+          ? <div className={styles.emptyCell}>銘柄マスタ読込中...</div>
+          : pageCodes.length === 0
+          ? <div className={styles.emptyCell}>該当銘柄なし</div>
+          : pageCodes.map(code => (
+            <WlMobileRow
+              key={code}
+              code={code}
+              rec={masterDB[code]}
+              isFav={favorites.has(code)}
+              isSuperFav={superFavorites.has(code)}
+              meta={stockMeta[code] ?? { genres: [], memo: '' }}
+              onToggleFav={() => onToggleFavorite(code)}
+              onToggleSuperFav={() => onToggleSuperFav(code)}
+              onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
+              highlighted={wlHighlightCode === code}
+            />
+          ))
+        }
       </div>
 
       {totalPages > 1 && (
@@ -1262,6 +1288,60 @@ function MemoTooltip({ text, updatedAt, children }: { text: string; updatedAt?: 
               <div className={styles.memoTooltipDate}>最終更新: {fmtJpDate(updatedAt)}</div>
             </>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── WlMobileRow（銘柄管理 SP 用コンパクト1行） ─────────────────────
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted }: {
+  code: string
+  rec: MasterRecord
+  isFav: boolean; isSuperFav: boolean
+  meta: StockMeta
+  onToggleFav: () => void; onToggleSuperFav: () => void
+  onSaveMeta: (meta: StockMeta) => void
+  highlighted: boolean
+}) {
+  const [editingMemo, setEditingMemo] = useState(false)
+  const [draft, setDraft] = useState(meta.memo)
+  const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
+  const mainGenre = meta.genres[0] ?? null
+
+  useEffect(() => { setDraft(meta.memo) }, [meta.memo])
+
+  function handleMemoBlur() {
+    setEditingMemo(false)
+    if (draft !== meta.memo) onSaveMeta({ ...meta, memo: draft, memoUpdatedAt: draft.trim() ? new Date().toISOString() : undefined })
+  }
+
+  return (
+    <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''}`} data-code-wl={code}>
+      <div className={styles.wlMobileRow}>
+        <button onClick={onToggleSuperFav}
+          className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>
+        <button onClick={onToggleFav}
+          className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}>{isFav ? '★' : '☆'}</button>
+        <span className={styles.wlMobileCode}>{code}</span>
+        <span className={styles.wlMobileName}>{rec.name}</span>
+        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+        {mainGenre && <span className={styles.wlMobileGenre}>{mainGenre}</span>}
+        <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
+          onClick={() => setEditingMemo(e => !e)}
+          title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
+        >✏</button>
+      </div>
+      {editingMemo && (
+        <div className={styles.wlMobileMemoEdit}>
+          <textarea
+            className={styles.wlMobileMemoTextarea}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={handleMemoBlur}
+            autoFocus
+            rows={3}
+          />
         </div>
       )}
     </div>

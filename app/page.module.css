@@ -1693,6 +1693,56 @@
   margin-left: 8px;
 }
 
+/* ── 銘柄管理 SP コンパクトリスト ────────────────────── */
+.wlSpList { } /* mobileOnly クラスが display を制御 */
+.wlMobileItem {
+  border-bottom: 1px solid #1f2d40;
+}
+.wlMobileRow {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px; min-height: 42px;
+}
+.wlMobileIconBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 2px;
+  min-width: 24px; min-height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; flex-shrink: 0; color: #4e6280;
+}
+.wlMobileIconBtn:active { background: rgba(255,255,255,0.06); }
+.wlMobileCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #4e6280; flex-shrink: 0; width: 38px;
+}
+.wlMobileName {
+  font-size: 13px; font-weight: 600; color: #e8eef8;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wlMobileGenre {
+  font-size: 9px; color: #4e6280; background: rgba(255,255,255,0.04);
+  border: 1px solid #2a3a52; border-radius: 3px; padding: 1px 4px; flex-shrink: 0;
+}
+.wlMobileEditBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: #4e6280; padding: 2px 5px; flex-shrink: 0;
+  border-radius: 4px; min-width: 26px; min-height: 26px;
+  display: flex; align-items: center; justify-content: center;
+}
+.wlMobileEditBtn:active { background: rgba(255,255,255,0.06); }
+.wlMobileEditBtnActive { color: #60a5fa !important; }
+.wlMobileMemoEdit {
+  padding: 6px 10px 8px; border-top: 1px solid #1f2d40;
+  background: rgba(255,255,255,0.01);
+}
+.wlMobileMemoTextarea {
+  width: 100%; background: #0f1923; border: 1px solid #2a3a52;
+  border-radius: 6px; padding: 8px; color: #e8eef8;
+  font-size: 12px; line-height: 1.5; resize: none;
+  font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box;
+  outline: none;
+}
+.wlMobileMemoTextarea:focus { border-color: #3b82f6; }
+
 /* ── THEME TOGGLE BUTTON ────────────────────────────── */
 .themeToggle {
   padding: 5px 8px; border-radius: 6px;
@@ -2263,3 +2313,14 @@
 .lightMode .spSuperFavBtn { color: rgba(0,0,0,0.15) !important; }
 .lightMode .spFavBtnActive { color: #d97706 !important; }
 .lightMode .spSuperFavBtnActive { color: #e11d48 !important; }
+
+/* ── ライトモード: wlMobileRow ──────────────────────── */
+.lightMode .wlMobileItem { border-bottom-color: #e2e8f0 !important; }
+.lightMode .wlMobileMemoEdit { background: rgba(0,0,0,0.01) !important; border-top-color: #e2e8f0 !important; }
+.lightMode .wlMobileCode { color: #64748b !important; }
+.lightMode .wlMobileName { color: #1e293b !important; }
+.lightMode .wlMobileGenre { color: #64748b !important; background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
+.lightMode .wlMobileEditBtn { color: #64748b !important; }
+.lightMode .wlMobileEditBtnActive { color: #2563eb !important; }
+.lightMode .wlMobileMemoTextarea { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
+.lightMode .wlMobileMemoTextarea:focus { border-color: #2563eb !important; }

@@ -1094,44 +1094,56 @@ function StockManager({
   return (
     <div className={styles.wlManager}>
       <div className={styles.wlHeader}>
-        <div className={styles.wlTitle}>
-          銘柄管理
-          <span className={styles.wlCount}>★{favorites.size}件 / 全{allCodes.length}件</span>
-        </div>
-        <div className={styles.wlHeaderFilters}>
-          <button
-            className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
-            onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
-            title="超お気に入り（♥）のみ表示"
-          >♥</button>
-          <button
-            className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
-            title="お気に入りのみ表示"
-          >★</button>
-          <div style={{ position: 'relative' }} ref={wlSearchWrapRef}>
-            <input
-              className={styles.wlHeaderSearch}
-              placeholder="🔍 検索"
-              value={wlSearch}
-              onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setPage(1) }}
-              onFocus={() => setWlShowDropdown(true)}
-              onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
-              onKeyDown={e => {
-                if (!wlShowDropdown || !wlSearch.trim()) return
-                if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
-                else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
-                else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { scrollToWlRow(wlDropdownResults[wlDropdownActive].code) }
-              }}
-            />
-            <SearchDropdown
-              results={wlDropdownResults}
-              activeIndex={wlDropdownActive}
-              visible={wlShowDropdown && wlSearch.trim().length > 0}
-              onSelect={code => scrollToWlRow(code)}
-            />
+        {/* 行1: タイトル/件数 + アクション群 */}
+        <div className={styles.wlHeaderRow1}>
+          <div className={styles.wlTitle}>
+            銘柄管理
+            <span className={styles.wlCount}>★{favorites.size}件 / 全{allCodes.length}件</span>
           </div>
+          <div className={styles.wlHeaderActions}>
+            <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
+              ↓ Excel
+            </button>
+            <button
+              className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
+              onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
+              title="超お気に入り（♥）のみ表示"
+            >♥</button>
+            <button
+              className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+              onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
+              title="お気に入りのみ表示"
+            >★</button>
+          </div>
+        </div>
+
+        {/* 行2: 検索ボックス（全幅） */}
+        <div className={styles.wlSearchOuter} ref={wlSearchWrapRef}>
+          <input
+            className={styles.wlHeaderSearch}
+            placeholder="🔍 銘柄名・コード検索..."
+            value={wlSearch}
+            onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setPage(1) }}
+            onFocus={() => setWlShowDropdown(true)}
+            onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
+            onKeyDown={e => {
+              if (!wlShowDropdown || !wlSearch.trim()) return
+              if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
+              else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
+              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { scrollToWlRow(wlDropdownResults[wlDropdownActive].code) }
+            }}
+          />
+          <SearchDropdown
+            results={wlDropdownResults}
+            activeIndex={wlDropdownActive}
+            visible={wlShowDropdown && wlSearch.trim().length > 0}
+            onSelect={code => scrollToWlRow(code)}
+          />
+        </div>
+
+        {/* 行3: 市場フィルタ + 件数 */}
+        <div className={styles.wlHeaderRow3}>
           <div className={styles.wlMktSegment}>
             {(['all','prime','standard','growth'] as const).map(k => (
               <button key={k}
@@ -1142,9 +1154,6 @@ function StockManager({
           </div>
           <span className={styles.wlHeaderCount}>{filteredCodes.length}件</span>
         </div>
-        <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
-          ↓ Excelエクスポート
-        </button>
       </div>
 
 

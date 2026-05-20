@@ -1012,14 +1012,25 @@
   height: calc(100vh - 80px); /* 52px header + 28px statusBar */
 }
 .wlHeader {
-  display: flex; align-items: center;
+  display: flex; align-items: center; flex-wrap: wrap;
   padding: 10px 20px;
   border-bottom: 1px solid #1f2d40;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 8px; flex-shrink: 0;
 }
 
-/* ── ヘッダー内フィルター群 ─────────────────────────── */
+/* 行1: タイトル + アクション（PC: display:contents で透過） */
+.wlHeaderRow1 { display: contents; }
+.wlHeaderActions { display: contents; }
+
+/* 行2: 検索（PC: flex:1 で横伸び） */
+.wlSearchOuter {
+  position: relative; flex: 1; min-width: 120px; max-width: 220px;
+}
+
+/* 行3: 市場フィルタ + 件数（PC: display:contents で透過） */
+.wlHeaderRow3 { display: contents; }
+
+/* ── ヘッダー内フィルター群 (後方互換・未使用でも残す) ─ */
 .wlHeaderFilters {
   display: flex; align-items: center; gap: 6px;
   flex: 1; min-width: 0;
@@ -1046,7 +1057,7 @@
 
 /* ヘッダー内検索 */
 .wlHeaderSearch {
-  flex: 1; max-width: 200px; min-width: 100px;
+  width: 100%;
   background: rgba(255,255,255,0.05);
   border: 1px solid #2a3a52; color: #e8eef8;
   padding: 5px 10px; border-radius: 6px;
@@ -2327,3 +2338,77 @@
 .lightMode .wlMobileEditBtnActive { color: #2563eb !important; }
 .lightMode .wlMobileMemoTextarea { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlMobileMemoTextarea:focus { border-color: #2563eb !important; }
+
+/* ── 銘柄管理ヘッダー SP 縦並びレイアウト ─────────────── */
+@media (max-width: 768px) {
+  /* wlHeader を縦スタックに変換 */
+  .wlHeader {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+
+  /* 行1: display:contents を解除して flex 横並びに */
+  .wlHeaderRow1 {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+  .wlHeaderActions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    flex-shrink: 0 !important;
+  }
+  /* Excelボタンのテキストを短縮 */
+  .wlHeaderActions .btnSecondary {
+    font-size: 11px !important;
+    padding: 0 8px !important;
+    min-height: 30px !important;
+    white-space: nowrap !important;
+  }
+  /* ♥★ アイコンボタンのタップ領域 */
+  .wlHeaderActions .wlIconFilterBtn {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    font-size: 15px !important;
+  }
+
+  /* 行2: 検索 全幅 */
+  .wlSearchOuter {
+    width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
+  }
+  .wlHeaderSearch {
+    width: 100% !important;
+    font-size: 16px !important;  /* iOS ズーム防止 */
+    padding: 8px 12px !important;
+  }
+
+  /* 行3: 市場フィルタ display:contents を解除 */
+  .wlHeaderRow3 {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+  }
+  /* 市場ボタンをチップ形式に */
+  .wlMktSegment {
+    flex-wrap: wrap !important;
+    border: none !important;
+    border-radius: 0 !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+  .wlMktBtn {
+    border-radius: 5px !important;
+    border: 1px solid #2a3a52 !important;
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+    min-height: 34px !important;
+  }
+  .wlHeaderCount { margin-left: auto; }
+}

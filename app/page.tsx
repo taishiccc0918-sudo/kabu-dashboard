@@ -61,6 +61,14 @@ function fmtJpDate(iso: string): string {
   return `${String(d.getFullYear()).slice(2)}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+// 検索正規化: ひらがな→カタカナ + NFKC全角→半角 + 小文字化
+function normalizeSearchText(text: string): string {
+  return text
+    .normalize('NFKC')
+    .replace(/[ぁ-ん]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
+    .toLowerCase()
+}
+
 // ── Escape スタック（LIFO: 最後に開いたパネルのみ閉じる）────────────────
 const _escapeStack: Array<() => void> = []
 let _escapeListenerAttached = false
@@ -399,9 +407,13 @@ export default function Page() {
   }, [finDB])
 
   const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = normalizeSearchText(search.trim())
     let rows = allRows.filter(r => {
-      if (q && !r.code.toLowerCase().includes(q) && !r.name.toLowerCase().includes(q)) return false
+      if (q) {
+        const norm = normalizeSearchText(r.code + ' ' + r.name)
+        const memoNorm = normalizeSearchText(stockMeta[r.code]?.memo ?? '')
+        if (!norm.includes(q) && !memoNorm.includes(q)) return false
+      }
       if (filter === 'buy' && judgmentResultsMap[r.code] == null) return false
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (filterFav   && !favorites.has(r.code))      return false
@@ -422,29 +434,31 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, filter, filterHeart, filterFav, superFavorites, favorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, stockMeta, filter, filterHeart, filterFav, superFavorites, favorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
-    const q = search.trim().toLowerCase()
+    const q = normalizeSearchText(search.trim())
+    const rawQ = search.trim().toLowerCase()
     if (!q) { setDropdownResults([]); setDropdownActive(-1); return }
     const timer = setTimeout(() => {
       const codeNameHits: DropdownResult[] = []
       const memoHits: DropdownResult[] = []
       for (const r of allRows) {
         if (codeNameHits.length >= 5) break
-        if (r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) {
+        if (normalizeSearchText(r.code).includes(q) || normalizeSearchText(r.name).includes(q)) {
           codeNameHits.push({ code: r.code, name: r.name, matchType: 'code_name' })
         }
       }
       for (const [code, meta] of Object.entries(stockMeta)) {
         if (memoHits.length >= 5) break
         if (!favorites.has(code) || !meta.memo) continue
-        if (meta.memo.toLowerCase().includes(q)) {
+        if (normalizeSearchText(meta.memo).includes(q)) {
           if (codeNameHits.some(r => r.code === code)) continue
-          const idx = meta.memo.toLowerCase().indexOf(q)
+          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
+          const idx = rawIdx >= 0 ? rawIdx : 0
           const start = Math.max(0, idx - 20)
-          const end = Math.min(meta.memo.length, idx + q.length + 20)
+          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
           const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
           memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
         }
@@ -727,7 +741,7 @@ export default function Page() {
         <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
           {forcePc ? '📱 最適化' : '🖥 PC表示'}
         </button>
-        <div className={styles.tabGroup}>
+        <div className={`${styles.tabGroup} ${styles.spHide}`}>
           {(['dashboard','card'] as TabKey[]).map(t => (
             <button
               key={t}
@@ -1833,7 +1847,8 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
 
   return (
     <div className={styles.spMemoCard}>
-      <div className={styles.spMemoCardTop}>
+      {/* Row1: ★/♥ + CODE + Market + Judgment */}
+      <div className={styles.spCardRow1}>
         <button className={`${styles.spFavBtn} ${isFav ? styles.spFavBtnActive : ''}`}
           onClick={e => { e.stopPropagation(); onToggleFav(r.code) }}>
           {isFav ? '★' : '☆'}
@@ -1842,19 +1857,34 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }}>
           {isSuperFav ? '♥' : '♡'}
         </button>
-        <span className={styles.mobileCode}>{r.code}</span>
+        <span className={styles.spCardCode}>{r.code}</span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        {r.genres[0] && <span className={styles.spGenreBadge}>{r.genres[0]}</span>}
         <JudgmentBadge result={judgment} description={description} />
       </div>
-      <div className={styles.spMemoCardName}>{r.name || '—'}</div>
-      <div className={styles.spMemoCardPrice}>
-        <span className={styles.spPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
-        <span className={`${styles.spChg} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</span>
-        <span className={`${styles.spChgSub} ${styles[pctClass(r.chg1w)]}`}>1W {fmtPct(r.chg1w)}</span>
-        {r.perF != null && <span className={styles.spPerF}>PER {fmtN(r.perF)}</span>}
+      {/* Row2: 銘柄名 (左) | 株価 (右) */}
+      <div className={styles.spCardRow2}>
+        <span className={styles.spCardName}>{r.name || '—'}</span>
+        <span className={styles.spCardPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
       </div>
-      <div className={styles.spMemoArea} onClick={() => !editing && setEditing(true)}>
+      {/* Row3: ジャンル (左) | 前日比/1W (右) */}
+      <div className={styles.spCardRow3}>
+        <div className={styles.spCardGenres}>
+          {r.genres.slice(0, 2).map(g => <span key={g} className={styles.spGenreBadge}>{g}</span>)}
+        </div>
+        <div className={styles.spCardChgs}>
+          <span className={`${styles.spChg} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</span>
+          <span className={`${styles.spChgSub} ${styles[pctClass(r.chg1w)]}`}>1W {fmtPct(r.chg1w)}</span>
+        </div>
+      </div>
+      {/* Row4: PER今期 */}
+      {r.perF != null && (
+        <div className={styles.spCardPerFRow}>
+          <span className={styles.spCardPerF}>PER今期 {fmtN(r.perF)}倍</span>
+        </div>
+      )}
+      {/* メモエリア: 空なら1行プレースホルダー */}
+      <div className={`${styles.spMemoArea} ${memo ? '' : styles.spMemoAreaEmpty}`}
+        onClick={() => !editing && setEditing(true)}>
         {editing ? (
           <textarea
             className={styles.spMemoTextarea}
@@ -1862,22 +1892,18 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
             onChange={e => setDraft(e.target.value)}
             onBlur={handleBlur}
             autoFocus
-            rows={4}
+            rows={3}
             onClick={e => e.stopPropagation()}
           />
         ) : (
           <>
-            <div className={styles.spMemoText}>
-              {memo || <span className={styles.spMemoPlaceholder}>メモ（タップして編集）</span>}
-            </div>
-            {memoUpdatedAt && <div className={styles.spMemoDate}>{fmtJpDate(memoUpdatedAt)}</div>}
+            {memo
+              ? <div className={styles.spMemoText}>{memo}</div>
+              : <div className={styles.spMemoPlaceholder}>メモ（タップして入力）</div>
+            }
+            {memo && memoUpdatedAt && <div className={styles.spMemoDate}>{fmtJpDate(memoUpdatedAt)}</div>}
           </>
         )}
-      </div>
-      <div className={styles.spMemoLinks} onClick={e => e.stopPropagation()}>
-        <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
-        <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-        <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
       </div>
     </div>
   )

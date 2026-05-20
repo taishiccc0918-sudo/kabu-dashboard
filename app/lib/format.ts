@@ -98,6 +98,7 @@ export function buildStockRow(
     close,
     chg1d:      p.chg1d ?? null,
     chg1w:      p.chg1w ?? null,
+    chg1m:      (close && prev1m) ? close / prev1m - 1 : null,
     chg3m:      p.chg3m ?? null,
     chg1y:      p.chg1y ?? null,
     mcap:       p.mcap  ?? 0,

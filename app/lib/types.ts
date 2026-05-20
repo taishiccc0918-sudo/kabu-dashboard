@@ -153,6 +153,7 @@ export interface StockRow {
   close: number
   chg1d: number | null
   chg1w: number | null
+  chg1m: number | null
   chg3m: number | null
   chg1y: number | null
   mcap: number

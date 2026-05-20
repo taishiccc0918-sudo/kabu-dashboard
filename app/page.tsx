@@ -1331,13 +1331,20 @@ const StockManagerRow = React.memo(function StockManagerRow({
 })
 
 // ─── MiniChart ───────────────────────────────────────────────────────
-type ChartMode = 'daily' | 'monthly'
+type ChartMode = 'daily' | 'weekly' | 'monthly'
 interface SeriesData { prices: number[]; label: string; color: string }
 
-async function fetchIndex(stooqSymbol: string, from: string, to: string): Promise<number[]> {
+function getWeekKey(dateStr: string): string {
+  const dt = new Date(dateStr)
+  const start = new Date(dt.getFullYear(), 0, 1)
+  const week = Math.floor((dt.getTime() - start.getTime()) / 604800000)
+  return `${dt.getFullYear()}-${String(week).padStart(2, '0')}`
+}
+
+async function fetchIndex(stooqSymbol: string, from: string, to: string, interval: 'd'|'w'|'m' = 'd'): Promise<number[]> {
   const fd = `${from.slice(0,4)}-${from.slice(4,6)}-${from.slice(6,8)}`
   const td = `${to.slice(0,4)}-${to.slice(4,6)}-${to.slice(6,8)}`
-  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&d1=${fd.replace(/-/g,'')}&d2=${td.replace(/-/g,'')}&i=d`
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&d1=${fd.replace(/-/g,'')}&d2=${td.replace(/-/g,'')}&i=${interval}`
   try {
     const r = await fetch(url)
     const text = await r.text()
@@ -1361,7 +1368,7 @@ function normalizeSeries(prices: number[]): number[] {
 
 function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   const [mode, setMode] = useState<ChartMode>('daily')
-  const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, monthly: null })
+  const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, weekly: null, monthly: null })
   const [chartLoading, setChartLoading] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -1374,20 +1381,29 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
     const today = new Date()
     const from = new Date(today)
     if (mode === 'daily') from.setFullYear(from.getFullYear() - 1)
+    else if (mode === 'weekly') from.setFullYear(from.getFullYear() - 3)
     else from.setFullYear(from.getFullYear() - 5)
     const fromStr = fmt(from)
     const toStr = fmt(today)
+    const idxInterval: 'd'|'w'|'m' = mode === 'weekly' ? 'w' : mode === 'monthly' ? 'm' : 'd'
     const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
     const url = `/api/jquants?path=${path}`
     Promise.all([
       fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
-      fetchIndex('n225.jp', fromStr, toStr),
-      fetchIndex('ixic', fromStr, toStr),
+      fetchIndex('n225.jp', fromStr, toStr, idxInterval),
+      fetchIndex('ixic', fromStr, toStr, idxInterval),
     ]).then(([json, nkPrices, ndqPrices]) => {
       const data = json?.data ?? []
       let stockPrices: number[]
       if (mode === 'daily') {
         stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
+      } else if (mode === 'weekly') {
+        const weekly: Record<string, number> = {}
+        for (const d of data) {
+          const date = (d.Date as string) ?? ''
+          if (date) weekly[getWeekKey(date)] = d.AdjC ?? d.C ?? 0
+        }
+        stockPrices = Object.values(weekly).filter(v => v > 0)
       } else {
         const monthly: Record<string, number> = {}
         for (const d of data) {
@@ -1455,10 +1471,10 @@ function MiniChart({ code, apiKey }: { code: string; apiKey: string }) {
   return (
     <div className={styles.chartArea}>
       <div className={styles.chartTabs}>
-        {(['daily','monthly'] as ChartMode[]).map(m => (
+        {(['daily','weekly','monthly'] as ChartMode[]).map(m => (
           <button key={m} className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
             onClick={e => { e.stopPropagation(); setMode(m) }}>
-            {m === 'daily' ? '日足(1年)' : '月足(5年)'}
+            {m === 'daily' ? '日足(1年)' : m === 'weekly' ? '週足(3年)' : '月足(5年)'}
           </button>
         ))}
       </div>
@@ -1750,12 +1766,12 @@ function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: St
       </div>
       <div className={styles.cardMetrics}>
         {[
-          ['PER今期', r.perF ? fmtN(r.perF) : '—', ''],
-          ['PBR',    r.pbr  ? fmtN(r.pbr)  : '—', ''],
-          ['ROE',    r.roe  ? fmtPct(r.roe) : '—', r.roe && r.roe > 0.1 ? 'up' : ''],
-          ['配当',   r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],
-          ['3ヶ月',  fmtPct(r.chg3m), pctClass(r.chg3m)],
-          ['PEG',    r.peg  ? fmtN(r.peg,2) : '—', r.peg && r.peg < 1 ? 'up' : ''],
+          ['1ヶ月%',   r.chg1m != null ? fmtPct(r.chg1m) : '—',   pctClass(r.chg1m)],
+          ['PER今期',  r.perF  != null ? fmtN(r.perF)     : '—',   ''],
+          ['PEG',      r.peg   != null ? fmtN(r.peg, 2)   : '—',   r.peg != null && r.peg < 1 ? 'up' : ''],
+          ['来期売上%', r.nySalesGr != null ? fmtPct(r.nySalesGr) : '—', r.nySalesGr != null ? pctClass(r.nySalesGr) : ''],
+          ['ROE',      r.roe   != null ? fmtPct(r.roe)    : '—',   r.roe != null && r.roe > 0.1 ? 'up' : ''],
+          ['営業利益率', r.opMgn != null ? fmtPct(r.opMgn) : '—',  r.opMgn != null && r.opMgn > 0.15 ? 'up' : ''],
         ].map(([l, v, c]) => (
           <div key={l} className={styles.cardMetric}>
             <div className={styles.cardMetricLabel}>{l}</div>
@@ -1769,6 +1785,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description }: { row: St
         </div>
       )}
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
+        <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
         <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
         <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
       </div>

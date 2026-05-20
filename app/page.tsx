@@ -203,6 +203,7 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
+  useEffect(() => { lsSet('forcePc', forcePc) }, [forcePc])
 
   // localStorage からの読み込みを一箇所に集約し、最後に mounted = true でコンテンツを表示
   useEffect(() => {
@@ -225,6 +226,7 @@ export default function Page() {
     } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setTab('card')
     }
+    setForcePc(ls('forcePc', false))
     setMounted(true)
   }, [])
 
@@ -640,8 +642,11 @@ export default function Page() {
           >
             {loading ? '更新中...' : lastUpdate ? '更新済み ↺' : '更新する'}
           </button>
-          <button className={`${styles.btnSecondary} ${styles.spHide} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           <button className={`${styles.helpBtn} ${styles.spHide}`} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
+          <button className={`${styles.pcModeBtn} ${styles.spOnly}`} onClick={() => setForcePc(f => !f)} title={forcePc ? 'SP版に戻す' : 'PC版表示に切替'}>
+            {forcePc ? 'SP版' : 'PC版'}
+          </button>
           <button className={styles.settingsBtn} onClick={() => setShowSettings(s => !s)} title="判定設定">⚙️</button>
           <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
             {darkMode ? '☀️' : '🌙'}
@@ -768,43 +773,59 @@ export default function Page() {
       )}
 
       <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
+        {/* SP専用メモ重視ビュー（ウォッチリスト以外のタブで表示） */}
+        {tab !== 'watchlist' && (
+          <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
+            <div className={styles.spMemoList}>
+              {filteredRows.length === 0
+                ? <div className={styles.emptyCell}>該当銘柄なし</div>
+                : filteredRows.map(r => (
+                  <SpMemoCard
+                    key={r.code}
+                    row={r}
+                    memo={stockMeta[r.code]?.memo ?? ''}
+                    memoUpdatedAt={stockMeta[r.code]?.memoUpdatedAt}
+                    onSaveMemo={saveMemo}
+                    isFav={favorites.has(r.code)}
+                    isSuperFav={superFavorites.has(r.code)}
+                    onToggleFav={toggleFavorite}
+                    onToggleSuperFav={toggleSuperFavorite}
+                    judgment={judgmentResultsMap[r.code] ?? null}
+                    description={activeLogicDesc}
+                  />
+                ))
+              }
+            </div>
+          </div>
+        )}
+
         {tab === 'dashboard' && (
-          <>
-            <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
-              <DashboardTable
-                filteredRows={filteredRows}
-                finDB={finDB}
-                earningsDates={earningsDates}
-                onSaveEarningsDate={saveEarningsDate}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                handleSort={handleSort}
-                onRowClick={(code) => setDetailCode(code)}
-                highlightCode={highlightCode}
-                superFavorites={superFavorites}
-                onToggleSuperFav={toggleSuperFavorite}
-                judgmentResultsMap={judgmentResultsMap}
-                activeLogicDesc={activeLogicDesc}
-              />
-            </div>
-            <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
-              <div className={styles.mobileList}>
-                {filteredRows.length === 0
-                  ? <div className={styles.emptyCell}>該当銘柄なし</div>
-                  : filteredRows.map(r => (
-                    <MobileRow key={r.code} row={r} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
-                  ))
-                }
-              </div>
-            </div>
-          </>
+          <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
+            <DashboardTable
+              filteredRows={filteredRows}
+              finDB={finDB}
+              earningsDates={earningsDates}
+              onSaveEarningsDate={saveEarningsDate}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              handleSort={handleSort}
+              onRowClick={(code) => setDetailCode(code)}
+              highlightCode={highlightCode}
+              superFavorites={superFavorites}
+              onToggleSuperFav={toggleSuperFavorite}
+              judgmentResultsMap={judgmentResultsMap}
+              activeLogicDesc={activeLogicDesc}
+            />
+          </div>
         )}
 
         {tab === 'card' && (
-          <div className={styles.cardGrid}>
-            {filteredRows.map(r => (
-              <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} />
-            ))}
+          <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
+            <div className={styles.cardGrid}>
+              {filteredRows.map(r => (
+                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} />
+              ))}
+            </div>
           </div>
         )}
 
@@ -1790,6 +1811,75 @@ function EarningsDateCell({ code, date, onSave, fin }: {
     >
       {displayDate ? formatShort(displayDate) : '+'}
     </span>
+  )
+}
+
+// ─── SpMemoCard（SP専用メモ重視カード）────────────────────────────────
+function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav, onToggleFav, onToggleSuperFav, judgment, description }: {
+  row: StockRow; memo: string; memoUpdatedAt?: string
+  onSaveMemo: (code: string, text: string) => void
+  isFav: boolean; isSuperFav: boolean
+  onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
+  judgment: string | null; description?: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(memo)
+  const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+
+  function handleBlur() {
+    setEditing(false)
+    if (draft !== memo) onSaveMemo(r.code, draft)
+  }
+
+  return (
+    <div className={styles.spMemoCard}>
+      <div className={styles.spMemoCardTop}>
+        <button className={`${styles.spFavBtn} ${isFav ? styles.spFavBtnActive : ''}`}
+          onClick={e => { e.stopPropagation(); onToggleFav(r.code) }}>
+          {isFav ? '★' : '☆'}
+        </button>
+        <button className={`${styles.spSuperFavBtn} ${isSuperFav ? styles.spSuperFavBtnActive : ''}`}
+          onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }}>
+          {isSuperFav ? '♥' : '♡'}
+        </button>
+        <span className={styles.mobileCode}>{r.code}</span>
+        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+        {r.genres[0] && <span className={styles.spGenreBadge}>{r.genres[0]}</span>}
+        <JudgmentBadge result={judgment} description={description} />
+      </div>
+      <div className={styles.spMemoCardName}>{r.name || '—'}</div>
+      <div className={styles.spMemoCardPrice}>
+        <span className={styles.spPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
+        <span className={`${styles.spChg} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</span>
+        <span className={`${styles.spChgSub} ${styles[pctClass(r.chg1w)]}`}>1W {fmtPct(r.chg1w)}</span>
+        {r.perF != null && <span className={styles.spPerF}>PER {fmtN(r.perF)}</span>}
+      </div>
+      <div className={styles.spMemoArea} onClick={() => !editing && setEditing(true)}>
+        {editing ? (
+          <textarea
+            className={styles.spMemoTextarea}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={handleBlur}
+            autoFocus
+            rows={4}
+            onClick={e => e.stopPropagation()}
+          />
+        ) : (
+          <>
+            <div className={styles.spMemoText}>
+              {memo || <span className={styles.spMemoPlaceholder}>メモ（タップして編集）</span>}
+            </div>
+            {memoUpdatedAt && <div className={styles.spMemoDate}>{fmtJpDate(memoUpdatedAt)}</div>}
+          </>
+        )}
+      </div>
+      <div className={styles.spMemoLinks} onClick={e => e.stopPropagation()}>
+        <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
+        <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
+        <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
+      </div>
+    </div>
   )
 }
 

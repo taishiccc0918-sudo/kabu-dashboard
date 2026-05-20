@@ -554,6 +554,15 @@
   transition: all .12s;
 }
 .pcToggleBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.pcModeBtn {
+  font-size: 11px; padding: 4px 10px; border-radius: 5px;
+  border: 1px solid #2a3a52; background: rgba(255,255,255,0.04);
+  color: #8fa3be; cursor: pointer; white-space: nowrap;
+  font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
+  align-items: center;
+}
+.pcModeBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.lightMode .pcModeBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
 
 /* ── MOBILE LIST ─────────────────────────────────── */
 .mobileList {
@@ -608,6 +617,52 @@
 
 /* SP専用非表示クラス（PC時は通常表示） */
 .spHide { /* PC: visible by default */ }
+/* PC専用非表示クラス（SP時に表示） */
+.spOnly { display: none; }
+
+/* ── SP専用メモビュー ─────────────────────────────── */
+.spMemoList { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.spMemoCard {
+  background: #111827; border: 1px solid #1f2d40;
+  border-radius: 10px; padding: 14px;
+}
+.spMemoCardTop { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.spFavBtn, .spSuperFavBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 2px; min-width: 32px; min-height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: #4e6280; border-radius: 4px;
+}
+.spFavBtn:active, .spSuperFavBtn:active { background: rgba(255,255,255,0.06); }
+.spFavBtnActive { color: #f59e0b !important; }
+.spSuperFavBtnActive { color: #f43f5e !important; }
+.spGenreBadge {
+  font-size: 10px; color: #4e6280; background: rgba(255,255,255,0.04);
+  border: 1px solid #2a3a52; border-radius: 4px; padding: 1px 6px;
+}
+.spMemoCardName { font-size: 16px; font-weight: 700; color: #e8eef8; margin-bottom: 8px; }
+.spMemoCardPrice {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.spPrice { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #e8eef8; }
+.spChg { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+.spChgSub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #4e6280; }
+.spPerF { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8fa3be; margin-left: auto; }
+.spMemoArea {
+  background: rgba(255,255,255,0.03); border: 1px solid #2a3a52;
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+  min-height: 60px; cursor: pointer;
+}
+.spMemoText { font-size: 13px; color: #c8d8ec; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+.spMemoPlaceholder { color: #3a4f6a; font-size: 13px; }
+.spMemoTextarea {
+  width: 100%; background: transparent; border: none; outline: none;
+  color: #e8eef8; font-size: 13px; line-height: 1.6; font-family: 'Noto Sans JP', sans-serif;
+  resize: none; min-height: 80px; box-sizing: border-box;
+}
+.spMemoDate { font-size: 10px; color: #3a4f6a; margin-top: 6px; text-align: right; }
+.spMemoLinks { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ── RESPONSIVE OVERRIDES ────────────────────────── */
 @media (max-width: 768px) {
@@ -628,6 +683,7 @@
   .logo { font-size: 14px; flex-shrink: 0; }
   .lastUpdate { font-size: 10px; min-width: 0; overflow: hidden; }
   .spHide { display: none !important; }
+  .spOnly { display: flex !important; }
   .apiKeyWarning { font-size: 10px; padding: 3px 8px; }
 
   /* ツールバー - 2段: 検索(全幅) + フィルター群 */
@@ -2153,3 +2209,30 @@
   .helpPanel { width: 100%; min-width: 0; max-width: 100%; }
   .judgmentPanel { width: 100%; min-width: 0; max-width: 100%; }
 }
+
+/* ── ライトモード: mobileRow（修正1） ───────────────── */
+.lightMode .mobileRow { background: #fff !important; border-color: #cbd5e1 !important; }
+.lightMode .mobileRow:active { background: #e2e8f0 !important; border-color: #2563eb !important; }
+.lightMode .mobileCode { color: #64748b !important; }
+.lightMode .mobileName { color: #1e293b !important; }
+.lightMode .mobileMetaItem { color: #64748b !important; }
+.lightMode .mobilePrice { color: #1e293b !important; }
+.lightMode .mobileChg { /* 色はup/downクラスで決まるため上書き不要 */ }
+.lightMode .mobileSubChg { color: #64748b !important; }
+
+/* ── ライトモード: SpMemoCard ───────────────────────── */
+.lightMode .spMemoCard { background: #fff !important; border-color: #cbd5e1 !important; }
+.lightMode .spMemoCardName { color: #1e293b !important; }
+.lightMode .spPrice { color: #1e293b !important; }
+.lightMode .spChgSub { color: #64748b !important; }
+.lightMode .spPerF { color: #64748b !important; }
+.lightMode .spGenreBadge { color: #64748b !important; background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; }
+.lightMode .spMemoArea { background: rgba(0,0,0,0.02) !important; border-color: #cbd5e1 !important; }
+.lightMode .spMemoText { color: #334155 !important; }
+.lightMode .spMemoPlaceholder { color: #94a3b8 !important; }
+.lightMode .spMemoTextarea { color: #1e293b !important; }
+.lightMode .spMemoDate { color: #94a3b8 !important; }
+.lightMode .spFavBtn { color: rgba(0,0,0,0.2) !important; }
+.lightMode .spSuperFavBtn { color: rgba(0,0,0,0.15) !important; }
+.lightMode .spFavBtnActive { color: #d97706 !important; }
+.lightMode .spSuperFavBtnActive { color: #e11d48 !important; }

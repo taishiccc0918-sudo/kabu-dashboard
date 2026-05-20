@@ -202,6 +202,7 @@ export default function Page() {
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
   const [forcePc,    setForcePc]    = useState(false)
+  const [isMobileView, setIsMobileView] = useState(false)
   const [chartRefreshKey, setChartRefreshKey] = useState(0)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
@@ -235,6 +236,7 @@ export default function Page() {
       setTab('card')
     }
     setForcePc(ls('forcePc', false))
+    setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
     setMounted(true)
   }, [])
 
@@ -815,21 +817,24 @@ export default function Page() {
 
         {tab === 'dashboard' && (
           <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
-            <DashboardTable
-              filteredRows={filteredRows}
-              finDB={finDB}
-              earningsDates={earningsDates}
-              onSaveEarningsDate={saveEarningsDate}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              handleSort={handleSort}
-              onRowClick={(code) => setDetailCode(code)}
-              highlightCode={highlightCode}
-              superFavorites={superFavorites}
-              onToggleSuperFav={toggleSuperFavorite}
-              judgmentResultsMap={judgmentResultsMap}
-              activeLogicDesc={activeLogicDesc}
-            />
+            {/* SP上でposition:stickyなtheadOuterがdisplay:none親から脱走するiOS Safariバグ対策: isMobileView時は非レンダリング */}
+            {(!isMobileView || forcePc) && (
+              <DashboardTable
+                filteredRows={filteredRows}
+                finDB={finDB}
+                earningsDates={earningsDates}
+                onSaveEarningsDate={saveEarningsDate}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                handleSort={handleSort}
+                onRowClick={(code) => setDetailCode(code)}
+                highlightCode={highlightCode}
+                superFavorites={superFavorites}
+                onToggleSuperFav={toggleSuperFavorite}
+                judgmentResultsMap={judgmentResultsMap}
+                activeLogicDesc={activeLogicDesc}
+              />
+            )}
           </div>
         )}
 

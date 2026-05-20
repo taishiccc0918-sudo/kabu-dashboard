@@ -735,10 +735,13 @@
   .themeToggle { min-height: 36px; min-width: 36px; }
 
   /* PC表示は非表示、スマホリストを表示 */
-  .pcOnly   { display: none !important; }
+  /* visibility:hidden を追加: position:sticky がdisplay:noneを突き抜けるiOS Safariバグ対策 */
+  .pcOnly   { display: none !important; visibility: hidden !important; }
   .mobileOnly { display: block; }
   /* SP版ではタブ切替UIを非表示 */
   .tabGroup { display: none !important; }
+  /* theadOuter の sticky 脱走防止 (上記pcOnly対策の補完) */
+  .theadOuter { position: static !important; }
 
   /* forcePc時は逆転 */
   .forcePcOn { display: block !important; overflow-x: auto; }

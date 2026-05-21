@@ -2737,17 +2737,6 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
             <span>{allSelected ? '全解除' : '全選択'}</span>
           </div>
           <div className={styles.genreFilterList}>
-            {/* 未設定フィルター（常に先頭に表示） */}
-            {!search.trim() && (
-              <div className={styles.genreFilterItem} onClick={() => {
-                const next = new Set(pending)
-                next.has(GENRE_UNSET) ? next.delete(GENRE_UNSET) : next.add(GENRE_UNSET)
-                setPending(next)
-              }}>
-                <span className={`${styles.genreFilterCheck} ${pending.has(GENRE_UNSET) ? styles.genreFilterCheckOn : ''}`} />
-                <span className={styles.genreFilterLabel} style={{color:'#f87171'}}>未設定</span>
-              </div>
-            )}
             {filtered.map(g => (
               <div key={g} className={styles.genreFilterItem} onClick={() => {
                 const next = new Set(pending)
@@ -2758,6 +2747,17 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
                 <span className={styles.genreFilterLabel}>{g}</span>
               </div>
             ))}
+            {/* 未設定フィルター（常に末尾に表示） */}
+            {!search.trim() && (
+              <div className={styles.genreFilterItem} onClick={() => {
+                const next = new Set(pending)
+                next.has(GENRE_UNSET) ? next.delete(GENRE_UNSET) : next.add(GENRE_UNSET)
+                setPending(next)
+              }}>
+                <span className={`${styles.genreFilterCheck} ${pending.has(GENRE_UNSET) ? styles.genreFilterCheckOn : ''}`} />
+                <span className={styles.genreFilterLabel} style={{color:'#f87171'}}>未設定</span>
+              </div>
+            )}
           </div>
           <div className={styles.genreFilterDivider} />
           <div className={styles.genreFilterActions}>

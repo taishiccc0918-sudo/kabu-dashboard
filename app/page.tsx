@@ -243,22 +243,51 @@ export default function Page() {
     if (favData) {
       const stars  = new Set(favData.filter(f => f.type === 'star').map(f => f.code as string))
       const hearts = new Set(favData.filter(f => f.type === 'heart').map(f => f.code as string))
-      setFavorites(stars)
-      setSuperFavorites(hearts)
-      lsSet('favorites', Array.from(stars))
-      lsSet('superFavorites', Array.from(hearts))
+      if (stars.size === 0 && hearts.size === 0) {
+        // Supabase が空 = 初回ログイン → localStorage のデータを Supabase に移行
+        const localStars  = ls<string[]>('favorites', [])
+        const localHearts = ls<string[]>('superFavorites', [])
+        if (localStars.length > 0 || localHearts.length > 0) {
+          const rows = [
+            ...localStars.map(code  => ({ user_id: userId, code, type: 'star'  as const })),
+            ...localHearts.map(code => ({ user_id: userId, code, type: 'heart' as const })),
+          ]
+          await sb.from('favorites').upsert(rows)
+          console.log(`[Supabase移行] ★${localStars.length}件 ♥${localHearts.length}件 をクラウドに保存しました`)
+        }
+        // ローカルデータはそのまま維持（State上書き不要）
+      } else {
+        // Supabase にデータあり → Supabase のデータで同期
+        setFavorites(stars)
+        setSuperFavorites(hearts)
+        lsSet('favorites', Array.from(stars))
+        lsSet('superFavorites', Array.from(hearts))
+      }
     }
     if (memoData) {
-      setStockMeta(prev => {
-        const next = { ...prev }
-        for (const m of memoData) {
-          const code = m.code as string
-          if (!next[code]) next[code] = { genres: (DEFAULT_GENRES[code] ?? '').split(',').filter(Boolean), memo: '' }
-          next[code] = { ...next[code], memo: m.memo as string, memoUpdatedAt: m.updated_at as string }
+      if (memoData.length === 0) {
+        // Supabase が空 = 初回ログイン → localStorage のメモを Supabase に移行
+        const localMeta = ls<Record<string, StockMeta>>('stockMetadata', {})
+        const memoRows = Object.entries(localMeta)
+          .filter(([, meta]) => meta.memo && meta.memo.trim())
+          .map(([code, meta]) => ({ user_id: userId, code, memo: meta.memo }))
+        if (memoRows.length > 0) {
+          await sb.from('memos').upsert(memoRows)
+          console.log(`[Supabase移行] メモ${memoRows.length}件 をクラウドに保存しました`)
         }
-        lsSet('stockMetadata', next)
-        return next
-      })
+        // ローカルメモはそのまま維持
+      } else {
+        setStockMeta(prev => {
+          const next = { ...prev }
+          for (const m of memoData) {
+            const code = m.code as string
+            if (!next[code]) next[code] = { genres: (DEFAULT_GENRES[code] ?? '').split(',').filter(Boolean), memo: '' }
+            next[code] = { ...next[code], memo: m.memo as string, memoUpdatedAt: m.updated_at as string }
+          }
+          lsSet('stockMetadata', next)
+          return next
+        })
+      }
     }
   }, [])
 

@@ -927,13 +927,13 @@ export default function Page() {
         </button>
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
-          {(['dashboard','card'] as TabKey[]).map(t => (
+          {(['dashboard','card','report'] as TabKey[]).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
               onClick={() => setTab(t)}
             >
-              {{ dashboard:'ダッシュボード', card:'カード' }[t as 'dashboard'|'card']}
+              {{ dashboard:'ダッシュボード', card:'カード', report:'📊 レポート' }[t as 'dashboard'|'card'|'report']}
             </button>
           ))}
         </div>
@@ -1056,6 +1056,17 @@ export default function Page() {
               ))}
             </div>
           </div>
+        )}
+
+        {tab === 'report' && (
+          <WeeklyReport
+            allRows={allRows}
+            favorites={favorites}
+            stockMeta={stockMeta}
+            judgmentResultsMap={judgmentResultsMap}
+            activeLogicDesc={activeLogicDesc}
+            onClickCode={(code) => setDetailCode(code)}
+          />
         )}
 
         {tab === 'watchlist' && (
@@ -1323,16 +1334,6 @@ function StockManager({
             <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
               ↓ Excel
             </button>
-            <button
-              className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
-              onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
-              title="超お気に入り（♥）のみ表示"
-            >♥</button>
-            <button
-              className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-              onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
-              title="お気に入りのみ表示"
-            >★</button>
           </div>
         </div>
 
@@ -1363,8 +1364,18 @@ function StockManager({
           />
         </div>
 
-        {/* 行3: 市場フィルタ + 件数 */}
+        {/* 行3: ♥★フィルタ + 市場フィルタ + 件数 */}
         <div className={styles.wlHeaderRow3}>
+          <button
+            className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
+            onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
+            title="超お気に入り（♥）のみ表示"
+          >♥</button>
+          <button
+            className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
+            title="お気に入りのみ表示"
+          >★</button>
           <div className={styles.wlMktSegment}>
             {(['all','prime','standard','growth'] as const).map(k => (
               <button key={k}
@@ -1805,7 +1816,7 @@ function calcMA(arr: number[], period: number): (number | null)[] {
     return arr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period
   })
 }
-interface SeriesData { prices: number[]; label: string; color: string }
+interface SeriesData { prices: number[]; label: string; color: string; dates?: string[] }
 
 function getWeekKey(dateStr: string): string {
   const dt = new Date(dateStr)
@@ -1898,19 +1909,27 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
     ]).then(([json, nkPrices, ndqPrices]) => {
       const data = json?.data ?? []
       let stockPrices: number[]
+      let stockDates: string[]
       if (mode === '3months' || mode === '1year') {
-        stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
+        const pairs = (data as Record<string,unknown>[])
+          .map(d => ({ date: d.Date as string, price: (d.AdjC ?? d.C ?? 0) as number }))
+          .filter(p => p.price > 0)
+        stockPrices = pairs.map(p => p.price)
+        stockDates  = pairs.map(p => p.date)
       } else {
         // '3years': 週次サンプリング（各週の最終日の終値）
-        const weekly: Record<string, number> = {}
-        for (const d of data) {
+        const weekMap: Record<string, {date:string; price:number}> = {}
+        for (const d of data as Record<string,unknown>[]) {
           const date = (d.Date as string) ?? ''
-          if (date) weekly[getWeekKey(date)] = d.AdjC ?? d.C ?? 0
+          const price = (d.AdjC ?? d.C ?? 0) as number
+          if (date && price > 0) weekMap[getWeekKey(date)] = { date, price }
         }
-        stockPrices = Object.values(weekly).filter(v => v > 0)
+        const entries = Object.values(weekMap)
+        stockPrices = entries.map(e => e.price)
+        stockDates  = entries.map(e => e.date)
       }
       const series: SeriesData[] = [
-        { prices: normalizeSeries(stockPrices), label: code, color: '#34d399' },
+        { prices: normalizeSeries(stockPrices), label: code, color: '#34d399', dates: stockDates },
         { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
         { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
       ]
@@ -1932,7 +1951,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
       const ctx = canvas.getContext('2d')
       if (!ctx) return
       const w = canvas.clientWidth || canvas.offsetWidth || (canvas.parentElement?.clientWidth ?? 280)
-      const h = 140
+      const h = 155  // 下部15pxをX軸ラベル用に確保
       canvas.width = w; canvas.height = h
       ctx.clearRect(0, 0, w, h)
       const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
@@ -1940,7 +1959,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
       const max = Math.max(...allValues) * 1.02
       const range = max - min || 1
       const toX = (i: number, len: number) => (i / (len - 1)) * w
-      const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
+      const toY = (v: number) => h - ((v - min) / range) * (h - 28) - 18  // 下18px確保
       const stockColor = series[0].color
       const grad = ctx.createLinearGradient(0, 0, 0, h)
       grad.addColorStop(0, 'rgba(52,211,153,0.15)')
@@ -1979,6 +1998,34 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         ctx.fillStyle = 'rgba(200,220,240,0.6)'; ctx.font = '9px JetBrains Mono, monospace'
         ctx.fillText(label, legX - 26, 12)
       })
+
+      // ── X軸ラベル（年月） ─────────────────────────────
+      const chartDates = series[0].dates
+      if (chartDates && chartDates.length > 1) {
+        const len = chartDates.length
+        ctx.save()
+        ctx.textAlign = 'center'
+        let lastKey = ''; let lastLabelX = -40
+        chartDates.forEach((d, i) => {
+          const key   = mode === '3years' ? d.slice(0, 4)  : d.slice(0, 7)
+          const label = mode === '3years' ? d.slice(0, 4)  : (parseInt(d.slice(5, 7), 10) + '月')
+          if (key !== lastKey) {
+            lastKey = key
+            const x = toX(i, len)
+            if (x > 16 && x < w - 16 && x - lastLabelX > 30) {
+              lastLabelX = x
+              // 縦グリッド線
+              ctx.fillStyle = 'rgba(140,155,170,0.1)'
+              ctx.fillRect(Math.round(x), 16, 1, h - 34)
+              // ラベル
+              ctx.fillStyle = 'rgba(140,155,170,0.55)'
+              ctx.font = '8px JetBrains Mono, monospace'
+              ctx.fillText(label, x, h - 3)
+            }
+          }
+        })
+        ctx.restore()
+      }
     }
     requestAnimationFrame(draw)
   }, [cachedData, mode, code])
@@ -2875,6 +2922,187 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
           <div className={`${styles.detailItemValue} ${cls ? styles[cls] : ''}`}>{val}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── WeeklyReport ─────────────────────────────────────────────────────
+function WeeklyReport({
+  allRows, favorites, stockMeta, judgmentResultsMap, activeLogicDesc, onClickCode,
+}: {
+  allRows: StockRow[]
+  favorites: Set<string>
+  stockMeta: Record<string, StockMeta>
+  judgmentResultsMap: Record<string, string | null>
+  activeLogicDesc: string
+  onClickCode: (code: string) => void
+}) {
+  // ★登録済み銘柄のみ
+  const favRows = useMemo(() =>
+    allRows.filter(r => favorites.has(r.code)),
+    [allRows, favorites]
+  )
+
+  // ── PER改善ランキング（1ヶ月でPERが低下 = 株価下落で割安化） ──
+  const perImprovedRows = useMemo(() => {
+    return favRows
+      .filter(r => r.perF != null && r.perFChg1m != null && r.perFChg1m < -0.05 && r.perF > 0 && r.perF < 60)
+      .sort((a, b) => (a.perFChg1m ?? 0) - (b.perFChg1m ?? 0))
+      .slice(0, 8)
+  }, [favRows])
+
+  // ── 判定ONかつ株価1週間下落（押し目候補） ──
+  const dipRows = useMemo(() => {
+    return favRows
+      .filter(r => judgmentResultsMap[r.code] === 'buy' && r.chg1w != null && r.chg1w < -0.02)
+      .sort((a, b) => (a.chg1w ?? 0) - (b.chg1w ?? 0))
+      .slice(0, 6)
+  }, [favRows, judgmentResultsMap])
+
+  // ── 直近1週間の値上がり上位 ──
+  const topGainersRows = useMemo(() => {
+    return favRows
+      .filter(r => r.chg1w != null && r.chg1w > 0.03)
+      .sort((a, b) => (b.chg1w ?? 0) - (a.chg1w ?? 0))
+      .slice(0, 6)
+  }, [favRows])
+
+  const today = new Date()
+  const dateStr = `${today.getFullYear()}/${today.getMonth()+1}/${today.getDate()}`
+
+  function fmtPct(v: number | null) {
+    if (v == null) return '—'
+    const s = (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%'
+    return s
+  }
+  function pctColor(v: number | null) {
+    if (v == null) return '#8b949e'
+    return v >= 0 ? '#3fb950' : '#f85149'
+  }
+
+  return (
+    <div className={styles.reportRoot}>
+      <div className={styles.reportHeader}>
+        <h2 className={styles.reportTitle}>📊 ウィークリーレポート</h2>
+        <span className={styles.reportDate}>{dateStr} 基準</span>
+        <span className={styles.reportSub}>★ウォッチリスト {favRows.length}銘柄 を分析</span>
+      </div>
+
+      {/* セクション1: PER改善（割安化）銘柄 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportSectionHead}>
+          <span className={styles.reportSectionTitle}>📉 PER改善ランキング — 割安になってきた銘柄</span>
+          <span className={styles.reportSectionNote}>1ヶ月でPERが5%以上低下（株価下落で理論的に割安化）</span>
+        </div>
+        {perImprovedRows.length === 0 ? (
+          <div className={styles.reportEmpty}>該当銘柄なし（PER5%以上改善かつPER&lt;60の条件）</div>
+        ) : (
+          <div className={styles.reportCards}>
+            {perImprovedRows.map(r => (
+              <div key={r.code} className={styles.reportCard} onClick={() => onClickCode(r.code)}>
+                <div className={styles.reportCardTop}>
+                  <span className={styles.reportCardCode}>{r.code}</span>
+                  <JudgmentBadge result={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
+                </div>
+                <div className={styles.reportCardName}>{r.name}</div>
+                <div className={styles.reportCardMetrics}>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>PER今期</span>
+                    <span className={styles.reportMetricValue}>{r.perF?.toFixed(1)}倍</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>PER1M変化</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.perFChg1m)}}>{fmtPct(r.perFChg1m)}</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>株価1W</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.chg1w)}}>{fmtPct(r.chg1w)}</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>株価1M</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.chg1m)}}>{fmtPct(r.chg1m)}</span>
+                  </div>
+                </div>
+                {r.roe != null && <div className={styles.reportCardFooter}>ROE {fmtPct(r.roe)} / 時価総額 {r.mcap ? r.mcap.toLocaleString() + '億' : '—'}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* セクション2: 判定ON × 押し目候補 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportSectionHead}>
+          <span className={styles.reportSectionTitle}>🎯 押し目候補 — 判定ON × 直近1週間下落</span>
+          <span className={styles.reportSectionNote}>「{activeLogicDesc || '設定中ロジック'}」を満たしかつ1週で2%以上下落</span>
+        </div>
+        {dipRows.length === 0 ? (
+          <div className={styles.reportEmpty}>該当銘柄なし（現在の判定ロジックをONにして条件を緩めてみてください）</div>
+        ) : (
+          <div className={styles.reportCards}>
+            {dipRows.map(r => (
+              <div key={r.code} className={styles.reportCard} onClick={() => onClickCode(r.code)}>
+                <div className={styles.reportCardTop}>
+                  <span className={styles.reportCardCode}>{r.code}</span>
+                  <JudgmentBadge result={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} />
+                </div>
+                <div className={styles.reportCardName}>{r.name}</div>
+                <div className={styles.reportCardMetrics}>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>株価1W</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.chg1w)}}>{fmtPct(r.chg1w)}</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>PER今期</span>
+                    <span className={styles.reportMetricValue}>{r.perF?.toFixed(1) ?? '—'}倍</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>ROE</span>
+                    <span className={styles.reportMetricValue} style={{color: (r.roe ?? 0) > 0.1 ? '#3fb950' : '#8b949e'}}>{fmtPct(r.roe)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* セクション3: 直近上昇銘柄 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportSectionHead}>
+          <span className={styles.reportSectionTitle}>🚀 直近上昇 — 1週間で3%以上の上昇銘柄</span>
+          <span className={styles.reportSectionNote}>モメンタムの確認・保有銘柄の状況把握に</span>
+        </div>
+        {topGainersRows.length === 0 ? (
+          <div className={styles.reportEmpty}>該当銘柄なし（1W +3%以上の銘柄がありません）</div>
+        ) : (
+          <div className={styles.reportCards}>
+            {topGainersRows.map(r => (
+              <div key={r.code} className={styles.reportCard} onClick={() => onClickCode(r.code)}>
+                <div className={styles.reportCardTop}>
+                  <span className={styles.reportCardCode}>{r.code}</span>
+                  <span className={styles.reportCardMkt}>{r.market.includes('プライム') ? 'Prime' : r.market.includes('グロース') ? 'Growth' : 'Standard'}</span>
+                </div>
+                <div className={styles.reportCardName}>{r.name}</div>
+                <div className={styles.reportCardMetrics}>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>株価1W</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.chg1w)}}>{fmtPct(r.chg1w)}</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>株価1M</span>
+                    <span className={styles.reportMetricValue} style={{color: pctColor(r.chg1m)}}>{fmtPct(r.chg1m)}</span>
+                  </div>
+                  <div className={styles.reportMetric}>
+                    <span className={styles.reportMetricLabel}>PER今期</span>
+                    <span className={styles.reportMetricValue}>{r.perF?.toFixed(1) ?? '—'}倍</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1867,6 +1867,85 @@
 .lightMode .userName { color: #64748b; }
 .lightMode .logoutBtn { border-color: #cbd5e1; color: #64748b; }
 
+/* ── WEEKLY REPORT ──────────────────────────────────── */
+.reportRoot {
+  padding: 24px 28px; max-width: 1200px; margin: 0 auto;
+}
+.reportHeader {
+  display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px;
+  border-bottom: 1px solid #21262d; padding-bottom: 16px;
+}
+.reportTitle {
+  font-size: 18px; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em;
+}
+.reportDate {
+  font-size: 12px; color: #6b7280; font-family: 'JetBrains Mono', monospace;
+}
+.reportSub {
+  font-size: 12px; color: #4e6280; margin-left: auto;
+}
+.reportSection {
+  margin-bottom: 32px;
+}
+.reportSectionHead {
+  display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
+}
+.reportSectionTitle {
+  font-size: 14px; font-weight: 700; color: #c9d1d9;
+}
+.reportSectionNote {
+  font-size: 11px; color: #6b7280;
+}
+.reportEmpty {
+  font-size: 12px; color: #4e6280; padding: 14px 16px;
+  background: rgba(255,255,255,0.02); border-radius: 8px;
+  border: 1px dashed #21262d;
+}
+.reportCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.reportCard {
+  background: #161b22; border: 1px solid #21262d; border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.reportCard:hover { border-color: #3b82f6; background: #1a2235; }
+.reportCardTop {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.reportCardCode {
+  font-size: 12px; font-weight: 700; color: #60a5fa;
+  font-family: 'JetBrains Mono', monospace;
+}
+.reportCardMkt {
+  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  background: rgba(59,130,246,0.1); color: #60a5fa; font-weight: 600;
+}
+.reportCardName {
+  font-size: 12px; color: #8b949e; margin-bottom: 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.reportCardMetrics {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.reportMetric {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.reportMetricLabel {
+  font-size: 9px; color: #4e6280; letter-spacing: 0.03em;
+}
+.reportMetricValue {
+  font-size: 13px; font-weight: 700; color: #c9d1d9;
+  font-family: 'JetBrains Mono', monospace;
+}
+.reportCardFooter {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #21262d;
+  font-size: 10px; color: #4e6280;
+}
+
 /* ── LIGHT MODE OVERRIDES ───────────────────────────── */
 /* .lightMode クラスが .root に付いている場合のみ適用。既存ダーク用CSSは変更なし。 */
 
@@ -2481,7 +2560,7 @@
     white-space: nowrap !important;
   }
   /* ♥★ アイコンボタンのタップ領域 */
-  .wlHeaderActions .wlIconFilterBtn {
+  .wlHeaderRow3 .wlIconFilterBtn {
     min-width: 36px !important;
     min-height: 36px !important;
     font-size: 15px !important;

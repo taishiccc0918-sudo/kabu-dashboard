@@ -45,6 +45,9 @@ function localDateStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 const CHART_CACHE_VER = 'v4'  // 期間変更のたびに変更してキャッシュを無効化
+const STOCK_DATA_CACHE_KEY = 'stock_data_v2'
+const CACHE_STALE_MS = 12 * 60 * 60 * 1000 // 12時間でstale判定
+const GENRE_UNSET = '__UNSET__'              // ジャンル未設定フィルター用マーカー
 function getChartCache(code: string, mode: string): unknown[] | null {
   if (typeof window === 'undefined') return null
   try {
@@ -224,6 +227,8 @@ export default function Page() {
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
+  const [bgFetching, setBgFetching] = useState(false)
+  const cacheStaleRef = useRef(false)
 
   // ── 銘柄管理フィルター状態（ツールバーと共有）────────────────────────
   const [wlSearch, setWlSearch] = useState('')
@@ -462,6 +467,32 @@ export default function Page() {
     }
     setForcePc(ls('forcePc', false))
     setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
+
+    // ── 前回取得データをキャッシュから即時復元（UX高速化）────────────
+    try {
+      const cached = ls<{
+        priceDB: Record<string, PriceRecord>
+        finDB: Record<string, FinRecord>
+        masterDB: Record<string, MasterRecord>
+        bizDate: string; fetchedAt: number
+      } | null>(STOCK_DATA_CACHE_KEY, null)
+      if (cached && cached.fetchedAt && cached.priceDB) {
+        setPriceDB(cached.priceDB)
+        setFinDB(cached.finDB)
+        setMasterDB(cached.masterDB)
+        setLastUpdate(cached.bizDate)
+        setDataLoaded(true)
+        setStatus('ok')
+        const ageMs = Date.now() - cached.fetchedAt
+        const ageH = Math.floor(ageMs / 3600000)
+        const isStale = ageMs >= CACHE_STALE_MS
+        setStatusMsg(isStale
+          ? `キャッシュ表示中 (基準日: ${cached.bizDate}) — バックグラウンドで更新します`
+          : `キャッシュ表示中 (${ageH < 1 ? '1時間以内' : ageH + '時間前'}取得 / 基準日: ${cached.bizDate})`)
+        if (isStale) cacheStaleRef.current = true
+      }
+    } catch { /* cache corrupt, ignore */ }
+
     setMounted(true)
     // サーバー側に JQUANTS_API_KEY が設定されているか確認
     fetch('/api/has-key').then(r => r.json()).then((d: { hasKey: boolean }) => {
@@ -488,14 +519,17 @@ export default function Page() {
   }, [tab])
 
   // ── データ取得 ────────────────────────────────────────────────────
-  const fetchAll = useCallback(async () => {
-    if (!apiKey.trim() && !serverHasKey) { alert('APIキーを入力してください'); return }
-    if (loading) {
-      abortSignalRef.current.aborted = true
+  const fetchAll = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false
+    if (!apiKey.trim() && !serverHasKey) { if (!silent) alert('APIキーを入力してください'); return }
+    if (loading || bgFetching) {
+      if (!silent) abortSignalRef.current.aborted = true
       return
     }
     abortSignalRef.current = { aborted: false }
-    setLoading(true); setStatus('loading')
+    if (!silent) setLoading(true)
+    else setBgFetching(true)
+    setStatus('loading')
     const startTime = Date.now()
     const st = (msg: string, pct: number) => {
       if (pct > 5 && pct < 100) {
@@ -560,6 +594,11 @@ export default function Page() {
       setDataLoaded(true)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
+      // ── 取得データをlocalStorageにキャッシュ保存（次回即時表示用）──
+      try {
+        lsSet(STOCK_DATA_CACHE_KEY, { priceDB: prices, finDB: fins, masterDB: master, bizDate: dateDisp, fetchedAt: Date.now() })
+      } catch { /* quota */ }
+      cacheStaleRef.current = false
       const missing = currentFavorites.filter(c => !fins[c])
       const failMsg = missing.length > 0 ? ` (未取得${missing.length}銘柄)` : ''
       const elapsedSec = Math.round((Date.now() - startTime) / 1000)
@@ -568,26 +607,29 @@ export default function Page() {
       setStatus('ok')
       clearChartCaches()
       setChartRefreshKey(k => k + 1)
-      setTab('dashboard')
+      if (!silent) setTab('dashboard')  // バックグラウンド更新時はタブ維持
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setStatusMsg(`エラー: ${msg}`)
       setStatus('error')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
+      else setBgFetching(false)
       setTimeout(() => setProgress(0), 1200)
     }
-  }, [apiKey, serverHasKey, loading])
+  }, [apiKey, serverHasKey, loading, bgFetching])
 
-  // ── 自動更新: ページ読み込み時にサーバーキーが確認できたら即座にデータ取得 ────
+  // ── 自動更新: ページ読み込み時にデータ取得（キャッシュがある場合はバックグラウンド更新）
   useEffect(() => {
     if (!mounted) return               // マウント完了を待つ
     if (autoFetchedRef.current) return // 1度だけ実行
-    if (dataLoaded || loading) return  // すでに取得中/取得済み
+    if (loading || bgFetching) return  // すでに取得中
     if (!serverHasKey && !apiKey.trim()) return  // APIキーがない場合は待機
+    if (dataLoaded && !cacheStaleRef.current) return // 新鮮なキャッシュあり → 自動取得不要
     autoFetchedRef.current = true
-    fetchAll()
-  }, [mounted, serverHasKey, apiKey, dataLoaded, loading, fetchAll])
+    // キャッシュがある（stale）→ silent=true でバックグラウンド更新、なければ通常取得
+    fetchAll(dataLoaded ? { silent: true } : undefined)
+  }, [mounted, serverHasKey, apiKey, dataLoaded, loading, bgFetching, fetchAll])
 
   // ── Supabase 同期ヘルパー ─────────────────────────────────────────
   function sbSyncFav(code: string, type: 'star' | 'heart', add: boolean) {
@@ -1309,7 +1351,7 @@ export default function Page() {
           status === 'loading' ? styles.statusLoading :
           status === 'error'   ? styles.statusError   : ''
         }`} />
-        <span>{statusMsg}</span>
+        <span>{bgFetching ? '🔄 バックグラウンド更新中...' : statusMsg}</span>
         <div className={styles.spacer} />
         {progress > 0 && progress < 100 && (
           <div className={styles.progressWrap}>
@@ -1402,7 +1444,9 @@ function StockManager({
       if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
       if (genreFilters.size > 0) {
         const genres = stockMeta[code]?.genres ?? []
-        if (!genres.some(g => genreFilters.has(g))) return false
+        const matchRegular = genres.some(g => genreFilters.has(g))
+        const matchUnset = genreFilters.has(GENRE_UNSET) && genres.length === 0
+        if (!matchRegular && !matchUnset) return false
       }
       if (q && !normalizeSearchText(code + ' ' + rec.name).includes(q)) return false
       return true
@@ -1452,7 +1496,9 @@ function StockManager({
         if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
         if (genreFilters.size > 0) {
           const genres = stockMeta[c]?.genres ?? []
-          if (!genres.some(g => genreFilters.has(g))) return false
+          const matchRegular = genres.some(g => genreFilters.has(g))
+          const matchUnset = genreFilters.has(GENRE_UNSET) && genres.length === 0
+          if (!matchRegular && !matchUnset) return false
         }
         return true
       })
@@ -2680,6 +2726,17 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
             <span>{allSelected ? '全解除' : '全選択'}</span>
           </div>
           <div className={styles.genreFilterList}>
+            {/* 未設定フィルター（常に先頭に表示） */}
+            {!search.trim() && (
+              <div className={styles.genreFilterItem} onClick={() => {
+                const next = new Set(pending)
+                next.has(GENRE_UNSET) ? next.delete(GENRE_UNSET) : next.add(GENRE_UNSET)
+                setPending(next)
+              }}>
+                <span className={`${styles.genreFilterCheck} ${pending.has(GENRE_UNSET) ? styles.genreFilterCheckOn : ''}`} />
+                <span className={styles.genreFilterLabel} style={{color:'#f87171'}}>未設定</span>
+              </div>
+            )}
             {filtered.map(g => (
               <div key={g} className={styles.genreFilterItem} onClick={() => {
                 const next = new Set(pending)

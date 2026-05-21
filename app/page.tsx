@@ -862,7 +862,7 @@ export default function Page() {
                   <span className={styles.helpBadge}>?</span> ヘルプ
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
-                  <span>⚙️</span> 設定・判定条件
+                  <span>⚙️</span> 買い判定設定
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setDarkMode(d => !d); setShowMoreMenu(false) }}>
                   <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}
@@ -896,37 +896,41 @@ export default function Page() {
         </div>
       </header>
 
-      <div className={`${styles.toolbar} ${tab === 'watchlist' ? styles.toolbarHidden : ''}`} data-toolbar="">
-        <div className={styles.searchWrap} ref={searchWrapRef}>
-          <span className={styles.searchIcon}>🔍</span>
-          <input
-            className={styles.searchInput}
-            placeholder="銘柄名・コード・メモ検索..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-            onKeyDown={e => {
-              if (!showDropdown || !search.trim()) return
-              if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownActive(i => Math.min(i + 1, dropdownResults.length - 1)) }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownActive(i => Math.max(i - 1, 0)) }
-              else if (e.key === 'Escape') { setShowDropdown(false); setDropdownActive(-1) }
-              else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { scrollToAndHighlight(dropdownResults[dropdownActive].code) }
-            }}
-          />
-          <SearchDropdown
-            results={dropdownResults}
-            activeIndex={dropdownActive}
-            visible={showDropdown && search.trim().length > 0}
-            onSelect={code => scrollToAndHighlight(code)}
-          />
-        </div>
-        <button
-          className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
-          onClick={() => setShowFilterBar(f => !f)}
-        >
-          {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
-        </button>
+      <div className={styles.toolbar} data-toolbar="">
+        {tab !== 'watchlist' && (
+          <div className={styles.searchWrap} ref={searchWrapRef}>
+            <span className={styles.searchIcon}>🔍</span>
+            <input
+              className={styles.searchInput}
+              placeholder="銘柄名・コード・メモ検索..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+              onKeyDown={e => {
+                if (!showDropdown || !search.trim()) return
+                if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownActive(i => Math.min(i + 1, dropdownResults.length - 1)) }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownActive(i => Math.max(i - 1, 0)) }
+                else if (e.key === 'Escape') { setShowDropdown(false); setDropdownActive(-1) }
+                else if (e.key === 'Enter' && dropdownResults[dropdownActive]) { scrollToAndHighlight(dropdownResults[dropdownActive].code) }
+              }}
+            />
+            <SearchDropdown
+              results={dropdownResults}
+              activeIndex={dropdownActive}
+              visible={showDropdown && search.trim().length > 0}
+              onSelect={code => scrollToAndHighlight(code)}
+            />
+          </div>
+        )}
+        {tab !== 'watchlist' && (
+          <button
+            className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
+            onClick={() => setShowFilterBar(f => !f)}
+          >
+            {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
+          </button>
+        )}
         {tab === 'card' && (
           <div className={styles.chartModeGroup}>
             {(['3months','1year','3years'] as ChartMode[]).map(m => (

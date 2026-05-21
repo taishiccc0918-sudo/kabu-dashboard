@@ -817,7 +817,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'#94a3b8',fontSize:12,fontWeight:600,letterSpacing:'0.01em'}}>★{favorites.size} ♡{superFavorites.size}</span>}</div>
         </div>
         <div className={styles.headerRight}>
           {!apiKey && !serverHasKey && (
@@ -848,10 +848,6 @@ export default function Page() {
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
                   <span>⚙️</span> 設定・判定条件
-                </button>
-                <button className={styles.moreMenuItem} onClick={() => { setForcePc(f => !f); setShowMoreMenu(false) }}>
-                  <span>{forcePc ? '📱' : '🖥'}</span>
-                  {forcePc ? 'SP版に戻す' : 'PC版表示に切替'}
                 </button>
               </div>
             )}
@@ -1983,15 +1979,15 @@ function DashboardTable({
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER今期÷EPS今期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
-    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
     { label: 'EPS今期\n成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, group: 'other', tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷最新FY確定売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
+    { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
     { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other', tooltip: '【判定ロジック（新エンジン）】\n割安株: PER今期<15 AND PBR<1.5 AND ROE>8%\nグロース株: 来期売上成長>15% AND 営業利益率>15%\n押し目: 株価1ヶ月変化率≤−5%\nいずれか1グループ以上に該当で「買い」' },
-    { label: '🔗',         cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
+    { label: '外部\nリンク', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,92,64,92,108,64,48,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,64,88,108,88,64,64,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -2087,10 +2083,10 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
-      <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>
       <td className={`${styles.tdPct} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
+      <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>
       <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
         <LinkDropdown code={r.code} name={r.name || r.code} />
@@ -2805,14 +2801,14 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
 
 // ─── HelpPanel ────────────────────────────────────────────────────────
 const USAGE_ITEMS = [
-  { title: 'データ取得',   desc: '「更新する」ボタンを押すとJ-Quants APIから株価・財務データを取得します。個人APIキーを持っている場合は⚙設定で入力することもできます。取得済みデータはlocalStorageに保存されます。' },
+  { title: 'データ取得',   desc: 'ページを開くと株価・財務データを自動取得します。「再読込 ↺」ボタンで手動再取得も可能です。取得済みデータはブラウザに一時保存されます。' },
   { title: '銘柄検索',     desc: 'ツールバーの検索欄で銘柄名・コード・メモキーワードを入力するとドロップダウンが表示されます。選択するとその銘柄の行にジャンプしてハイライトします。' },
   { title: '絞り込み',     desc: '「フィルター」ボタンでジャンル・時価総額・PER今期による絞り込みができます。ツールバーの市場ボタン（Prime/Standard/Growth）でも絞り込めます。' },
   { title: 'ソート',       desc: 'テーブルのヘッダーをクリックするとその列でソートされます。再クリックで昇順/降順が切り替わります。' },
   { title: '詳細パネル',   desc: '行をクリックすると右側から詳細パネルが開き、財務情報・チャート・メモを確認できます。パネル外クリックまたは×ボタンで閉じます。' },
   { title: '銘柄管理',     desc: '「銘柄管理」ボタンでウォッチリストの追加・削除、ジャンルタグ・メモの編集ができます。メモ内容からも銘柄を検索できます。' },
   { title: 'ジャンルタグ', desc: '各銘柄に複数のジャンルタグを設定できます。ツールバーのフィルターでジャンルを絞り込んで素早く対象銘柄を確認できます。' },
-  { title: 'データ保存',   desc: 'APIキー・ウォッチリスト・ジャンル・メモはすべてブラウザのlocalStorageに自動保存されます。エクスポートボタンでExcel形式でダウンロードできます。' },
+  { title: 'データ保存',   desc: 'ウォッチリスト・ジャンル・メモはすべてクラウドおよびブラウザに自動保存されます。エクスポートボタンでExcel形式でダウンロードできます。' },
 ]
 const INDICATOR_ITEMS = [
   { label: '株価',        desc: '直近営業日の終値（円）' },
@@ -2988,25 +2984,22 @@ function SettingsPanel({
           <button className={styles.judgmentClose} onClick={onClose}>×</button>
         </div>
 
-        <div className={styles.settingsApiSection}>
-          <label className={styles.apiLabel}>
-            J-Quants API Key
-            {apiKey
-              ? <span style={{color:'#4ade80',marginLeft:8,fontSize:11}}>✓ 個人キー保存済み</span>
-              : serverHasKey
-                ? <span style={{color:'#60a5fa',marginLeft:8,fontSize:11}}>✓ 管理者キー設定済み（入力不要）</span>
-                : null
-            }
-          </label>
-          <input
-            type="password"
-            className={styles.apiInput}
-            value={apiKey}
-            onChange={e => onApiKeyChange(e.target.value)}
-            placeholder="ID Token を貼り付け"
-            style={{width:'100%',boxSizing:'border-box'}}
-          />
-        </div>
+        {!serverHasKey && (
+          <div className={styles.settingsApiSection}>
+            <label className={styles.apiLabel}>
+              個人 API Key（任意）
+              {apiKey && <span style={{color:'#4ade80',marginLeft:8,fontSize:11}}>✓ 保存済み</span>}
+            </label>
+            <input
+              type="password"
+              className={styles.apiInput}
+              value={apiKey}
+              onChange={e => onApiKeyChange(e.target.value)}
+              placeholder="ID Token を貼り付け"
+              style={{width:'100%',boxSizing:'border-box'}}
+            />
+          </div>
+        )}
 
         <div className={styles.judgmentLogicRow}>
           <select
@@ -3014,8 +3007,8 @@ function SettingsPanel({
             value={s.activeLogicId}
             onChange={e => switchLogic(e.target.value)}
           >
-            {s.logics.map(l => (
-              <option key={l.id} value={l.id}>{l.name}</option>
+            {s.logics.map((l, idx) => (
+              <option key={l.id} value={l.id}>{(['①','②','③','④','⑤'][idx] ?? `${idx+1}.`)} {l.name}</option>
             ))}
           </select>
           <button className={styles.judgmentAddBtn} onClick={addLogic} title="ロジックを追加">＋</button>
@@ -3023,6 +3016,9 @@ function SettingsPanel({
 
         <div className={styles.judgmentBody}>
           <div className={styles.logicNameRow}>
+            <span className={styles.logicNumBadge}>
+              {['①','②','③','④','⑤'][s.logics.findIndex(l => l.id === activeLogic.id)] ?? ''}
+            </span>
             <input
               className={styles.logicNameInput}
               value={activeLogic.name}

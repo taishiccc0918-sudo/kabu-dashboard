@@ -1869,81 +1869,67 @@
 
 /* ── WEEKLY REPORT ──────────────────────────────────── */
 .reportRoot {
-  padding: 24px 28px; max-width: 1200px; margin: 0 auto;
+  padding: 24px 28px; max-width: 900px; margin: 0 auto;
 }
-.reportHeader {
-  display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px;
-  border-bottom: 1px solid #21262d; padding-bottom: 16px;
+.rpHdr {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d;
 }
-.reportTitle {
-  font-size: 18px; font-weight: 700; color: #e6edf3; letter-spacing: 0.02em;
+.rpHdrLeft { display: flex; align-items: baseline; gap: 0; }
+.rpTitle {
+  font-size: 15px; font-weight: 700; color: #e6edf3;
 }
-.reportDate {
-  font-size: 12px; color: #6b7280; font-family: 'JetBrains Mono', monospace;
+.rpTitleSub {
+  font-size: 13px; color: #6b7280; font-weight: 400;
 }
-.reportSub {
-  font-size: 12px; color: #4e6280; margin-left: auto;
+.rpDate {
+  font-size: 11px; color: #484f58; font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
 }
-.reportSection {
-  margin-bottom: 32px;
-}
-.reportSectionHead {
-  display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px;
-}
-.reportSectionTitle {
-  font-size: 14px; font-weight: 700; color: #c9d1d9;
-}
-.reportSectionNote {
-  font-size: 11px; color: #6b7280;
-}
-.reportEmpty {
-  font-size: 12px; color: #4e6280; padding: 14px 16px;
-  background: rgba(255,255,255,0.02); border-radius: 8px;
-  border: 1px dashed #21262d;
-}
-.reportCards {
+.rpTable { display: flex; flex-direction: column; }
+.rpTHead {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: 28px 56px 1fr 72px 76px 76px 38px;
+  gap: 8px; padding: 5px 8px 5px 6px;
+  font-size: 10px; color: #484f58; letter-spacing: 0.04em;
+  border-bottom: 1px solid #21262d; user-select: none;
 }
-.reportCard {
-  background: #161b22; border: 1px solid #21262d; border-radius: 10px;
-  padding: 14px 16px; cursor: pointer; transition: border-color .15s, background .15s;
+.rpRow {
+  display: grid;
+  grid-template-columns: 28px 56px 1fr 72px 76px 76px 38px;
+  gap: 8px; padding: 8px 8px 8px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer; transition: background .1s; align-items: center;
 }
-.reportCard:hover { border-color: #3b82f6; background: #1a2235; }
-.reportCardTop {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px;
+.rpRow:hover { background: rgba(255,255,255,0.03); }
+.rpC0 {
+  font-size: 10px; color: #30363d;
+  font-family: 'JetBrains Mono', monospace; text-align: right;
 }
-.reportCardCode {
-  font-size: 12px; font-weight: 700; color: #60a5fa;
+.rpC1 {
+  font-size: 12px; font-weight: 700; color: #58a6ff;
   font-family: 'JetBrains Mono', monospace;
 }
-.reportCardMkt {
-  font-size: 10px; padding: 1px 6px; border-radius: 3px;
-  background: rgba(59,130,246,0.1); color: #60a5fa; font-weight: 600;
+.rpC2 {
+  font-size: 12px; color: #c9d1d9;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.reportCardName {
-  font-size: 12px; color: #8b949e; margin-bottom: 10px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.rpC3 {
+  font-size: 12px; color: #8b949e;
+  font-family: 'JetBrains Mono', monospace; text-align: right;
 }
-.reportCardMetrics {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+.rpC4, .rpC5 {
+  font-size: 12px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; text-align: right;
 }
-.reportMetric {
-  display: flex; flex-direction: column; gap: 2px;
+.rpC6 { text-align: center; }
+.rpBuyTag {
+  font-size: 9px; padding: 2px 5px; border-radius: 3px;
+  background: rgba(63,185,80,0.12); color: #3fb950;
+  font-weight: 700; letter-spacing: 0.02em;
 }
-.reportMetricLabel {
-  font-size: 9px; color: #4e6280; letter-spacing: 0.03em;
-}
-.reportMetricValue {
-  font-size: 13px; font-weight: 700; color: #c9d1d9;
-  font-family: 'JetBrains Mono', monospace;
-}
-.reportCardFooter {
-  margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid #21262d;
-  font-size: 10px; color: #4e6280;
+.rpEmpty {
+  font-size: 12px; color: #484f58; padding: 20px 6px;
 }
 
 /* ── LIGHT MODE OVERRIDES ───────────────────────────── */

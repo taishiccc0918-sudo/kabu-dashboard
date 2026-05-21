@@ -826,7 +826,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>開示: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
             <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
             <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
             <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
@@ -891,9 +891,6 @@ export default function Page() {
               </button>
             )
           )}
-          <button className={styles.themeToggle} onClick={() => setDarkMode(d => !d)} title={darkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}>
-            {darkMode ? '☀️' : '🌙'}
-          </button>
         </div>
       </header>
 
@@ -1913,7 +1910,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         stockPrices = Object.values(weekly).filter(v => v > 0)
       }
       const series: SeriesData[] = [
-        { prices: normalizeSeries(stockPrices), label: code, color: stockPrices.length > 1 && stockPrices[stockPrices.length-1] >= stockPrices[0] ? '#34d399' : '#f87171' },
+        { prices: normalizeSeries(stockPrices), label: code, color: '#34d399' },
         { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
         { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
       ]
@@ -1946,7 +1943,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
       const toY = (v: number) => h - ((v - min) / range) * (h - 16) - 8
       const stockColor = series[0].color
       const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, stockColor.includes('34d') ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)')
+      grad.addColorStop(0, 'rgba(52,211,153,0.15)')
       grad.addColorStop(1, 'rgba(0,0,0,0)')
       const sp = stockSeries
       ctx.beginPath()
@@ -1959,11 +1956,11 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
         ctx.strokeStyle = s.color; ctx.lineWidth = s.label === code ? 1.8 : 1.2; ctx.stroke()
       }
-      // ── 移動平均線 ───────────────────────────────────────
+      // ── 移動平均線（全モード共通: 25日/75日）───────────────
       const maDefs: [number, string, string][] =
-        mode === '3months' ? [[5,  'rgba(251,191,36,0.85)','5日'],  [25, 'rgba(167,139,250,0.85)','25日']]
-        : mode === '1year' ? [[25, 'rgba(251,191,36,0.85)','25日'], [75, 'rgba(167,139,250,0.85)','75日']]
-        :                    [[13, 'rgba(251,191,36,0.85)','13週'], [26, 'rgba(167,139,250,0.85)','26週']]
+        mode === '3years'
+          ? [[13, 'rgba(251,191,36,0.85)','13週'], [26, 'rgba(167,139,250,0.85)','26週']]
+          : [[25, 'rgba(251,191,36,0.85)','25日'], [75, 'rgba(167,139,250,0.85)','75日']]
 
       maDefs.forEach(([period, color, label], maIdx) => {
         const ma = calcMA(sp, period)

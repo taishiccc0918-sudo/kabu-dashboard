@@ -176,6 +176,7 @@ function initStockMeta(): Record<string, StockMeta> {
 export default function Page() {
   const [mounted,    setMounted]    = useState(false)
   const [apiKey,     setApiKey]     = useState('')
+  const [serverHasKey, setServerHasKey] = useState(false)
   const [favorites,  setFavorites]  = useState<Set<string>>(new Set())
   const favoritesRef = useRef<Set<string>>(new Set())
   const [superFavorites,    setSuperFavorites]    = useState<Set<string>>(new Set())
@@ -307,6 +308,13 @@ export default function Page() {
     setForcePc(ls('forcePc', false))
     setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
     setMounted(true)
+    // サーバー側に JQUANTS_API_KEY が設定されているか確認
+    fetch('/api/has-key').then(r => r.json()).then((d: { hasKey: boolean }) => {
+      if (d.hasKey) {
+        setServerHasKey(true)
+        setStatusMsg('「更新する」ボタンを押してデータを取得してください')
+      }
+    }).catch(() => {})
   }, [])
 
   // ── 全銘柄マスタ（銘柄管理タブ用） ────────────────────────────────
@@ -327,7 +335,7 @@ export default function Page() {
 
   // ── データ取得 ────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
-    if (!apiKey.trim()) { alert('APIキーを入力してください'); return }
+    if (!apiKey.trim() && !serverHasKey) { alert('APIキーを入力してください'); return }
     if (loading) {
       abortSignalRef.current.aborted = true
       return
@@ -414,7 +422,7 @@ export default function Page() {
       setLoading(false)
       setTimeout(() => setProgress(0), 1200)
     }
-  }, [apiKey, loading])
+  }, [apiKey, serverHasKey, loading])
 
   // ── Supabase 同期ヘルパー ─────────────────────────────────────────
   function sbSyncFav(code: string, type: 'star' | 'heart', add: boolean) {
@@ -731,7 +739,7 @@ export default function Page() {
           <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'var(--text3)',fontSize:11}}>&#9679; ★{favorites.size}銘柄</span>}</div>
         </div>
         <div className={styles.headerRight}>
-          {!apiKey && (
+          {!apiKey && !serverHasKey && (
             <button className={styles.apiKeyWarning} onClick={() => setShowSettings(true)} title="⚙ をクリックしてAPIキーを設定してください">
               ⚙ APIキー未設定
             </button>
@@ -998,6 +1006,7 @@ export default function Page() {
         onSettingsChange={handleSettingsChange}
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
+        serverHasKey={serverHasKey}
       />
 
       <div className={styles.statusBar}>
@@ -2513,7 +2522,7 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
 
 // ─── HelpPanel ────────────────────────────────────────────────────────
 const USAGE_ITEMS = [
-  { title: 'データ取得',   desc: 'APIキーを入力して「全更新」ボタンを押すとJ-Quants APIから株価・財務データを取得します。取得済みデータはlocalStorageに保存されます。' },
+  { title: 'データ取得',   desc: '「更新する」ボタンを押すとJ-Quants APIから株価・財務データを取得します。個人APIキーを持っている場合は⚙設定で入力することもできます。取得済みデータはlocalStorageに保存されます。' },
   { title: '銘柄検索',     desc: 'ツールバーの検索欄で銘柄名・コード・メモキーワードを入力するとドロップダウンが表示されます。選択するとその銘柄の行にジャンプしてハイライトします。' },
   { title: '絞り込み',     desc: '「フィルター」ボタンでジャンル・時価総額・PER今期による絞り込みができます。ツールバーの市場ボタン（Prime/Standard/Growth）でも絞り込めます。' },
   { title: 'ソート',       desc: 'テーブルのヘッダーをクリックするとその列でソートされます。再クリックで昇順/降順が切り替わります。' },
@@ -2589,7 +2598,7 @@ function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void
 
 // ─── SettingsPanel ────────────────────────────────────────────────────
 function SettingsPanel({
-  visible, onClose, judgmentSettings, onSettingsChange, apiKey, onApiKeyChange,
+  visible, onClose, judgmentSettings, onSettingsChange, apiKey, onApiKeyChange, serverHasKey,
 }: {
   visible: boolean
   onClose: () => void
@@ -2597,6 +2606,7 @@ function SettingsPanel({
   onSettingsChange: (s: JudgmentSettings) => void
   apiKey: string
   onApiKeyChange: (key: string) => void
+  serverHasKey?: boolean
 }) {
   const [local, setLocal] = useState<JudgmentSettings | null>(null)
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -2697,7 +2707,13 @@ function SettingsPanel({
 
         <div className={styles.settingsApiSection}>
           <label className={styles.apiLabel}>
-            J-Quants API Key{apiKey && <span style={{color:'#4ade80',marginLeft:8,fontSize:11}}>✓ 保存済み</span>}
+            J-Quants API Key
+            {apiKey
+              ? <span style={{color:'#4ade80',marginLeft:8,fontSize:11}}>✓ 個人キー保存済み</span>
+              : serverHasKey
+                ? <span style={{color:'#60a5fa',marginLeft:8,fontSize:11}}>✓ 管理者キー設定済み（入力不要）</span>
+                : null
+            }
           </label>
           <input
             type="password"

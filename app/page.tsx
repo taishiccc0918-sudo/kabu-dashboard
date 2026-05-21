@@ -251,6 +251,8 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
+  // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
+  useEffect(() => { if (tab === 'report' || tab === 'watchlist') setShowFilterBar(false) }, [tab])
   useEffect(() => { lsSet('forcePc', forcePc) }, [forcePc])
 
   // ── ⋯ More Menu: 外クリックで閉じる ──────────────────────────────────
@@ -916,7 +918,7 @@ export default function Page() {
               className={styles.moreBtn}
               onClick={() => setShowMoreMenu(m => !m)}
               title="その他のメニュー"
-            >···</button>
+            >メニュー</button>
             {showMoreMenu && (
               <div className={styles.moreMenu}>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
@@ -1911,6 +1913,13 @@ async function fetchIndex(stooqSymbol: string, from: string, to: string, interva
     return closes
   } catch { return [] }
 }
+// 日経・NASDAQは全銘柄共通 → Promiseキャッシュで重複リクエストを防ぐ
+const _idxCache: Record<string, Promise<number[]>> = {}
+function fetchIndexCached(sym: string, from: string, to: string, interval: 'd'|'w'|'m' = 'd'): Promise<number[]> {
+  const key = `${sym}_${from}_${to}_${interval}`
+  if (!_idxCache[key]) _idxCache[key] = fetchIndex(sym, from, to, interval)
+  return _idxCache[key]
+}
 
 function normalizeSeries(prices: number[]): number[] {
   if (prices.length === 0) return []
@@ -1975,8 +1984,8 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
     const url = `/api/jquants?path=${path}`
     Promise.all([
       fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
-      fetchIndex('n225.jp', fromStr, toStr, idxInterval),
-      fetchIndex('ixic', fromStr, toStr, idxInterval),
+      fetchIndexCached('n225.jp', fromStr, toStr, idxInterval),
+      fetchIndexCached('ixic', fromStr, toStr, idxInterval),
     ]).then(([json, nkPrices, ndqPrices]) => {
       if (cancelled) return
       // fromStr は '20230521' 形式 → ISO形式 '2023-05-21' に変換して日付フィルタに使用
@@ -3114,7 +3123,14 @@ function WeeklyReport({
             <div key={r.code} className={styles.rpRow} onClick={() => onClickCode(r.code)}>
               <span className={styles.rpC0}>{i + 1}</span>
               <span className={styles.rpC1}>{r.code}</span>
-              <span className={styles.rpC2}>{r.name}</span>
+              <span className={styles.rpC2}>
+                <span className={styles.rpName}>{r.name}</span>
+                {r.genres.length > 0 && (
+                  <span className={styles.rpGenres}>
+                    {r.genres.map(g => <span key={g} className={styles.rpGenreBadge}>{g}</span>)}
+                  </span>
+                )}
+              </span>
               <span className={styles.rpC3}>
                 {fmtPer(r.perF)}
                 {prevPER != null && !isAnomaly && (

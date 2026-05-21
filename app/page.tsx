@@ -225,6 +225,21 @@ export default function Page() {
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
 
+  // ── 銘柄管理フィルター状態（ツールバーと共有）────────────────────────
+  const [wlSearch, setWlSearch] = useState('')
+  const [wlShowFavOnly, setWlShowFavOnly] = useState(false)
+  const [wlShowHeartOnly, setWlShowHeartOnly] = useState(false)
+  const [wlMktF, setWlMktF] = useState<'all'|'prime'|'standard'|'growth'>('all')
+  const [wlPage, setWlPage] = useState(1)
+  const [wlShowBulkAdd, setWlShowBulkAdd] = useState(false)
+  const [wlBulkText, setWlBulkText] = useState('')
+  const [wlShowDropdown, setWlShowDropdown] = useState(false)
+  const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
+  const [wlDropdownActive, setWlDropdownActive] = useState(-1)
+  const [wlFilteredCount, setWlFilteredCount] = useState(0)
+  const wlSearchWrapRef = useRef<HTMLDivElement>(null)
+  const wlScrollFnRef = useRef<((code: string) => void) | null>(null)
+
   // ── 認証ユーザー状態 ───────────────────────────────────────────────
   type AuthUser = { id: string; email?: string; name?: string }
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -249,6 +264,52 @@ export default function Page() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showMoreMenu])
+
+  // ── 銘柄管理検索ドロップダウン（ツールバー用）────────────────────────
+  useEffect(() => {
+    const allCodes = Object.keys(masterDB).sort()
+    const q = normalizeSearchText(wlSearch.trim())
+    const rawQ = wlSearch.trim().toLowerCase()
+    if (!q) { setWlDropdownResults([]); setWlDropdownActive(-1); return }
+    const timer = setTimeout(() => {
+      const codeNameHits: DropdownResult[] = []
+      const memoHits: DropdownResult[] = []
+      for (const code of allCodes) {
+        if (codeNameHits.length >= 5) break
+        const rec = masterDB[code]
+        if (!rec) continue
+        if (normalizeSearchText(code + ' ' + rec.name).includes(q)) {
+          codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
+        }
+      }
+      for (const [code, meta] of Object.entries(stockMeta)) {
+        if (memoHits.length >= 5) break
+        if (!favorites.has(code) || !meta.memo) continue
+        if (normalizeSearchText(meta.memo).includes(q)) {
+          if (codeNameHits.some(r => r.code === code)) continue
+          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
+          const idx = rawIdx >= 0 ? rawIdx : 0
+          const start = Math.max(0, idx - 20)
+          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
+          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
+        }
+      }
+      setWlDropdownResults([...codeNameHits, ...memoHits])
+      setWlDropdownActive(-1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [wlSearch, masterDB, stockMeta, favorites])
+
+  useEffect(() => {
+    function onOutsideDownWl(e: MouseEvent) {
+      if (wlSearchWrapRef.current && !wlSearchWrapRef.current.contains(e.target as Node)) {
+        setWlShowDropdown(false); setWlDropdownActive(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOutsideDownWl)
+    return () => document.removeEventListener('mousedown', onOutsideDownWl)
+  }, [])
 
   // ── Supabase: ★/♥/メモを DB からロード（ログイン時）────────────────
   const loadFromSupabase = useCallback(async (userId: string) => {
@@ -897,7 +958,7 @@ export default function Page() {
       </header>
 
       <div className={styles.toolbar} data-toolbar="">
-        {tab !== 'watchlist' && (
+        {tab !== 'watchlist' && tab !== 'report' && (
           <div className={styles.searchWrap} ref={searchWrapRef}>
             <span className={styles.searchIcon}>🔍</span>
             <input
@@ -923,7 +984,7 @@ export default function Page() {
             />
           </div>
         )}
-        {tab !== 'watchlist' && (
+        {tab !== 'watchlist' && tab !== 'report' && (
           <button
             className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
             onClick={() => setShowFilterBar(f => !f)}
@@ -941,6 +1002,60 @@ export default function Page() {
               </button>
             ))}
           </div>
+        )}
+        {tab === 'watchlist' && (
+          <>
+            <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
+              <input
+                className={styles.wlHeaderSearch}
+                placeholder="🔍 銘柄名・コード検索..."
+                value={wlSearch}
+                onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setWlPage(1) }}
+                onFocus={() => setWlShowDropdown(true)}
+                onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
+                onKeyDown={e => {
+                  if (!wlShowDropdown || !wlSearch.trim()) return
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
+                  else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
+                  else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { wlScrollFnRef.current?.(wlDropdownResults[wlDropdownActive].code); setWlSearch('') }
+                }}
+              />
+              <SearchDropdown
+                results={wlDropdownResults}
+                activeIndex={wlDropdownActive}
+                visible={wlShowDropdown && wlSearch.trim().length > 0}
+                onSelect={code => { wlScrollFnRef.current?.(code); setWlSearch('') }}
+                onToggleFavorite={toggleFavorite}
+                favorites={favorites}
+              />
+            </div>
+            <button
+              className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${wlShowHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
+              onClick={() => { setWlShowHeartOnly(h => !h); setWlPage(1) }}
+              title="超お気に入り（♥）のみ表示"
+            >♥</button>
+            <button
+              className={`${styles.wlIconFilterBtn} ${wlShowFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+              onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
+              title="お気に入りのみ表示"
+            >★</button>
+            <div className={styles.wlMktSegment}>
+              {(['all','prime','standard','growth'] as const).map(k => (
+                <button key={k}
+                  className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
+                  onClick={() => { setWlMktF(k); setWlPage(1) }}
+                >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+              ))}
+            </div>
+            <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
+            <button className={styles.btnSecondary} onClick={() => setWlShowBulkAdd(s => !s)} title="銘柄コードを一括で★に追加">
+              + 一括登録
+            </button>
+            <button className={styles.btnSecondary} onClick={exportToExcel} title="お気に入り銘柄をExcelにエクスポート">
+              ↓ Excel
+            </button>
+          </>
         )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
@@ -1100,6 +1215,26 @@ export default function Page() {
             onExport={exportToExcel}
             earningsDates={earningsDates}
             onSaveEarningsDate={saveEarningsDate}
+            wlSearch={wlSearch}
+            setWlSearch={setWlSearch}
+            showFavOnly={wlShowFavOnly}
+            setShowFavOnly={setWlShowFavOnly}
+            showHeartOnly={wlShowHeartOnly}
+            setShowHeartOnly={setWlShowHeartOnly}
+            mktF={wlMktF}
+            setMktF={setWlMktF}
+            page={wlPage}
+            setPage={setWlPage}
+            showBulkAdd={wlShowBulkAdd}
+            setShowBulkAdd={setWlShowBulkAdd}
+            bulkText={wlBulkText}
+            setBulkText={setWlBulkText}
+            wlShowDropdown={wlShowDropdown}
+            wlDropdownResults={wlDropdownResults}
+            wlDropdownActive={wlDropdownActive}
+            setWlDropdownActive={setWlDropdownActive}
+            onFilteredCountChange={setWlFilteredCount}
+            onRegisterScrollFn={(fn) => { wlScrollFnRef.current = fn }}
           />
         )}
       </main>
@@ -1164,6 +1299,15 @@ function StockManager({
   allGenreOptions: managedGenreOptions,
   onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onRenameGenre, onExport,
   earningsDates, onSaveEarningsDate,
+  wlSearch, setWlSearch,
+  showFavOnly, setShowFavOnly,
+  showHeartOnly, setShowHeartOnly,
+  mktF, setMktF,
+  page, setPage,
+  showBulkAdd, setShowBulkAdd,
+  bulkText, setBulkText,
+  wlShowDropdown, wlDropdownResults, wlDropdownActive, setWlDropdownActive,
+  onFilteredCountChange, onRegisterScrollFn,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
@@ -1179,19 +1323,28 @@ function StockManager({
   onExport: () => void
   earningsDates: Record<string, string>
   onSaveEarningsDate: (code: string, date: string) => void
+  wlSearch: string
+  setWlSearch: React.Dispatch<React.SetStateAction<string>>
+  showFavOnly: boolean
+  setShowFavOnly: React.Dispatch<React.SetStateAction<boolean>>
+  showHeartOnly: boolean
+  setShowHeartOnly: React.Dispatch<React.SetStateAction<boolean>>
+  mktF: string
+  setMktF: React.Dispatch<React.SetStateAction<'all'|'prime'|'standard'|'growth'>>
+  page: number
+  setPage: React.Dispatch<React.SetStateAction<number>>
+  showBulkAdd: boolean
+  setShowBulkAdd: React.Dispatch<React.SetStateAction<boolean>>
+  bulkText: string
+  setBulkText: React.Dispatch<React.SetStateAction<string>>
+  wlShowDropdown: boolean
+  wlDropdownResults: DropdownResult[]
+  wlDropdownActive: number
+  setWlDropdownActive: React.Dispatch<React.SetStateAction<number>>
+  onFilteredCountChange: (count: number) => void
+  onRegisterScrollFn: (fn: (code: string) => void) => void
 }) {
-  const [wlSearch, setWlSearch] = useState('')
-  const [showFavOnly,   setShowFavOnly]   = useState(false)
-  const [showHeartOnly, setShowHeartOnly] = useState(false)
-  const [mktF, setMktF] = useState('all')
-  const [showBulkAdd, setShowBulkAdd] = useState(false)
-  const [bulkText, setBulkText] = useState('')
-  const [page, setPage] = useState(1)
-  const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
-  const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
-  const [wlDropdownActive,  setWlDropdownActive]  = useState(-1)
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
-  const wlSearchWrapRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -1225,57 +1378,12 @@ function StockManager({
   }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta])
 
   useEffect(() => {
-    const q = normalizeSearchText(wlSearch.trim())
-    const rawQ = wlSearch.trim().toLowerCase()
-    if (!q) { setWlDropdownResults([]); setWlDropdownActive(-1); return }
-    const timer = setTimeout(() => {
-      const codeNameHits: DropdownResult[] = []
-      const memoHits: DropdownResult[] = []
-      for (const code of allCodes) {
-        if (codeNameHits.length >= 5) break
-        const rec = masterDB[code]
-        if (!rec) continue
-        if (normalizeSearchText(code + ' ' + rec.name).includes(q)) {
-          codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
-        }
-      }
-      for (const [code, meta] of Object.entries(stockMeta)) {
-        if (memoHits.length >= 5) break
-        if (!favorites.has(code) || !meta.memo) continue
-        if (normalizeSearchText(meta.memo).includes(q)) {
-          if (codeNameHits.some(r => r.code === code)) continue
-          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
-          const idx = rawIdx >= 0 ? rawIdx : 0
-          const start = Math.max(0, idx - 20)
-          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
-          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
-          memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
-        }
-      }
-      setWlDropdownResults([...codeNameHits, ...memoHits])
-      setWlDropdownActive(-1)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [wlSearch, allCodes, masterDB, stockMeta, favorites])
-
-
-  useEffect(() => {
     if (!wlHighlightCode) return
     const el = document.querySelector<HTMLElement>(`[data-code-wl="${wlHighlightCode}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     const timer = setTimeout(() => setWlHighlightCode(null), 2500)
     return () => clearTimeout(timer)
   }, [wlHighlightCode])
-
-  useEffect(() => {
-    function onOutsideDown(e: MouseEvent) {
-      if (wlSearchWrapRef.current && !wlSearchWrapRef.current.contains(e.target as Node)) {
-        setWlShowDropdown(false); setWlDropdownActive(-1)
-      }
-    }
-    document.addEventListener('mousedown', onOutsideDown)
-    return () => document.removeEventListener('mousedown', onOutsideDown)
-  }, [])
 
   const handleRename = useCallback((oldName: string, rawNewName: string) => {
     const trimmed = rawNewName.replace(/[\s　]+/g, ' ').trim()
@@ -1292,7 +1400,7 @@ function StockManager({
   }, [onRenameGenre])
 
   function scrollToWlRow(code: string) {
-    setWlShowDropdown(false); setWlDropdownActive(-1)
+    setWlDropdownActive(-1)
 
     // ★/♥フィルターで対象銘柄が除外されている場合、フィルターを解除
     if (showFavOnly && !favorites.has(code)) setShowFavOnly(false)
@@ -1325,6 +1433,13 @@ function StockManager({
     setTimeout(() => setWlHighlightCode(code), 0)
   }
 
+  useEffect(() => { onFilteredCountChange(filteredCodes.length) }, [filteredCodes.length, onFilteredCountChange])
+
+  useEffect(() => {
+    onRegisterScrollFn(scrollToWlRow)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 初回のみ登録
+
   const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
@@ -1337,76 +1452,6 @@ function StockManager({
 
   return (
     <div className={styles.wlManager}>
-      <div className={styles.wlHeader}>
-        {/* 行1: タイトル/件数 */}
-        <div className={styles.wlHeaderRow1}>
-          <div className={styles.wlTitle}>
-            銘柄管理
-            <span className={styles.wlCount}>★{favorites.size}件 / 全{allCodes.length}件</span>
-          </div>
-        </div>
-
-        {/* 行2: 検索ボックス（全幅） */}
-        <div className={styles.wlSearchOuter} ref={wlSearchWrapRef}>
-          <input
-            className={styles.wlHeaderSearch}
-            placeholder="🔍 銘柄名・コード検索..."
-            value={wlSearch}
-            onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setPage(1) }}
-            onFocus={() => setWlShowDropdown(true)}
-            onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
-            onKeyDown={e => {
-              if (!wlShowDropdown || !wlSearch.trim()) return
-              if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
-              else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
-              else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { scrollToWlRow(wlDropdownResults[wlDropdownActive].code) }
-            }}
-          />
-          <SearchDropdown
-            results={wlDropdownResults}
-            activeIndex={wlDropdownActive}
-            visible={wlShowDropdown && wlSearch.trim().length > 0}
-            onSelect={code => scrollToWlRow(code)}
-            onToggleFavorite={onToggleFavorite}
-            favorites={favorites}
-          />
-        </div>
-
-        {/* 行3: ♥★フィルタ + 市場フィルタ + 件数 */}
-        <div className={styles.wlHeaderRow3}>
-          <button
-            className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${showHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
-            onClick={() => { setShowHeartOnly(h => !h); setPage(1) }}
-            title="超お気に入り（♥）のみ表示"
-          >♥</button>
-          <button
-            className={`${styles.wlIconFilterBtn} ${showFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-            onClick={() => { setShowFavOnly(f => !f); setPage(1) }}
-            title="お気に入りのみ表示"
-          >★</button>
-          <div className={styles.wlMktSegment}>
-            {(['all','prime','standard','growth'] as const).map(k => (
-              <button key={k}
-                className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${mktF === k ? styles.wlMktBtnActive : ''}`}
-                onClick={() => { setMktF(k); setPage(1) }}
-              >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
-            ))}
-          </div>
-          <span className={styles.wlHeaderCount}>{filteredCodes.length}件</span>
-        </div>
-
-        {/* 行末: Excel / 一括登録（常に一番右端） */}
-        <div className={styles.wlHeaderActions}>
-          <button className={styles.btnSecondary} onClick={() => setShowBulkAdd(s => !s)} title="銘柄コードを一括で★に追加">
-            + 一括登録
-          </button>
-          <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
-            ↓ Excel
-          </button>
-        </div>
-      </div>
-
       {/* 一括登録パネル */}
       {showBulkAdd && (
         <div className={styles.bulkAddPanel}>

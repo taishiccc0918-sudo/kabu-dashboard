@@ -1085,6 +1085,18 @@
   background: rgba(244,63,94,0.12) !important;
 }
 
+/* ── 銘柄管理ツールバー内検索ラップ ────────────────── */
+.wlToolbarSearch {
+  position: relative;
+  flex-shrink: 0;
+}
+.wlToolbarSearch .wlHeaderSearch {
+  width: 180px;
+}
+.wlToolbarSearch .wlHeaderSearch:focus {
+  width: 220px;
+}
+
 /* ヘッダー内検索 */
 .wlHeaderSearch {
   width: 100%;

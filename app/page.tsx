@@ -828,7 +828,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>開示: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
             <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
             <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
             <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
@@ -859,7 +859,7 @@ export default function Page() {
             {showMoreMenu && (
               <div className={styles.moreMenu}>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
-                  <span>?</span> ヘルプ
+                  <span className={styles.helpBadge}>?</span> ヘルプ
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
                   <span>⚙️</span> 設定・判定条件
@@ -1912,6 +1912,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
       setErrored({ '3months': false, '1year': false, '3years': false })
     }
 
+    let cancelled = false
     setChartLoading(true)
     const today = new Date()
     const from = new Date(today)
@@ -1928,6 +1929,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
       fetchIndex('n225.jp', fromStr, toStr, idxInterval),
       fetchIndex('ixic', fromStr, toStr, idxInterval),
     ]).then(([json, nkPrices, ndqPrices]) => {
+      if (cancelled) return
       // fromStr は '20230521' 形式 → ISO形式 '2023-05-21' に変換して日付フィルタに使用
       const fromISO = `${fromStr.slice(0,4)}-${fromStr.slice(4,6)}-${fromStr.slice(6,8)}`
       const rawData = ((json?.data ?? []) as Record<string,unknown>[])
@@ -1953,6 +1955,11 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
         stockPrices = entries.map(e => e.price)
         stockDates  = entries.map(e => e.date)
       }
+      // データが2点未満の場合はキャッシュしないでエラー扱い
+      if (stockPrices.length < 2) {
+        setErrored(prev => ({ ...prev, [mode]: true }))
+        return
+      }
       const series: SeriesData[] = [
         { prices: normalizeSeries(stockPrices), label: code, color: '#34d399', dates: stockDates },
         { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
@@ -1961,9 +1968,12 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
       setChartCache(code, mode, series)
       setCachedData(prev => ({ ...prev, [mode]: series }))
     }).catch(() => {
+      if (cancelled) return
       setErrored(prev => ({ ...prev, [mode]: true }))
-      setCachedData(prev => ({ ...prev, [mode]: [] }))
-    }).finally(() => setChartLoading(false))
+    }).finally(() => {
+      if (!cancelled) setChartLoading(false)
+    })
+    return () => { cancelled = true }
   }, [code, apiKey, mode, visible, refreshKey])
 
   useEffect(() => {

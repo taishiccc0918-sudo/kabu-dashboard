@@ -430,8 +430,8 @@
   border: 1px solid #1f2d40;
   border-radius: 6px; padding: 7px 8px;
 }
-.cardMetricLabel { font-size: 9px; color: #4e6280; margin-bottom: 3px; font-family: 'Noto Sans JP', sans-serif; }
-.cardMetricValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; font-weight: 600; color: #8fa3be; }
+.cardMetricLabel { font-size: 9px; color: #7a8fa6; margin-bottom: 3px; font-family: 'Noto Sans JP', sans-serif; }
+.cardMetricValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; font-weight: 600; color: #b4c6d8; }
 
 /* chart */
 .chartArea { margin-top: 10px; border-top: 1px solid #1f2d40; padding-top: 10px; }
@@ -513,14 +513,14 @@
 .detailSubPrice { font-size: 11px; color: #4e6280; }
 .detailSection { margin-top: 20px; }
 .detailSectionTitle {
-  font-size: 9px; color: #4e6280; text-transform: uppercase;
+  font-size: 9px; color: #6a8096; text-transform: uppercase;
   letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 1px solid #1f2d40; font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
 .detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .detailItem { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 9px 11px; border: 1px solid #1f2d40; }
-.detailItemLabel { font-size: 9px; color: #4e6280; margin-bottom: 4px; font-family: 'Noto Sans JP', sans-serif; }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px; font-weight: 600; color: #8fa3be; }
+.detailItemLabel { font-size: 9px; color: #7a8fa6; margin-bottom: 4px; font-family: 'Noto Sans JP', sans-serif; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px; font-weight: 600; color: #b4c6d8; }
 .detailMemo {
   width: 100%; background: rgba(255,255,255,0.03);
   border: 1px solid #2a3a52;
@@ -1903,7 +1903,7 @@
 }
 .rpRow:hover { background: rgba(255,255,255,0.03); }
 .rpC0 {
-  font-size: 10px; color: #30363d;
+  font-size: 10px; color: #6b7280;
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC1 {
@@ -2900,6 +2900,17 @@
 }
 .moreMenuItem:hover { background: rgba(59,130,246,0.1); color: #e8eef8; }
 .moreMenuDivider { height: 1px; background: #1f2d40; margin: 2px 0; }
+.helpBadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(239,68,68,0.15); color: #ef4444;
+  font-size: 11px; font-weight: 800; line-height: 1; flex-shrink: 0;
+}
+.todayLabel {
+  font-size: 9px; color: #4e6280; margin-right: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+}
 
 /* ライトモード */
 .lightMode .filterBar {

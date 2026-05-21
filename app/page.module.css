@@ -1240,6 +1240,47 @@
 }
 .wlEarningsInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
 
+/* 決算日 MM/DD 表示ボタン */
+.wlDateBtn {
+  background: none; border: 1px solid transparent;
+  color: #94a3b8; font-size: 12px; padding: 3px 6px;
+  border-radius: 4px; cursor: pointer; white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  transition: border-color .1s, color .1s;
+}
+.wlDateBtn:hover { border-color: #3b82f6; color: #93c5fd; }
+
+/* ジャンル +N バッジ */
+.genreExtraBadge {
+  display: inline-block; padding: 2px 6px; border-radius: 10px;
+  background: rgba(59,130,246,0.15); color: #60a5fa;
+  font-size: 10px; font-weight: 600; cursor: default;
+  border: 1px solid rgba(59,130,246,0.3);
+}
+
+/* リンクドロップダウン */
+.linkDropWrap { position: relative; display: inline-block; }
+.linkDropBtn {
+  background: rgba(255,255,255,0.04); border: 1px solid #1f2d40;
+  color: #94a3b8; font-size: 14px; padding: 3px 7px;
+  border-radius: 4px; cursor: pointer;
+  transition: border-color .1s, background .1s;
+}
+.linkDropBtn:hover { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.linkDropMenu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 200;
+  background: #0f1825; border: 1px solid #1f2d40;
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  min-width: 150px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.linkDropItem {
+  display: block; padding: 8px 14px;
+  color: #94a3b8; font-size: 12px; text-decoration: none;
+  transition: background .1s, color .1s; white-space: nowrap;
+}
+.linkDropItem:hover { background: rgba(59,130,246,0.12); color: #93c5fd; }
+
 /* ── カスタムメモツールチップ ──────────────────────────────── */
 .memoTooltipWrap { width: 100%; }
 .memoTooltip {
@@ -1873,6 +1914,12 @@
 .lightMode .wlTh { background: #f1f5f9 !important; color: #475569 !important; border-bottom-color: #94a3b8 !important; }
 .lightMode .wlTd { background: #fff !important; }
 .lightMode .wlTr:hover .wlTd { background: #e2e8f0 !important; }
+.lightMode .wlDateBtn { color: #475569 !important; }
+.lightMode .wlDateBtn:hover { border-color: #3b82f6 !important; color: #1d4ed8 !important; }
+.lightMode .linkDropBtn { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #475569 !important; }
+.lightMode .linkDropMenu { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important; }
+.lightMode .linkDropItem { color: #475569 !important; }
+.lightMode .linkDropItem:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
 .lightMode .wlChip { background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
 .lightMode .wlChipCode { color: #475569 !important; }
 .lightMode .wlChipName { color: #64748b !important; }

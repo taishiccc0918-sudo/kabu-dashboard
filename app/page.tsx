@@ -1311,7 +1311,7 @@ function StockManager({
               <th className={styles.wlTh} style={{width:68}}>コード</th>
               <th className={styles.wlTh} style={{width:190}}>銘柄名</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
-              <th className={styles.wlTh} style={{width:220}}>
+              <th className={styles.wlTh} style={{width:160}}>
                 ジャンル
                 <GenreFilterDropdown
                   genres={allGenreOptions}
@@ -1320,9 +1320,9 @@ function StockManager({
                   onClear={() => setGenreFilters(new Set())}
                 />
               </th>
-              <th className={styles.wlTh}>メモ</th>
-              <th className={styles.wlTh} style={{width:120}}>決算日</th>
-              <th className={styles.wlTh} style={{width:180}}>リンク</th>
+              <th className={styles.wlTh} style={{minWidth:160}}>メモ</th>
+              <th className={styles.wlTh} style={{width:70}}>決算日</th>
+              <th className={styles.wlTh} style={{width:48}}>リンク</th>
             </tr>
           </thead>
           <tbody>
@@ -1507,6 +1507,37 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
   )
 }
 
+// ─── LinkDropdown（銘柄管理リンクドロップダウン）────────────────────────
+function LinkDropdown({ code, name }: { code: string; name: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [open])
+  return (
+    <div ref={ref} className={styles.linkDropWrap}>
+      <button
+        className={styles.linkDropBtn}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        title="外部リンクを開く"
+      >🔗</button>
+      {open && (
+        <div className={styles.linkDropMenu}>
+          <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📰 四季報</a>
+          <a href={`https://finance.yahoo.co.jp/quote/${code}.T`}   target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📊 Yahoo Finance</a>
+          <a href={`https://kabutan.jp/stock/?code=${code}`}         target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📈 かぶたん</a>
+          <a href={`https://www.google.com/search?q=${encodeURIComponent(name + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>🌐 公式HP</a>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
   code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted,
@@ -1529,10 +1560,13 @@ const StockManagerRow = React.memo(function StockManagerRow({
   const [editing, setEditing] = useState(false)
   const [localMemo, setLocalMemo] = useState(meta.memo)
   const [localDate, setLocalDate] = useState(earningsDate)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [editingGenreInRow, setEditingGenreInRow] = useState<string | null>(null)
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
 
   const genres = meta.genres
+  const displayGenres = genres.slice(0, 2)
+  const extraGenreCount = genres.length - 2
 
   function toggleGenre(tag: string) {
     const next = genres.includes(tag) ? genres.filter(g => g !== tag) : [...genres, tag]
@@ -1567,7 +1601,12 @@ const StockManagerRow = React.memo(function StockManagerRow({
           <div className={styles.wlGenreCell}>
             {genres.length === 0
               ? <span className={styles.genreTag} style={{color:'#4e6280',borderStyle:'dashed'}}>未設定</span>
-              : genres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
+              : <>
+                  {displayGenres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
+                  {extraGenreCount > 0 && (
+                    <span className={styles.genreExtraBadge} title={genres.slice(2).join(', ')}>+{extraGenreCount}</span>
+                  )}
+                </>}
             <button
               className={`${styles.genreEditToggleBtn} ${editing ? styles.genreEditToggleBtnOn : ''}`}
               onClick={() => setEditing(e => !e)}
@@ -1586,23 +1625,29 @@ const StockManagerRow = React.memo(function StockManagerRow({
             />
           </MemoTooltip>
         </td>
-        <td className={styles.wlTd}>
-          <input
-            type="date"
-            className={styles.wlEarningsInput}
-            value={localDate}
-            onChange={e => setLocalDate(e.target.value)}
-            onBlur={() => onSaveEarningsDate(code, localDate)}
-            onKeyDown={e => { if (e.key === 'Enter') { onSaveEarningsDate(code, localDate); e.currentTarget.blur() } }}
-          />
+        <td className={styles.wlTd} style={{textAlign:'center'}}>
+          {datePickerOpen ? (
+            <input
+              type="date"
+              autoFocus
+              className={styles.wlEarningsInput}
+              value={localDate}
+              onChange={e => setLocalDate(e.target.value)}
+              onBlur={() => { setDatePickerOpen(false); onSaveEarningsDate(code, localDate) }}
+              onKeyDown={e => { if (e.key === 'Enter') { setDatePickerOpen(false); onSaveEarningsDate(code, localDate); e.currentTarget.blur() } else if (e.key === 'Escape') { setDatePickerOpen(false) } }}
+            />
+          ) : (
+            <button
+              className={styles.wlDateBtn}
+              onClick={() => setDatePickerOpen(true)}
+              title={localDate ? `決算日: ${localDate}` : '決算日を設定'}
+            >
+              {localDate ? localDate.slice(5).replace('-', '/') : <span style={{color:'#2a3a52'}}>—</span>}
+            </button>
+          )}
         </td>
-        <td className={styles.wlTd} style={{whiteSpace:'nowrap'}}>
-          <div style={{display:'flex', gap:4}}>
-            <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>四季報</a>
-            <a href={`https://finance.yahoo.co.jp/quote/${code}.T`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>Yahoo</a>
-            <a href={`https://kabutan.jp/stock/?code=${code}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>かぶたん</a>
-            <a href={`https://www.google.com/search?q=${encodeURIComponent((rec.name || code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.infoLinkBtn}>公式HP</a>
-          </div>
+        <td className={styles.wlTd} style={{textAlign:'center', padding:'5px 4px'}}>
+          <LinkDropdown code={code} name={rec.name || code} />
         </td>
       </tr>
       {editing && (

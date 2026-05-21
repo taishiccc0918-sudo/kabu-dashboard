@@ -1437,10 +1437,15 @@ function StockManager({
 
   useEffect(() => { onFilteredCountChange(filteredCodes.length) }, [filteredCodes.length, onFilteredCountChange])
 
+  // stale closure 対策: レンダーごとに最新の scrollToWlRow を ref に保持し、
+  // 安定したラッパー関数を一度だけ登録する
+  const scrollFnLatestRef = useRef(scrollToWlRow)
+  scrollFnLatestRef.current = scrollToWlRow  // 毎レンダーで最新化（同期的に更新）
+
   useEffect(() => {
-    onRegisterScrollFn(scrollToWlRow)
+    onRegisterScrollFn((code) => scrollFnLatestRef.current(code))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // 初回のみ登録
+  }, []) // 安定ラッパーを初回のみ登録
 
   const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)

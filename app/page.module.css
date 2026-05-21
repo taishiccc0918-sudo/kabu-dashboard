@@ -2494,13 +2494,8 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── グローバル: スクロールバー & テキスト選択 ─── */
-::-webkit-scrollbar            { width: 5px; height: 5px; }
-::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: #2a3a52; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3b4f68; }
-::-webkit-scrollbar-corner     { background: transparent; }
-
-::selection { background: rgba(59,130,246,0.3); color: inherit; }
+/* NOTE: ::-webkit-scrollbar / ::selection はグローバルセレクターのため
+   CSS Modules の pure モードでは使用不可。globals.css に定義済み。 */
 
 /* ── ヘッダー: グラデーション下線 & デプス ────── */
 .header {

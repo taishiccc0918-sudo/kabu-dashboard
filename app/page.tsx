@@ -1050,14 +1050,14 @@ export default function Page() {
                   if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
                   else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
                   else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
-                  else if (e.key === 'Enter' && wlDropdownResults[wlDropdownActive]) { wlScrollFnRef.current?.(wlDropdownResults[wlDropdownActive].code); setWlSearch('') }
+                  else if (e.key === 'Enter') { const ti = wlDropdownActive >= 0 ? wlDropdownActive : 0; if (wlDropdownResults[ti]) { wlScrollFnRef.current?.(wlDropdownResults[ti].code); setWlShowDropdown(false) } }
                 }}
               />
               <SearchDropdown
                 results={wlDropdownResults}
                 activeIndex={wlDropdownActive}
                 visible={wlShowDropdown && wlSearch.trim().length > 0}
-                onSelect={code => { wlScrollFnRef.current?.(code); setWlSearch('') }}
+                onSelect={code => { wlScrollFnRef.current?.(code); setWlShowDropdown(false) }}
                 onToggleFavorite={toggleFavorite}
                 favorites={favorites}
               />

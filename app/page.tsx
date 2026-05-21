@@ -1996,10 +1996,12 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
         s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
         ctx.strokeStyle = s.color; ctx.lineWidth = s.label === code ? 1.8 : 1.2; ctx.stroke()
       }
-      // ── 移動平均線（全モード共通: 25日/75日）───────────────
+      // ── 移動平均線（モード別）────────────────────────────
       const maDefs: [number, string, string][] =
         mode === '3years'
           ? [[13, 'rgba(251,191,36,0.85)','13週'], [26, 'rgba(167,139,250,0.85)','26週']]
+          : mode === '3months'
+          ? [[5,  'rgba(251,191,36,0.85)','5日'],  [25, 'rgba(167,139,250,0.85)','25日']]
           : [[25, 'rgba(251,191,36,0.85)','25日'], [75, 'rgba(167,139,250,0.85)','75日']]
 
       maDefs.forEach(([period, color, label], maIdx) => {
@@ -2481,6 +2483,8 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
         <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
         <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
+        <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
+        <a className={styles.cardLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
         <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
       </div>
     </div>
@@ -2935,9 +2939,11 @@ function DetailPanel({
       </Section>
       <Section title="リンク">
         <div className={styles.detailLinks}>
-          <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報オンライン</a>
-          <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
+          <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
           <a className={styles.detailLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
+          <a className={styles.detailLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
+          <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
+          <a className={styles.detailLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
           <a className={styles.detailLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
         </div>
       </Section>
@@ -3029,14 +3035,34 @@ function WeeklyReport({
         </div>
         {rows.map((r, i) => {
           const isBuy = judgmentResultsMap[r.code] === 'buy'
+          // 1ヶ月前の推定値
+          const prevPER   = (r.perF != null && r.perFChg1m != null && (1 + r.perFChg1m) !== 0)
+            ? r.perF / (1 + r.perFChg1m) : null
+          const prevPrice = (r.chg1m != null && r.chg1m !== -1)
+            ? r.close / (1 + r.chg1m) : null
+          // 異常値（前期EPS≒0等でPER変化率が±200%超）
+          const isAnomaly = r.perFChg1m != null && Math.abs(r.perFChg1m) > 2.0
           return (
             <div key={r.code} className={styles.rpRow} onClick={() => onClickCode(r.code)}>
               <span className={styles.rpC0}>{i + 1}</span>
               <span className={styles.rpC1}>{r.code}</span>
               <span className={styles.rpC2}>{r.name}</span>
-              <span className={styles.rpC3}>{fmtPer(r.perF)}</span>
-              <span className={styles.rpC4} style={{color: pctColor(r.perFChg1m)}}>{fmtPct(r.perFChg1m)}</span>
-              <span className={styles.rpC5} style={{color: pctColor(r.chg1m)}}>{fmtPct(r.chg1m)}</span>
+              <span className={styles.rpC3}>
+                {fmtPer(r.perF)}
+                {prevPER != null && !isAnomaly && (
+                  <span className={styles.rpSubText}>{prevPER.toFixed(1)}倍→</span>
+                )}
+              </span>
+              <span className={styles.rpC4} style={{color: isAnomaly ? '#484f58' : pctColor(r.perFChg1m)}}>
+                {isAnomaly ? '※' : ''}{fmtPct(r.perFChg1m)}
+                {isAnomaly && <span className={styles.rpSubText} style={{color:'#484f58'}}>EPS基準変動</span>}
+              </span>
+              <span className={styles.rpC5} style={{color: pctColor(r.chg1m)}}>
+                {fmtPct(r.chg1m)}
+                {prevPrice != null && (
+                  <span className={styles.rpSubText}>{Math.round(prevPrice).toLocaleString()}→{r.close.toLocaleString()}</span>
+                )}
+              </span>
               <span className={styles.rpC6}>{isBuy && <span className={styles.rpBuyTag}>買い</span>}</span>
             </div>
           )

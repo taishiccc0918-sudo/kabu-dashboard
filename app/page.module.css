@@ -1931,6 +1931,11 @@
 .rpEmpty {
   font-size: 12px; color: #484f58; padding: 20px 6px;
 }
+.rpSubText {
+  display: block; font-size: 9px; color: #484f58;
+  font-weight: 400; margin-top: 1px;
+  font-family: 'JetBrains Mono', monospace;
+}
 .rpSection { margin-bottom: 28px; }
 .rpSectionHead {
   display: flex; align-items: baseline; gap: 10px;

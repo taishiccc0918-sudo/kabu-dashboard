@@ -708,7 +708,7 @@ export default function Page() {
     const num = ['①','②','③','④','⑤'][idx] ?? `${idx + 1}`
     const desc = formatLogicDescription(activeLogic)
     const condLines = desc ? desc.split(', ').map(s => `  ・${s}`).join('\n') : '  （条件未設定）'
-    return `【判定設定 ${num} 「${activeLogic.name}」】\n条件（すべてAND）:\n${condLines}\n\n変更: ⋯ → 設定・判定条件`
+    return `【判定設定 ${num} 「${activeLogic.name}」】\n条件（すべてAND）:\n${condLines}\n\nツールバーの ⚙ 判定設定 から条件・名前を変更できます`
   }, [judgmentSettings, activeLogic])
 
   const maxDiscDate = useMemo(() => {
@@ -1059,12 +1059,20 @@ export default function Page() {
           </div>
         )}
         {tab !== 'watchlist' && tab !== 'report' && (
-          <button
-            className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
-            onClick={() => setShowFilterBar(f => !f)}
-          >
-            {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
-          </button>
+          <>
+            <button
+              className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
+              onClick={() => setShowFilterBar(f => !f)}
+            >
+              {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
+            </button>
+            <button
+              className={`${styles.filterToggleBtn} ${showSettings ? styles.filterToggleBtnActive : ''}`}
+              onClick={() => setShowSettings(s => !s)}
+              title="買い判定設定を開く"
+              style={{padding:'4px 10px'}}
+            >⚙ 判定設定</button>
+          </>
         )}
         {tab === 'card' && (
           <div className={styles.chartModeGroup}>
@@ -1154,8 +1162,11 @@ export default function Page() {
                   key={f}
                   className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
                   onClick={() => setFilter(f as 'all'|'buy')}
+                  title={f === 'buy' ? activeLogicTooltip : undefined}
                 >
-                  {{ all:'全て', buy:'買いシグナル' }[f]}
+                  {f === 'all' ? '全て' : filter === 'buy' && activeLogic?.name
+                    ? `買いシグナル (${activeLogic.name})`
+                    : '買いシグナル'}
                 </button>
               ))}
               <button

@@ -1934,7 +1934,8 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
-  // キャッシュが存在する場合は即visible=true（外部ボタン等でリマウントされても即再表示）
+  const [retryCount, setRetryCount] = useState(0)  // retry()時にuseEffectを再トリガーするカウンター
+  // キャッシュが存在する場合は即visible=true（リマウントされても即再表示）
   const [visible, setVisible] = useState(() =>
     (['3months','1year','3years'] as ChartMode[]).some(m => getChartCache(code, m) !== null)
   )
@@ -2035,7 +2036,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
       if (!cancelled) setChartLoading(false)
     })
     return () => { cancelled = true }
-  }, [code, apiKey, mode, visible, refreshKey])
+  }, [code, apiKey, mode, visible, refreshKey, retryCount])
 
   useEffect(() => {
     const draw = () => {
@@ -2146,6 +2147,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
   function retry() {
     setErrored(prev => ({ ...prev, [mode]: false }))
     setCachedData(prev => ({ ...prev, [mode]: null }))
+    setRetryCount(c => c + 1)  // useEffectを再トリガーしてフェッチを再実行
   }
 
   const currentData = cachedData[mode]

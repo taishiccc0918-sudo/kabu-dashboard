@@ -565,6 +565,15 @@ export default function Page() {
     [activeLogic]
   )
 
+  const activeLogicTooltip = useMemo(() => {
+    if (!judgmentSettings || !activeLogic) return '判定ロジックが設定されていません'
+    const idx = judgmentSettings.logics.findIndex(l => l.id === judgmentSettings.activeLogicId)
+    const num = ['①','②','③','④','⑤'][idx] ?? `${idx + 1}`
+    const desc = formatLogicDescription(activeLogic)
+    const condLines = desc ? desc.split(', ').map(s => `  ・${s}`).join('\n') : '  （条件未設定）'
+    return `【判定設定 ${num} 「${activeLogic.name}」】\n条件（すべてAND）:\n${condLines}\n\n変更: ⋯ → 設定・判定条件`
+  }, [judgmentSettings, activeLogic])
+
   const maxDiscDate = useMemo(() => {
     const dates = Object.values(finDB).map(f => f.discDate).filter(Boolean)
     return dates.length > 0 ? [...dates].sort().at(-1)! : ''
@@ -817,7 +826,11 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,color:'#94a3b8',fontSize:12,fontWeight:600,letterSpacing:'0.01em'}}>★{favorites.size} ♡{superFavorites.size}</span>}</div>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
+            <span style={{color:'#f472b6'}}>♡{superFavorites.size}</span>
+            <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
+            <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
+          </span>}</div>
         </div>
         <div className={styles.headerRight}>
           {!apiKey && !serverHasKey && (
@@ -849,6 +862,12 @@ export default function Page() {
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
                   <span>⚙️</span> 設定・判定条件
                 </button>
+                {isMobileView && (
+                  <button className={styles.moreMenuItem} onClick={() => { setForcePc(f => !f); setShowMoreMenu(false) }}>
+                    <span>{forcePc ? '📱' : '🖥'}</span>
+                    {forcePc ? 'SP版に戻す' : 'PC版表示に切替'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1023,6 +1042,7 @@ export default function Page() {
                 onToggleSuperFav={toggleSuperFavorite}
                 judgmentResultsMap={judgmentResultsMap}
                 activeLogicDesc={activeLogicDesc}
+                activeLogicTooltip={activeLogicTooltip}
               />
             )}
           </div>
@@ -1739,6 +1759,14 @@ const StockManagerRow = React.memo(function StockManagerRow({
 
 // ─── MiniChart ───────────────────────────────────────────────────────
 type ChartMode = 'daily' | 'weekly' | 'monthly'
+
+/** 単純移動平均を計算。データ不足のインデックスはnullを返す */
+function calcMA(arr: number[], period: number): (number | null)[] {
+  return arr.map((_, i) => {
+    if (i < period - 1) return null
+    return arr.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period
+  })
+}
 interface SeriesData { prices: number[]; label: string; color: string }
 
 function getWeekKey(dateStr: string): string {
@@ -1901,6 +1929,30 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         ctx.fillStyle = 'rgba(200,220,240,0.7)'; ctx.font = '10px JetBrains Mono, monospace'
         ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
       })
+
+      // ── 移動平均線 ───────────────────────────────────────
+      const maDefs: [number, string, string][] =
+        mode === 'daily'   ? [[5, 'rgba(251,191,36,0.85)','5日'], [25, 'rgba(167,139,250,0.85)','25日']]
+        : mode === 'weekly' ? [[5, 'rgba(251,191,36,0.85)','5週'], [13, 'rgba(167,139,250,0.85)','13週']]
+        :                     [[3, 'rgba(251,191,36,0.85)','3月'], [12, 'rgba(167,139,250,0.85)','12月']]
+
+      maDefs.forEach(([period, color, label], maIdx) => {
+        const ma = calcMA(sp, period)
+        ctx.beginPath()
+        let started = false
+        ma.forEach((v, i) => {
+          if (v === null) return
+          const x = toX(i, sp.length), y = toY(v)
+          if (!started) { ctx.moveTo(x, y); started = true } else ctx.lineTo(x, y)
+        })
+        ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([])
+        ctx.stroke()
+        // 凡例（右上に逆順で配置）
+        const legX = w - 8 - maIdx * 46
+        ctx.fillStyle = color; ctx.fillRect(legX - 38, 5, 10, 1.5)
+        ctx.fillStyle = 'rgba(200,220,240,0.6)'; ctx.font = '9px JetBrains Mono, monospace'
+        ctx.fillText(label, legX - 26, 12)
+      })
     }
     requestAnimationFrame(draw)
   }, [cachedData, mode, code])
@@ -1937,7 +1989,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc, activeLogicTooltip
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -1952,6 +2004,7 @@ function DashboardTable({
   onToggleSuperFav: (code: string) => void
   judgmentResultsMap: Record<string, string | null>
   activeLogicDesc: string
+  activeLogicTooltip: string
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -1975,7 +2028,7 @@ function DashboardTable({
     { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
-    { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: '過去FEPS基準の真のPER変化率（1ヶ月前）。\n(現在PER÷1M前PER−1)。業績修正と株価変動を分離できる。\nセルにホバーで詳細（過去FEPS・現在FEPSも表示）' },
+    { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: 'PER今期の1ヶ月前との変化率。\n(現在PER÷1M前PER−1)で計算。\nセルにホバーで過去FEPS・現在FEPSなど詳細表示。\n\n⚠ 大きなズレが出る場合の主な原因:\n① 期末後に予想EPS(FEPS)が翌期に切替わったとき\n② 会社が業績予想を大幅修正したとき\n→ いずれも株価ではなくEPS基準の変化が原因' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER今期÷EPS今期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
@@ -1983,7 +2036,7 @@ function DashboardTable({
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, group: 'other', tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'nySalesGr' as keyof StockRow, group: 'other', tooltip: '来期予想売上÷最新FY確定売上−1。\n来期の成長性の目安。\n15%超で高成長企業の目安。' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, group: 'other', tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
-    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other', tooltip: '【判定ロジック（新エンジン）】\n割安株: PER今期<15 AND PBR<1.5 AND ROE>8%\nグロース株: 来期売上成長>15% AND 営業利益率>15%\n押し目: 株価1ヶ月変化率≤−5%\nいずれか1グループ以上に該当で「買い」' },
+    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, group: 'other', tooltip: activeLogicTooltip },
     { label: '外部\nリンク', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]

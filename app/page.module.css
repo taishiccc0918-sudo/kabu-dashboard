@@ -291,7 +291,7 @@
   background: #111827;
   white-space: nowrap;
 }
-.starSymbol { font-size: 11px; color: rgba(251,191,36,0.4); }
+.starSymbol { font-size: 13px; color: rgba(251,191,36,0.4); }
 .tdCode {
   padding: 0 8px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
@@ -1478,7 +1478,7 @@
 /* ── ハートボタン（超お気に入り）─────────────────── */
 .heartBtn {
   background: none; border: none; cursor: pointer;
-  font-size: 14px; padding: 2px 2px;
+  font-size: 13px; padding: 2px 2px;
   color: rgba(156,163,175,0.3);
   transition: color .1s, transform .1s;
   line-height: 1;
@@ -1486,7 +1486,7 @@
 .heartBtn:hover { color: #f472b6; transform: scale(1.15); }
 .heartBtnOn {
   background: none; border: none; cursor: pointer;
-  font-size: 14px; padding: 2px 2px;
+  font-size: 13px; padding: 2px 2px;
   color: #f43f5e;
   transition: color .1s, transform .15s;
   line-height: 1;

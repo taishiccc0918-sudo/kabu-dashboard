@@ -1931,6 +1931,32 @@
 .rpEmpty {
   font-size: 12px; color: #484f58; padding: 20px 6px;
 }
+.rpSection { margin-bottom: 28px; }
+.rpSectionHead {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #21262d;
+}
+.rpSectionTitle {
+  font-size: 13px; font-weight: 700; color: #c9d1d9;
+}
+.rpSectionNote {
+  font-size: 11px; color: #4e6280; flex: 1;
+}
+
+/* ── GLOBAL CHART MODE (toolbar) ──────────────────────── */
+.chartModeGroup {
+  display: flex; gap: 2px; align-items: center;
+  border-left: 1px solid #21262d; padding-left: 10px; margin-left: 2px;
+  flex-shrink: 0;
+}
+.chartModePill {
+  padding: 3px 10px; border-radius: 4px;
+  border: 1px solid #1f2d40; background: transparent;
+  color: #4e6280; font-size: 10px; cursor: pointer;
+  transition: all .12s; font-family: 'Noto Sans JP', sans-serif;
+}
+.chartModePill:hover { color: #8fa3be; }
+.chartModePillActive { border-color: #3b82f6; color: #60a5fa; background: rgba(59,130,246,0.08); }
 
 /* ── LIGHT MODE OVERRIDES ───────────────────────────── */
 /* .lightMode クラスが .root に付いている場合のみ適用。既存ダーク用CSSは変更なし。 */

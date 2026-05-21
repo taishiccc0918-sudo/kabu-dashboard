@@ -44,7 +44,7 @@ function localDateStr(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
-const CHART_CACHE_VER = 'v3'  // 期間変更のたびに変更してキャッシュを無効化
+const CHART_CACHE_VER = 'v4'  // 期間変更のたびに変更してキャッシュを無効化
 function getChartCache(code: string, mode: string): unknown[] | null {
   if (typeof window === 'undefined') return null
   try {
@@ -217,6 +217,7 @@ export default function Page() {
   const [forcePc,    setForcePc]    = useState(false)
   const [isMobileView, setIsMobileView] = useState(false)
   const [chartRefreshKey, setChartRefreshKey] = useState(0)
+  const [globalChartMode, setGlobalChartMode] = useState<ChartMode>('1year')
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showFilterBar, setShowFilterBar] = useState(false)
@@ -926,6 +927,17 @@ export default function Page() {
         >
           {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
         </button>
+        {tab === 'card' && (
+          <div className={styles.chartModeGroup}>
+            {(['3months','1year','3years'] as ChartMode[]).map(m => (
+              <button key={m}
+                className={`${styles.chartModePill} ${globalChartMode === m ? styles.chartModePillActive : ''}`}
+                onClick={() => setGlobalChartMode(m)}>
+                {m === '3months' ? '3ヶ月' : m === '1year' ? '1年' : '3年'}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
           {(['dashboard','card','report'] as TabKey[]).map(t => (
@@ -1053,7 +1065,7 @@ export default function Page() {
           <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
             <div className={styles.cardGrid}>
               {filteredRows.map(r => (
-                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} />
+                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} chartMode={globalChartMode} onChartModeChange={setGlobalChartMode} />
               ))}
             </div>
           </div>
@@ -1103,6 +1115,8 @@ export default function Page() {
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
               judgment={judgmentResultsMap[detailCode] ?? null}
               description={activeLogicDesc}
+              chartMode={globalChartMode}
+              onChartModeChange={setGlobalChartMode}
             />
           </div>
         </div>
@@ -1851,8 +1865,10 @@ function normalizeSeries(prices: number[]): number[] {
   return prices.map(v => v / base)
 }
 
-function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: string; refreshKey?: number }) {
-  const [mode, setMode] = useState<ChartMode>('1year')
+function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
+  code: string; apiKey: string; refreshKey?: number
+  mode: ChartMode; onModeChange: (m: ChartMode) => void
+}) {
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
@@ -2010,25 +2026,40 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         const len = chartDates.length
         ctx.save()
         ctx.textAlign = 'center'
-        let lastKey = ''; let lastLabelX = -40
-        chartDates.forEach((d, i) => {
-          const key   = mode === '3years' ? d.slice(0, 4)  : d.slice(0, 7)
-          const label = mode === '3years' ? d.slice(0, 4)  : (parseInt(d.slice(5, 7), 10) + '月')
-          if (key !== lastKey) {
-            lastKey = key
-            const x = toX(i, len)
-            if (x > 16 && x < w - 16 && x - lastLabelX > 30) {
-              lastLabelX = x
-              // 縦グリッド線
-              ctx.fillStyle = 'rgba(140,155,170,0.1)'
-              ctx.fillRect(Math.round(x), 16, 1, h - 34)
-              // ラベル
-              ctx.fillStyle = 'rgba(140,155,170,0.55)'
-              ctx.font = '8px JetBrains Mono, monospace'
-              ctx.fillText(label, x, h - 3)
-            }
+        ctx.font = '8px JetBrains Mono, monospace'
+        if (mode === '3years') {
+          // 年ラベル: データの年範囲から直接計算して配置（ラベル欠け防止）
+          const firstYear = parseInt(chartDates[0].slice(0, 4))
+          const lastYear  = parseInt(chartDates[len - 1].slice(0, 4))
+          for (let yr = firstYear; yr <= lastYear; yr++) {
+            const idx = chartDates.findIndex(d => d.slice(0, 4) === String(yr))
+            if (idx < 0) continue
+            const x = toX(idx, len)
+            if (x < 20 || x > w - 20) continue  // 端すぎる場合はスキップ
+            ctx.fillStyle = 'rgba(140,155,170,0.1)'
+            ctx.fillRect(Math.round(x), 16, 1, h - 34)
+            ctx.fillStyle = 'rgba(140,155,170,0.55)'
+            ctx.fillText(String(yr), x, h - 3)
           }
-        })
+        } else {
+          // 月ラベル（3ヶ月・1年）
+          let lastKey = ''; let lastLabelX = -40
+          chartDates.forEach((d, i) => {
+            const key   = d.slice(0, 7)
+            const label = parseInt(d.slice(5, 7), 10) + '月'
+            if (key !== lastKey) {
+              lastKey = key
+              const x = toX(i, len)
+              if (x > 16 && x < w - 16 && x - lastLabelX > 30) {
+                lastLabelX = x
+                ctx.fillStyle = 'rgba(140,155,170,0.1)'
+                ctx.fillRect(Math.round(x), 16, 1, h - 34)
+                ctx.fillStyle = 'rgba(140,155,170,0.55)'
+                ctx.fillText(label, x, h - 3)
+              }
+            }
+          })
+        }
         ctx.restore()
       }
     }
@@ -2048,7 +2079,7 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
       <div className={styles.chartTabs}>
         {(['3months','1year','3years'] as ChartMode[]).map(m => (
           <button key={m} className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
-            onClick={e => { e.stopPropagation(); setMode(m) }}>
+            onClick={e => { e.stopPropagation(); onModeChange(m) }}>
             {m === '3months' ? '3ヶ月' : m === '1year' ? '1年' : '3年'}
           </button>
         ))}
@@ -2403,7 +2434,11 @@ function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; 
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey = 0 }: { row: StockRow; apiKey: string; onClick: () => void; judgment: string | null; description?: string; refreshKey?: number }) {
+function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey = 0, chartMode, onChartModeChange }: {
+  row: StockRow; apiKey: string; onClick: () => void; judgment: string | null
+  description?: string; refreshKey?: number
+  chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
+}) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.card} onClick={onClick}>
@@ -2440,7 +2475,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
       </div>
       {apiKey && (
         <div onClick={e => e.stopPropagation()}>
-          <MiniChart code={r.code} apiKey={apiKey} refreshKey={refreshKey} />
+          <MiniChart code={r.code} apiKey={apiKey} refreshKey={refreshKey} mode={chartMode} onModeChange={onChartModeChange} />
         </div>
       )}
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
@@ -2768,12 +2803,13 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description,
+  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description, chartMode, onChartModeChange,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; memoUpdatedAt?: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
   judgment: string | null; description?: string
+  chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
@@ -2802,7 +2838,7 @@ function DetailPanel({
       <div className={styles.detailSubPrice}>
         前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
       </div>
-      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} /></Section>
+      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} mode={chartMode} onModeChange={onChartModeChange} /></Section>
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],
@@ -2946,10 +2982,20 @@ function WeeklyReport({
   )
 
   // PER低下中の銘柄（割安化）: 閾値なしで全件、変化量昇順
-  const perRows = useMemo(() =>
+  const perDownRows = useMemo(() =>
     favRows
       .filter(r => r.perF != null && r.perFChg1m != null && r.perFChg1m < 0)
-      .sort((a, b) => (a.perFChg1m ?? 0) - (b.perFChg1m ?? 0)),
+      .sort((a, b) => (a.perFChg1m ?? 0) - (b.perFChg1m ?? 0))
+      .slice(0, 10),
+    [favRows]
+  )
+
+  // PER上昇中の銘柄（注目・期待上昇）: 変化量降順
+  const perUpRows = useMemo(() =>
+    favRows
+      .filter(r => r.perF != null && r.perFChg1m != null && r.perFChg1m > 0)
+      .sort((a, b) => (b.perFChg1m ?? 0) - (a.perFChg1m ?? 0))
+      .slice(0, 10),
     [favRows]
   )
 
@@ -2969,16 +3015,8 @@ function WeeklyReport({
     return v >= 0 ? '#3fb950' : '#f85149'
   }
 
-  return (
-    <div className={styles.reportRoot}>
-      <div className={styles.rpHdr}>
-        <div className={styles.rpHdrLeft}>
-          <span className={styles.rpTitle}>PER 割安化</span>
-          <span className={styles.rpTitleSub}> — 直近1ヶ月でPERが低下した銘柄</span>
-        </div>
-        <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{favRows.length}銘柄中 {perRows.length}件</span>
-      </div>
-
+  function renderTable(rows: typeof perDownRows) {
+    return (
       <div className={styles.rpTable}>
         <div className={styles.rpTHead}>
           <span className={styles.rpC0}>#</span>
@@ -2989,10 +3027,7 @@ function WeeklyReport({
           <span className={styles.rpC5}>株価1M</span>
           <span className={styles.rpC6}></span>
         </div>
-
-        {perRows.length === 0 ? (
-          <div className={styles.rpEmpty}>PERが低下中の銘柄はありません</div>
-        ) : perRows.map((r, i) => {
+        {rows.map((r, i) => {
           const isBuy = judgmentResultsMap[r.code] === 'buy'
           return (
             <div key={r.code} className={styles.rpRow} onClick={() => onClickCode(r.code)}>
@@ -3006,6 +3041,38 @@ function WeeklyReport({
             </div>
           )
         })}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.reportRoot}>
+      <div className={styles.rpHdr}>
+        <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{favRows.length}銘柄</span>
+      </div>
+
+      {/* PER低下 */}
+      <div className={styles.rpSection}>
+        <div className={styles.rpSectionHead}>
+          <span className={styles.rpSectionTitle}>PER 低下 上位{perDownRows.length}</span>
+          <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も低下した銘柄。株価の下落などで割安化している可能性がある</span>
+        </div>
+        {perDownRows.length === 0
+          ? <div className={styles.rpEmpty}>PERが低下中の銘柄はありません</div>
+          : renderTable(perDownRows)
+        }
+      </div>
+
+      {/* PER上昇 */}
+      <div className={styles.rpSection}>
+        <div className={styles.rpSectionHead}>
+          <span className={styles.rpSectionTitle}>PER 上昇 上位{perUpRows.length}</span>
+          <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も上昇した銘柄。市場の期待が高まっているサインでもある</span>
+        </div>
+        {perUpRows.length === 0
+          ? <div className={styles.rpEmpty}>PERが上昇中の銘柄はありません</div>
+          : renderTable(perUpRows)
+        }
       </div>
     </div>
   )

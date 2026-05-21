@@ -2724,3 +2724,56 @@
 .lightMode .mkt_standard { border-left-color: #059669 !important; }
 .lightMode .mkt_growth   { border-left-color: #7c3aed !important; }
 
+/* ── Filter Bar（折りたたみフィルター）─────────────────────────── */
+.filterBar {
+  padding: 8px 16px 10px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid #1e2d40;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.filterBarRow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+
+/* ── More Menu（⋯ ボタン）─────────────────────────── */
+.moreBtn {
+  padding: 5px 10px; border-radius: 6px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  color: #8fa3be; font-size: 18px; font-weight: 700;
+  line-height: 1; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+  letter-spacing: 2px; font-family: monospace;
+}
+.moreBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.moreMenu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 180px;
+  background: #111827; border: 1px solid #2a3a52;
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 600; overflow: hidden;
+  animation: dropFadeIn .13s cubic-bezier(.4,0,.2,1);
+}
+.moreMenuItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; cursor: pointer;
+  color: #94a3b8; font-size: 13px;
+  transition: background .1s; white-space: nowrap;
+  border: none; background: none; width: 100%; text-align: left;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.moreMenuItem:hover { background: rgba(59,130,246,0.1); color: #e8eef8; }
+.moreMenuDivider { height: 1px; background: #1f2d40; margin: 2px 0; }
+
+/* ライトモード */
+.lightMode .filterBar {
+  background: rgba(0,0,0,0.02) !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+.lightMode .moreBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
+.lightMode .moreBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .moreMenu { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
+.lightMode .moreMenuItem { color: #475569 !important; }
+.lightMode .moreMenuItem:hover { background: rgba(37,99,235,0.06) !important; color: #1e293b !important; }
+.lightMode .moreMenuDivider { background: #e2e8f0 !important; }
+

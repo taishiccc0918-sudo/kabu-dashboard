@@ -198,7 +198,6 @@ export default function Page() {
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
-  const [showFilter,   setShowFilter]   = useState(false)
   const [showHelp,     setShowHelp]     = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [filterHeart,  setFilterHeart]  = useState(false)
@@ -218,6 +217,9 @@ export default function Page() {
   const [isMobileView, setIsMobileView] = useState(false)
   const [chartRefreshKey, setChartRefreshKey] = useState(0)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [showFilterBar, setShowFilterBar] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
 
@@ -233,6 +235,18 @@ export default function Page() {
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   useEffect(() => { lsSet('forcePc', forcePc) }, [forcePc])
+
+  // ── ⋯ More Menu: 外クリックで閉じる ──────────────────────────────────
+  useEffect(() => {
+    if (!showMoreMenu) return
+    function handler(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showMoreMenu])
 
   // ── Supabase: ★/♥/メモを DB からロード（ログイン時）────────────────
   const loadFromSupabase = useCallback(async (userId: string) => {
@@ -649,6 +663,17 @@ export default function Page() {
     down:  allRows.filter(r => (r.chg1d ?? 0) < 0).length,
   }), [allRows])
 
+  const activeFilterCount = useMemo(() => {
+    let n = 0
+    if (filter === 'buy') n++
+    if (filterHeart) n++
+    if (filterFav) n++
+    if (mktFilter !== 'all') n++
+    if (genreFilter !== 'all') n++
+    if (mcapMin || perFMax) n++
+    return n
+  }, [filter, filterHeart, filterFav, mktFilter, genreFilter, mcapMin, perFMax])
+
   function handleSort(key: keyof StockRow) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
     else { setSortKey(key); setSortDir(-1) }
@@ -809,11 +834,28 @@ export default function Page() {
             {loading ? '更新中...' : dataLoaded ? '再読込 ↺' : '取得中...'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
-          <button className={`${styles.helpBtn} ${styles.spHide}`} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
-          <button className={`${styles.pcModeBtn} ${styles.spOnly}`} onClick={() => setForcePc(f => !f)} title={forcePc ? 'SP版に戻す' : 'PC版表示に切替'}>
-            {forcePc ? 'SP版' : 'PC版'}
-          </button>
-          <button className={styles.settingsBtn} onClick={() => setShowSettings(s => !s)} title="判定設定">⚙️</button>
+          {/* ⋯ More Menu */}
+          <div ref={moreMenuRef} style={{position:'relative'}}>
+            <button
+              className={styles.moreBtn}
+              onClick={() => setShowMoreMenu(m => !m)}
+              title="その他のメニュー"
+            >···</button>
+            {showMoreMenu && (
+              <div className={styles.moreMenu}>
+                <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
+                  <span>?</span> ヘルプ
+                </button>
+                <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
+                  <span>⚙️</span> 設定・判定条件
+                </button>
+                <button className={styles.moreMenuItem} onClick={() => { setForcePc(f => !f); setShowMoreMenu(false) }}>
+                  <span>{forcePc ? '📱' : '🖥'}</span>
+                  {forcePc ? 'SP版に戻す' : 'PC版表示に切替'}
+                </button>
+              </div>
+            )}
+          </div>
           {/* ── ログイン/ログアウト（Supabase設定済みの場合のみ表示）── */}
           {getSb() && (
             user ? (
@@ -862,54 +904,13 @@ export default function Page() {
             onSelect={code => scrollToAndHighlight(code)}
           />
         </div>
-        <div className={styles.filterGroup}>
-          {(['all','buy'] as ('all'|'buy')[]).map(f => (
-            <button
-              key={f}
-              className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
-              onClick={() => setFilter(f as 'all'|'buy')}
-            >
-              {{ all:'全て', buy:'買い' }[f]}
-            </button>
-          ))}
-          <button
-            className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
-            onClick={() => setFilterHeart(h => !h)}
-            title="超お気に入り（♥）銘柄のみ表示"
-          >♥</button>
-          <button
-            className={`${styles.filterBtn} ${filterFav ? styles.filterBtnActive : ''}`}
-            onClick={() => setFilterFav(f => !f)}
-            title="お気に入り（★）銘柄のみ表示"
-          >★</button>
-        </div>
-        <div className={styles.filterDivider} />
-        <div className={styles.filterGroup}>
-          {([
-            { key: 'all',      label: '全市場' },
-            { key: 'prime',    label: 'Prime' },
-            { key: 'standard', label: 'Standard' },
-            { key: 'growth',   label: 'Growth' },
-          ]).map(({ key, label }) => (
-            <button
-              key={key}
-              className={`${styles.filterBtn} ${styles['mktBtn_'+key]} ${mktFilter === key ? styles.filterBtnActive : ''}`}
-              onClick={() => setMktFilter(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         <button
-          className={`${styles.filterToggleBtn} ${showFilter ? styles.filterToggleBtnActive : ''}`}
-          onClick={() => setShowFilter(s => !s)}
+          className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
+          onClick={() => setShowFilterBar(f => !f)}
         >
-          ▼ 絞り込み{(mcapMin||perFMax||genreFilter!=='all') ? ' ●' : ''}
+          {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
         </button>
         <div className={styles.spacer} />
-        <button className={styles.pcToggleBtn} onClick={() => setForcePc(f => !f)}>
-          {forcePc ? '📱 最適化' : '🖥 PC表示'}
-        </button>
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
           {(['dashboard','card'] as TabKey[]).map(t => (
             <button
@@ -923,35 +924,61 @@ export default function Page() {
         </div>
       </div>
 
-      {showFilter && tab !== 'watchlist' && (
-        <div className={styles.filterPanel}>
-          <div className={styles.filterPanelGrid}>
-            <div className={styles.filterPanelGroup}>
-              <label className={styles.filterPanelLabel}>ジャンル</label>
-              <div className={styles.filterPanelChips}>
-                {['all', ...allGenreOptions].map(g => (
-                  <button key={g}
-                    className={`${styles.filterChip} ${genreFilter===g ? styles.filterChipActive : ''}`}
-                    onClick={() => setGenreFilter(g)}
-                  >{g==='all'?'全て':g}</button>
-                ))}
-              </div>
+      {showFilterBar && tab !== 'watchlist' && (
+        <div className={styles.filterBar}>
+          <div className={styles.filterBarRow}>
+            <div className={styles.filterGroup}>
+              {(['all','buy'] as ('all'|'buy')[]).map(f => (
+                <button
+                  key={f}
+                  className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
+                  onClick={() => setFilter(f as 'all'|'buy')}
+                >
+                  {{ all:'全て', buy:'買いシグナル' }[f]}
+                </button>
+              ))}
+              <button
+                className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
+                onClick={() => setFilterHeart(h => !h)}
+                title="超お気に入り（♥）銘柄のみ表示"
+              >♥</button>
+              <button
+                className={`${styles.filterBtn} ${filterFav ? styles.filterBtnActive : ''}`}
+                onClick={() => setFilterFav(f => !f)}
+                title="お気に入り（★）銘柄のみ表示"
+              >★</button>
             </div>
-            <div className={styles.filterPanelGroup}>
-              <label className={styles.filterPanelLabel}>時価総額（億円）以上</label>
-              <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
-                value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
+            <div className={styles.filterDivider} />
+            <div className={styles.filterGroup}>
+              {(['all','prime','standard','growth'] as const).map(k => (
+                <button key={k}
+                  className={`${styles.filterBtn} ${styles['mktBtn_'+k]} ${mktFilter === k ? styles.filterBtnActive : ''}`}
+                  onClick={() => setMktFilter(k)}
+                >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+              ))}
             </div>
-            <div className={styles.filterPanelGroup}>
-              <label className={styles.filterPanelLabel}>PER今期 以下</label>
-              <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
-                value={perFMax} onChange={e => setPerFMax(e.target.value)} />
+            <div className={styles.filterDivider} />
+            <div className={styles.filterPanelChips}>
+              {['all', ...allGenreOptions].map(g => (
+                <button key={g}
+                  className={`${styles.filterChip} ${genreFilter===g ? styles.filterChipActive : ''}`}
+                  onClick={() => setGenreFilter(g)}
+                >{g==='all'?'全ジャンル':g}</button>
+              ))}
             </div>
           </div>
-          <button className={styles.filterPanelClear}
-            onClick={() => { setMcapMin(''); setPerFMax(''); setGenreFilter('all') }}>
-            条件をクリア
-          </button>
+          <div className={styles.filterBarRow}>
+            <label className={styles.filterPanelLabel}>時価総額（億円）以上</label>
+            <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
+              value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
+            <label className={styles.filterPanelLabel} style={{marginLeft:12}}>PER今期 以下</label>
+            <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
+              value={perFMax} onChange={e => setPerFMax(e.target.value)} />
+            <button className={styles.filterPanelClear}
+              onClick={() => { setFilter('all'); setMktFilter('all'); setGenreFilter('all'); setMcapMin(''); setPerFMax(''); setFilterHeart(false); setFilterFav(false) }}>
+              全クリア
+            </button>
+          </div>
         </div>
       )}
 

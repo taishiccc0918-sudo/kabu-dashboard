@@ -354,6 +354,32 @@
 .mkt_growth   { background: rgba(139,92,246,.12);  color: #a78bfa; }
 .mkt_other    { background: rgba(255,255,255,.05); color: #4e6280; }
 
+/* card genre badge (StockCard用) */
+.cardGenreBadge {
+  display: inline-block; margin-left: 5px; padding: 1px 5px;
+  border-radius: 3px; font-size: 10px; font-weight: 500;
+  background: rgba(100,116,139,0.18); color: #94a3b8;
+  vertical-align: middle; white-space: nowrap; overflow: hidden;
+  max-width: 80px; text-overflow: ellipsis;
+}
+
+/* bulk add panel（銘柄管理 一括登録） */
+.bulkAddPanel {
+  background: rgba(22,27,34,0.9); border: 1px solid #30363d;
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
+}
+.bulkAddLabel {
+  font-size: 12px; color: #8b949e; margin-bottom: 10px;
+}
+.bulkAddTextarea {
+  width: 100%; background: #0d1117; border: 1px solid #30363d;
+  border-radius: 6px; color: #e6edf3;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px;
+  padding: 8px 10px; resize: vertical; margin-bottom: 10px; outline: none;
+}
+.bulkAddTextarea:focus { border-color: #3b82f6; }
+.bulkAddActions { display: flex; gap: 8px; }
+
 /* judgment groups (detail panel) */
 .judgmentGroups {
   font-size: 11px; color: #fbbf24;

@@ -827,7 +827,7 @@ export default function Page() {
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
           <div className={styles.lastUpdate}>{lastUpdate ? <><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務: {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
-            <span style={{color:'#f472b6'}}>♡{superFavorites.size}</span>
+            <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
             <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
             <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
           </span>}</div>
@@ -861,6 +861,9 @@ export default function Page() {
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
                   <span>⚙️</span> 設定・判定条件
+                </button>
+                <button className={styles.moreMenuItem} onClick={() => { setDarkMode(d => !d); setShowMoreMenu(false) }}>
+                  <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}
                 </button>
                 {isMobileView && (
                   <button className={styles.moreMenuItem} onClick={() => { setForcePc(f => !f); setShowMoreMenu(false) }}>
@@ -1156,6 +1159,8 @@ function StockManager({
   const [showFavOnly,   setShowFavOnly]   = useState(false)
   const [showHeartOnly, setShowHeartOnly] = useState(false)
   const [mktF, setMktF] = useState('all')
+  const [showBulkAdd, setShowBulkAdd] = useState(false)
+  const [bulkText, setBulkText] = useState('')
   const [page, setPage] = useState(1)
   const [wlShowDropdown,    setWlShowDropdown]    = useState(false)
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
@@ -1315,6 +1320,9 @@ function StockManager({
             <span className={styles.wlCount}>★{favorites.size}件 / 全{allCodes.length}件</span>
           </div>
           <div className={styles.wlHeaderActions}>
+            <button className={styles.btnSecondary} onClick={() => setShowBulkAdd(s => !s)} title="銘柄コードを一括で★に追加">
+              + 一括登録
+            </button>
             <button className={styles.btnSecondary} onClick={onExport} title="お気に入り銘柄をExcelにエクスポート">
               ↓ Excel
             </button>
@@ -1372,6 +1380,39 @@ function StockManager({
         </div>
       </div>
 
+      {/* 一括登録パネル */}
+      {showBulkAdd && (
+        <div className={styles.bulkAddPanel}>
+          <div className={styles.bulkAddLabel}>
+            銘柄コードを改行またはカンマ区切りで貼り付け → ★に一括追加します
+          </div>
+          <textarea
+            className={styles.bulkAddTextarea}
+            placeholder={'例:\n7203\n6758, 9984\n4063'}
+            value={bulkText}
+            onChange={e => setBulkText(e.target.value)}
+            rows={5}
+          />
+          <div className={styles.bulkAddActions}>
+            <button
+              className={styles.btnPrimary}
+              onClick={() => {
+                const codes = bulkText.split(/[\n,，\s　]+/).map(s => s.trim()).filter(s => s.length > 0)
+                let added = 0
+                codes.forEach(c => {
+                  if (masterDB[c] && !favorites.has(c)) { onToggleFavorite(c); added++ }
+                })
+                setBulkText(''); setShowBulkAdd(false)
+                if (added > 0) alert(`${added}件を★に追加しました`)
+                else alert('追加できる銘柄が見つかりませんでした（コードが存在しないか既に登録済み）')
+              }}
+            >登録する</button>
+            <button className={styles.btnSecondary} onClick={() => { setBulkText(''); setShowBulkAdd(false) }}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PC: テーブル表示 */}
       <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
@@ -1758,7 +1799,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
 })
 
 // ─── MiniChart ───────────────────────────────────────────────────────
-type ChartMode = 'daily' | 'weekly' | 'monthly'
+type ChartMode = '3months' | '1year' | '3years'
 
 /** 単純移動平均を計算。データ不足のインデックスはnullを返す */
 function calcMA(arr: number[], period: number): (number | null)[] {
@@ -1802,9 +1843,9 @@ function normalizeSeries(prices: number[]): number[] {
 }
 
 function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: string; refreshKey?: number }) {
-  const [mode, setMode] = useState<ChartMode>('daily')
-  const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ daily: null, weekly: null, monthly: null })
-  const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ daily: false, weekly: false, monthly: false })
+  const [mode, setMode] = useState<ChartMode>('1year')
+  const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
+  const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
   const [visible, setVisible] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -1838,19 +1879,19 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         return
       }
     } else {
-      setCachedData({ daily: null, weekly: null, monthly: null })
-      setErrored({ daily: false, weekly: false, monthly: false })
+      setCachedData({ '3months': null, '1year': null, '3years': null })
+      setErrored({ '3months': false, '1year': false, '3years': false })
     }
 
     setChartLoading(true)
     const today = new Date()
     const from = new Date(today)
-    if (mode === 'daily') from.setFullYear(from.getFullYear() - 1)
-    else if (mode === 'weekly') from.setFullYear(from.getFullYear() - 3)
-    else from.setFullYear(from.getFullYear() - 5)
+    if (mode === '3months') from.setMonth(from.getMonth() - 3)
+    else if (mode === '1year') from.setFullYear(from.getFullYear() - 1)
+    else from.setFullYear(from.getFullYear() - 3)
     const fromStr = fmt(from)
     const toStr = fmt(today)
-    const idxInterval: 'd'|'w'|'m' = mode === 'weekly' ? 'w' : mode === 'monthly' ? 'm' : 'd'
+    const idxInterval: 'd'|'w' = mode === '3years' ? 'w' : 'd'
     const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
     const url = `/api/jquants?path=${path}`
     Promise.all([
@@ -1860,22 +1901,16 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
     ]).then(([json, nkPrices, ndqPrices]) => {
       const data = json?.data ?? []
       let stockPrices: number[]
-      if (mode === 'daily') {
+      if (mode === '3months' || mode === '1year') {
         stockPrices = data.map((d: Record<string,number>) => d.AdjC ?? d.C ?? 0).filter((v: number) => v > 0)
-      } else if (mode === 'weekly') {
+      } else {
+        // '3years': 週次サンプリング（各週の最終日の終値）
         const weekly: Record<string, number> = {}
         for (const d of data) {
           const date = (d.Date as string) ?? ''
           if (date) weekly[getWeekKey(date)] = d.AdjC ?? d.C ?? 0
         }
         stockPrices = Object.values(weekly).filter(v => v > 0)
-      } else {
-        const monthly: Record<string, number> = {}
-        for (const d of data) {
-          const mon = (d.Date as string)?.slice(0,7) ?? ''
-          if (mon) monthly[mon] = d.AdjC ?? d.C ?? 0
-        }
-        stockPrices = Object.values(monthly).filter(v => v > 0)
       }
       const series: SeriesData[] = [
         { prices: normalizeSeries(stockPrices), label: code, color: stockPrices.length > 1 && stockPrices[stockPrices.length-1] >= stockPrices[0] ? '#34d399' : '#f87171' },
@@ -1924,17 +1959,11 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
         s.prices.forEach((v, i) => { i === 0 ? ctx.moveTo(toX(i, s.prices.length), toY(v)) : ctx.lineTo(toX(i, s.prices.length), toY(v)) })
         ctx.strokeStyle = s.color; ctx.lineWidth = s.label === code ? 1.8 : 1.2; ctx.stroke()
       }
-      series.filter(s => s.prices.length > 1).forEach((s, i) => {
-        ctx.fillStyle = s.color; ctx.fillRect(8 + i * 72, 4, 10, 2)
-        ctx.fillStyle = 'rgba(200,220,240,0.7)'; ctx.font = '10px JetBrains Mono, monospace'
-        ctx.fillText(s.label === code ? code : s.label, 22 + i * 72, 12)
-      })
-
       // ── 移動平均線 ───────────────────────────────────────
       const maDefs: [number, string, string][] =
-        mode === 'daily'   ? [[5, 'rgba(251,191,36,0.85)','5日'], [25, 'rgba(167,139,250,0.85)','25日']]
-        : mode === 'weekly' ? [[5, 'rgba(251,191,36,0.85)','5週'], [13, 'rgba(167,139,250,0.85)','13週']]
-        :                     [[3, 'rgba(251,191,36,0.85)','3月'], [12, 'rgba(167,139,250,0.85)','12月']]
+        mode === '3months' ? [[5,  'rgba(251,191,36,0.85)','5日'],  [25, 'rgba(167,139,250,0.85)','25日']]
+        : mode === '1year' ? [[25, 'rgba(251,191,36,0.85)','25日'], [75, 'rgba(167,139,250,0.85)','75日']]
+        :                    [[13, 'rgba(251,191,36,0.85)','13週'], [26, 'rgba(167,139,250,0.85)','26週']]
 
       maDefs.forEach(([period, color, label], maIdx) => {
         const ma = calcMA(sp, period)
@@ -1968,10 +1997,10 @@ function MiniChart({ code, apiKey, refreshKey = 0 }: { code: string; apiKey: str
   return (
     <div ref={areaRef} className={styles.chartArea}>
       <div className={styles.chartTabs}>
-        {(['daily','weekly','monthly'] as ChartMode[]).map(m => (
+        {(['3months','1year','3years'] as ChartMode[]).map(m => (
           <button key={m} className={`${styles.chartTab} ${mode === m ? styles.chartTabActive : ''}`}
             onClick={e => { e.stopPropagation(); setMode(m) }}>
-            {m === 'daily' ? '日足(1年)' : m === 'weekly' ? '週足(3年)' : '月足(5年)'}
+            {m === '3months' ? '3ヶ月' : m === '1year' ? '1年' : '3年'}
           </button>
         ))}
       </div>
@@ -2334,6 +2363,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
           <div className={styles.cardCode}>{r.code}</div>
           <div className={styles.cardName}>{r.name || '—'}</div>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+          {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
         <div className={styles.cardRight}>
           <JudgmentBadge result={judgment} description={description} />
@@ -2871,7 +2901,7 @@ const INDICATOR_ITEMS = [
   { label: 'PER実績',     desc: '株価 ÷ 実績EPS。過去の利益ベースの割安度。低いほど割安' },
   { label: 'PER今期',     desc: '株価 ÷ 今期予想EPS。今年度の利益ベースの割安度' },
   { label: 'PER来期',     desc: '株価 ÷ 来期予想EPS。翌年度の利益ベースの割安度' },
-  { label: 'PER変化',     desc: '1週・1ヶ月・3ヶ月・1年前の株価で計算したPER今期との差分（株価変化率）。−5%以下で「買い」判定' },
+  { label: 'PER変化',     desc: '1週・1ヶ月・3ヶ月・1年前の株価で計算したPER今期の変化率（現在PER ÷ 過去PER − 1）。「設定・判定条件」で閾値や判定ロジックを自由にカスタマイズできます。' },
   { label: 'PBR',         desc: '株価 ÷ BPS（1株純資産）。1倍以下は理論上の解散価値以下で割安とみなされやすい' },
   { label: 'ROE',         desc: '自己資本利益率（純利益 ÷ 自己資本）。株主資本の効率性。一般的に10%以上が優良' },
   { label: '配当利回り',  desc: '年間配当 ÷ 株価。高いほど配当が多い。ただし株価下落で高くなることに注意' },

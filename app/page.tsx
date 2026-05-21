@@ -253,6 +253,36 @@ export default function Page() {
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist') setShowFilterBar(false) }, [tab])
+
+  // ── Ctrl+Z でタブ履歴を戻る ────────────────────────────────────────
+  const [tabHistory, setTabHistory] = useState<TabKey[]>([])
+  const prevTabRef = useRef<TabKey | null>(null)
+  // タブ変更を履歴に積む（stale closure 不要なので useEffect で追跡）
+  useEffect(() => {
+    if (prevTabRef.current !== null && prevTabRef.current !== tab) {
+      setTabHistory(prev => [...prev.slice(-19), prevTabRef.current!])
+    }
+    prevTabRef.current = tab
+  }, [tab])
+  // Ctrl+Z キーハンドラー
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'z' || e.shiftKey) return
+      const target = e.target as HTMLElement
+      // 入力欄内では標準のundoを邪魔しない
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      e.preventDefault()
+      setTabHistory(prev => {
+        if (prev.length === 0) return prev
+        const next = [...prev]
+        const backTo = next.pop()!
+        setTab(backTo)
+        return next
+      })
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
   useEffect(() => { lsSet('forcePc', forcePc) }, [forcePc])
 
   // ── ⋯ More Menu: 外クリックで閉じる ──────────────────────────────────

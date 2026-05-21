@@ -186,6 +186,7 @@ export default function Page() {
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
   const [lastUpdate, setLastUpdate] = useState('')
+  const [dataLoaded, setDataLoaded] = useState(false)   // このセッションで実際にデータ取得済みか
   const [status,     setStatus]     = useState<StatusType>('idle')
   const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
   const [progress,   setProgress]   = useState(0)
@@ -403,6 +404,7 @@ export default function Page() {
       }
       setFinDB({ ...fins })
       setLastUpdate(dateDisp)
+      setDataLoaded(true)
       lsSet('lastUpdate', dateDisp)
       lsSet('apiKey', apiKey)
       const missing = currentFavorites.filter(c => !fins[c])
@@ -745,11 +747,12 @@ export default function Page() {
             </button>
           )}
           <button
-            className={`${styles.btnPrimary} ${!loading && lastUpdate ? styles.btnDone : ''}`}
+            className={`${styles.btnPrimary} ${!loading && dataLoaded ? styles.btnDone : ''}`}
             onClick={fetchAll}
             disabled={loading}
+            title={lastUpdate && !dataLoaded ? `前回取得: ${lastUpdate}` : undefined}
           >
-            {loading ? '更新中...' : lastUpdate ? '更新済み ↺' : '更新する'}
+            {loading ? '更新中...' : dataLoaded ? '更新済み ↺' : '更新する'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           <button className={`${styles.helpBtn} ${styles.spHide}`} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>

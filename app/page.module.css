@@ -1936,10 +1936,16 @@
   font-weight: 400; margin-top: 1px;
   font-family: 'JetBrains Mono', monospace;
 }
-.rpSection { margin-bottom: 28px; }
+.rpSection {
+  margin-bottom: 24px; border-radius: 8px;
+  border: 1px solid #21262d; overflow: hidden;
+}
+.rpSectionDown { background: rgba(248,81,73,0.04); }   /* 低下 = 赤系の極薄ティント */
+.rpSectionUp   { background: rgba(63,185,80,0.04); }   /* 上昇 = 緑系の極薄ティント */
 .rpSectionHead {
   display: flex; align-items: baseline; gap: 10px;
-  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #21262d;
+  padding: 10px 12px 10px 12px;
+  border-bottom: 1px solid #21262d;
 }
 .rpSectionTitle {
   font-size: 13px; font-weight: 700; color: #c9d1d9;
@@ -1947,6 +1953,9 @@
 .rpSectionNote {
   font-size: 11px; color: #4e6280; flex: 1;
 }
+/* セクション内のテーブル */
+.rpSection .rpTHead { padding-left: 12px; padding-right: 12px; }
+.rpSection .rpRow   { padding-left: 12px; padding-right: 12px; }
 
 /* ── GLOBAL CHART MODE (toolbar) ──────────────────────── */
 .chartModeGroup {

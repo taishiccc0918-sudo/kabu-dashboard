@@ -946,7 +946,7 @@ export default function Page() {
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
               onClick={() => setTab(t)}
             >
-              {{ dashboard:'ダッシュボード', card:'カード', report:'📊 レポート' }[t as 'dashboard'|'card'|'report']}
+              {{ dashboard:'ダッシュボード', card:'カード', report:'レポート' }[t as 'dashboard'|'card'|'report']}
             </button>
           ))}
         </div>
@@ -1663,10 +1663,14 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
       >🔗</button>
       {open && (
         <div className={styles.linkDropMenu}>
-          <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📰 四季報</a>
-          <a href={`https://finance.yahoo.co.jp/quote/${code}.T`}   target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📊 Yahoo Finance</a>
-          <a href={`https://kabutan.jp/stock/?code=${code}`}         target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>📈 かぶたん</a>
-          <a href={`https://www.google.com/search?q=${encodeURIComponent(name + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>🌐 公式HP</a>
+          <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>四季報</a>
+          <a href={`https://kabutan.jp/stock/?code=${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>かぶたん</a>
+          <a href={`https://x.com/search?q=${encodeURIComponent(code + ' ' + name)}&f=live`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>X検索</a>
+          <a href={`https://finance.yahoo.co.jp/quote/${code}.T`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>Yahoo Finance</a>
+          <a href={`https://irbank.net/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>IRBank</a>
+          <a href={`https://minkabu.jp/stock/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>みんかぶ</a>
+          <a href={`https://www.buffett-code.com/company/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>Buffett Code</a>
+          <a href={`https://jp.tradingview.com/chart/?symbol=TSE:${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>TradingView</a>
         </div>
       )}
     </div>
@@ -2483,9 +2487,12 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
         <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
         <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-        <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
         <a className={styles.cardLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
-        <a className={styles.cardLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
+        <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
+        <a className={styles.cardLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
+        <a className={styles.cardLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
+        <a className={styles.cardLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">Buffett</a>
+        <a className={styles.cardLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TV</a>
       </div>
     </div>
   )
@@ -2941,10 +2948,12 @@ function DetailPanel({
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
           <a className={styles.detailLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-          <a className={styles.detailLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
-          <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
           <a className={styles.detailLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
-          <a className={styles.detailLinkBtn} href={`https://www.google.com/search?q=${encodeURIComponent((r.name || r.code) + ' 公式サイト')}`} target="_blank" rel="noopener noreferrer">公式HP</a>
+          <a className={styles.detailLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo Finance</a>
+          <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
+          <a className={styles.detailLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
+          <a className={styles.detailLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">Buffett Code</a>
+          <a className={styles.detailLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TradingView</a>
         </div>
       </Section>
     </>
@@ -3078,7 +3087,7 @@ function WeeklyReport({
       </div>
 
       {/* PER低下 */}
-      <div className={styles.rpSection}>
+      <div className={`${styles.rpSection} ${styles.rpSectionDown}`}>
         <div className={styles.rpSectionHead}>
           <span className={styles.rpSectionTitle}>PER 低下 上位{perDownRows.length}</span>
           <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も低下した銘柄。株価の下落などで割安化している可能性がある</span>
@@ -3090,7 +3099,7 @@ function WeeklyReport({
       </div>
 
       {/* PER上昇 */}
-      <div className={styles.rpSection}>
+      <div className={`${styles.rpSection} ${styles.rpSectionUp}`}>
         <div className={styles.rpSectionHead}>
           <span className={styles.rpSectionTitle}>PER 上昇 上位{perUpRows.length}</span>
           <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も上昇した銘柄。市場の期待が高まっているサインでもある</span>

@@ -2777,3 +2777,138 @@
 .lightMode .moreMenuItem:hover { background: rgba(37,99,235,0.06) !important; color: #1e293b !important; }
 .lightMode .moreMenuDivider { background: #e2e8f0 !important; }
 
+/* ══════════════════════════════════════════════════
+   VOICE MEMO INPUT — 音声メモ入力コンポーネント
+══════════════════════════════════════════════════ */
+
+/* ── アイドル状態：🎤 ボタン ── */
+.voiceBtn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 8px 12px; margin-top: 6px;
+  border: 1px dashed #2a3a52; border-radius: 6px;
+  background: rgba(255,255,255,0.02); color: #64748b;
+  font-size: 13px; cursor: pointer; transition: all .15s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.voiceBtn:hover {
+  border-color: #ef4444; border-style: solid;
+  color: #f87171; background: rgba(239,68,68,0.05);
+}
+
+/* ── パネル共通 ── */
+.voicePanel {
+  margin-top: 6px; border: 1px solid #2a3a52; border-radius: 8px;
+  overflow: hidden; background: rgba(0,0,0,0.25);
+}
+
+/* ── 録音中バー ── */
+.voiceRecBar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: rgba(239,68,68,0.07);
+  border-bottom: 1px solid rgba(239,68,68,0.18);
+}
+.voiceRecDot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #ef4444; flex-shrink: 0;
+  animation: voicePulse 1.1s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.55); }
+  50%       { opacity: 0.85; box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+.voiceRecLabel {
+  flex: 1; font-size: 11px; color: #f87171; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.voiceStopBtn {
+  padding: 3px 10px; border-radius: 4px;
+  border: 1px solid rgba(239,68,68,0.5);
+  background: rgba(239,68,68,0.1); color: #f87171;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: background .1s; white-space: nowrap; flex-shrink: 0;
+}
+.voiceStopBtn:hover { background: rgba(239,68,68,0.22); }
+.voiceXBtn {
+  padding: 2px 7px; border-radius: 4px; border: none;
+  background: none; color: #4b5563; font-size: 13px; cursor: pointer;
+  transition: color .1s; flex-shrink: 0;
+}
+.voiceXBtn:hover { color: #94a3b8; }
+
+/* ── リアルタイム文字起こし表示 ── */
+.voiceTranscript {
+  padding: 10px 12px; min-height: 48px; max-height: 110px;
+  overflow-y: auto; font-size: 13px; line-height: 1.65;
+  word-break: break-all;
+}
+.voiceFinal   { color: #e2e8f0; }
+.voiceInterim { color: rgba(148,163,184,0.55); font-style: italic; }
+.voicePlaceholder { color: #374151; font-style: italic; font-size: 12px; }
+
+/* ── レビューバー ── */
+.voiceReviewBar {
+  display: flex; align-items: center; padding: 7px 12px;
+  background: rgba(59,130,246,0.06);
+  border-bottom: 1px solid rgba(59,130,246,0.14);
+}
+.voiceReviewLabel { font-size: 11px; color: #60a5fa; font-weight: 500; }
+
+/* ── レビュー編集テキストエリア ── */
+.voiceReviewArea {
+  display: block; width: 100%; min-height: 80px;
+  padding: 10px 12px; box-sizing: border-box;
+  background: transparent; border: none;
+  border-bottom: 1px solid #1e2d40;
+  color: #e2e8f0; font-size: 13px; line-height: 1.65;
+  font-family: 'Noto Sans JP', sans-serif;
+  resize: vertical; outline: none;
+}
+.voiceReviewArea:focus { background: rgba(59,130,246,0.03); }
+
+/* ── レビューアクションボタン行 ── */
+.voiceActions {
+  display: flex; gap: 6px; padding: 8px 10px; align-items: center;
+}
+.voiceAppendBtn {
+  flex: 1; font-size: 12px !important; padding: 5px 10px !important;
+  min-height: unset !important;
+}
+.voiceRetryBtn {
+  padding: 5px 10px; border-radius: 6px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03); color: #94a3b8;
+  font-size: 12px; cursor: pointer; transition: all .1s;
+  white-space: nowrap; font-family: 'Noto Sans JP', sans-serif;
+}
+.voiceRetryBtn:hover {
+  background: rgba(255,255,255,0.07); color: #e2e8f0; border-color: #3b82f6;
+}
+.voiceXBtn2 {
+  padding: 5px 8px; border-radius: 6px; border: none;
+  background: none; color: #4b5563; font-size: 12px; cursor: pointer;
+  transition: color .1s; white-space: nowrap;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.voiceXBtn2:hover { color: #94a3b8; }
+
+/* ── ライトモード ── */
+.lightMode .voiceBtn {
+  border-color: #94a3b8 !important; color: #94a3b8 !important;
+  background: rgba(0,0,0,0.01) !important;
+}
+.lightMode .voiceBtn:hover {
+  border-color: #ef4444 !important; color: #ef4444 !important;
+  background: rgba(239,68,68,0.04) !important;
+}
+.lightMode .voicePanel { border-color: #e2e8f0 !important; background: rgba(0,0,0,0.015) !important; }
+.lightMode .voiceTranscript .voiceFinal { color: #1e293b !important; }
+.lightMode .voiceTranscript .voiceInterim { color: rgba(71,85,105,0.6) !important; }
+.lightMode .voiceReviewArea { color: #1e293b !important; border-bottom-color: #e2e8f0 !important; }
+.lightMode .voiceReviewArea:focus { background: rgba(37,99,235,0.02) !important; }
+.lightMode .voiceRetryBtn {
+  background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important;
+}
+.lightMode .voiceRetryBtn:hover {
+  background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important;
+}

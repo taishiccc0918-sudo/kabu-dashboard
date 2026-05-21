@@ -2487,3 +2487,240 @@
   }
   .wlHeaderCount { margin-left: auto; }
 }
+
+/* ═══════════════════════════════════════════════════
+   DESIGNER POLISH v2 — Micro-interactions & Depth
+   全体的なUIクオリティ向上のための追加スタイル
+═══════════════════════════════════════════════════ */
+
+/* ── グローバル: スクロールバー & テキスト選択 ─── */
+::-webkit-scrollbar            { width: 5px; height: 5px; }
+::-webkit-scrollbar-track      { background: transparent; }
+::-webkit-scrollbar-thumb      { background: #2a3a52; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3b4f68; }
+::-webkit-scrollbar-corner     { background: transparent; }
+
+::selection { background: rgba(59,130,246,0.3); color: inherit; }
+
+/* ── ヘッダー: グラデーション下線 & デプス ────── */
+.header {
+  background: linear-gradient(180deg, rgba(10,16,26,0.99) 0%, rgba(8,12,18,0.97) 100%) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: 0 1px 0 rgba(59,130,246,0.18), 0 2px 12px rgba(0,0,0,0.5) !important;
+}
+
+/* ロゴの ▶ マーカーにビーコンアニメーション */
+.logo::before {
+  animation: logoBeacon 3s ease-in-out infinite;
+}
+@keyframes logoBeacon {
+  0%, 100% { color: #3b82f6; }
+  50%       { color: #60a5fa; text-shadow: 0 0 8px rgba(96,165,250,0.7); }
+}
+
+/* ── ツールバー: 微妙なグラデーション ────────── */
+.toolbar {
+  background: linear-gradient(180deg, #0e1420 0%, #0b1018 100%) !important;
+}
+
+/* ── スタッツバー: カード上部アクセント ────────── */
+.statsBar {
+  background: linear-gradient(180deg, #0f1520 0%, #0d1219 100%) !important;
+}
+.statCard {
+  position: relative;
+  border-right: 1px solid #1a2535 !important;
+  transition: background .12s !important;
+}
+.statCard::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 12px; right: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.4) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.statCard:hover::after { opacity: 1; }
+
+/* ── テーブル: 行ホバー左アクセントボーダー ─── */
+.table tbody tr:hover .tdStar {
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
+  transition: box-shadow .08s !important;
+}
+
+/* 偶数行ホバー時もtdStarの背景を合わせる */
+.table tbody tr:nth-child(even):hover .tdStar {
+  background: #1a2235 !important;
+}
+
+/* sticky列: 右側にソフトシャドウ */
+.tdName {
+  box-shadow: 4px 0 10px rgba(0,0,0,0.35) !important;
+}
+
+/* ── マーケットバッジ: 左カラーライン ────────── */
+.mkt_prime    { border-left: 2px solid #3b82f6 !important; }
+.mkt_standard { border-left: 2px solid #10b981 !important; }
+.mkt_growth   { border-left: 2px solid #8b5cf6 !important; }
+.mkt_other    { border-left: 1px solid #4e6280 !important; }
+
+/* ── ステータスバー: 読み込み中のリングパルス ── */
+.statusLoading {
+  animation: statusPulseRing 1.2s cubic-bezier(.4,0,.6,1) infinite !important;
+}
+@keyframes statusPulseRing {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+  50%       { opacity: 0.6; box-shadow: 0 0 0 4px rgba(245,158,11,0); }
+}
+
+/* プログレスバーにグロー */
+.progressFill {
+  background: linear-gradient(90deg, #2563eb, #60a5fa) !important;
+  box-shadow: 0 0 6px rgba(96,165,250,0.5);
+}
+
+/* ── 詳細パネル: セクションタイトルにアクセント ─ */
+.detailSectionTitle {
+  position: relative;
+  padding-left: 10px !important;
+}
+.detailSectionTitle::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2.5px;
+  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  border-radius: 2px;
+}
+
+/* ── カード: ホバー時のデプス強化 ──────────── */
+.card:hover {
+  box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 0 1px rgba(59,130,246,0.18) !important;
+}
+
+/* ── プライマリボタン: グラデーション & シャドウ ─ */
+.btnPrimary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
+}
+.btnPrimary:not(:disabled):hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 4px 12px rgba(59,130,246,0.3), 0 1px 4px rgba(0,0,0,0.3) !important;
+  transform: translateY(-1px) !important;
+}
+.btnPrimary:not(:disabled):active {
+  transform: translateY(0px) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+}
+
+/* ── 銘柄管理行: 左アクセントボーダー ──────── */
+.wlTr { transition: background .08s, box-shadow .08s !important; }
+.wlTr:hover {
+  background: rgba(59,130,246,0.04) !important;
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
+}
+.wlTr:hover .wlTd { background: rgba(15,22,38,0.8) !important; }
+
+/* ── お気に入り★: アクティブ時のゴールドグロー ─ */
+.favBtnOn {
+  filter: drop-shadow(0 0 5px rgba(251,191,36,0.55));
+}
+.heartBtnOn {
+  filter: drop-shadow(0 0 5px rgba(244,63,94,0.5));
+}
+
+/* ── 判定バッジ "BUY": グラデーション ──────── */
+.jBuy {
+  background: linear-gradient(135deg, rgba(251,191,36,.18) 0%, rgba(251,191,36,.08) 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(251,191,36,.3) !important;
+}
+
+/* ── フィルターアクティブ: フォーカスリング ─── */
+.filterBtnActive {
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.18) !important;
+}
+
+/* ── テーブルヘッダーグループ: 上部カラーライン ─ */
+.thPriceGroup { border-top: 2px solid rgba(16,185,129,0.45) !important; }
+.thPerGroup   { border-top: 2px solid rgba(59,130,246,0.45) !important; }
+.thOtherGroup { border-top: 2px solid rgba(245,158,11,0.45) !important; }
+.thInfoGroup  { border-top: 2px solid rgba(255,255,255,0.07) !important; }
+
+/* ── ページネーション: アクティブボタンのグロー ─ */
+.pageBtnActive {
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.25) !important;
+}
+
+/* ── リンクドロップダウン: 開くアニメーション ── */
+.linkDropMenu {
+  animation: dropFadeIn .13s cubic-bezier(.4,0,.2,1);
+}
+@keyframes dropFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 検索ドロップダウン: ボーダーカラー ─────── */
+.searchDropdownPanel {
+  border-color: rgba(59,130,246,0.22) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(59,130,246,0.06) !important;
+}
+
+/* ── 鮮度アイコン: ゆらぎアニメーション ────── */
+.staleIcon {
+  animation: stalePulse 2s ease-in-out infinite;
+}
+@keyframes stalePulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── ライトモード: ポリッシュ追加 ──────────── */
+.lightMode .header {
+  background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(248,250,252,0.97) 100%) !important;
+  box-shadow: 0 1px 0 rgba(37,99,235,0.12), 0 2px 10px rgba(0,0,0,0.07) !important;
+}
+.lightMode .toolbar {
+  background: linear-gradient(180deg, #e8edf5 0%, #e2e8f0 100%) !important;
+}
+.lightMode .statsBar {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+}
+.lightMode .statCard { border-right-color: #e2e8f0 !important; }
+.lightMode .progressFill {
+  background: linear-gradient(90deg, #1d4ed8, #3b82f6) !important;
+  box-shadow: 0 0 6px rgba(37,99,235,0.4) !important;
+}
+.lightMode .detailSectionTitle::before {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
+}
+.lightMode .wlTr:hover {
+  background: rgba(37,99,235,0.04) !important;
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
+.lightMode .wlTr:hover .wlTd { background: rgba(240,244,252,0.9) !important; }
+.lightMode .table tbody tr:hover .tdStar {
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
+.lightMode .tdName {
+  box-shadow: 4px 0 10px rgba(0,0,0,0.08) !important;
+}
+.lightMode .btnPrimary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+}
+.lightMode .btnPrimary:not(:disabled):hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.25), 0 1px 4px rgba(0,0,0,0.15) !important;
+}
+.lightMode .pageBtnActive {
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.2) !important;
+}
+.lightMode .searchDropdownPanel {
+  border-color: rgba(37,99,235,0.18) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.12) !important;
+}
+.lightMode .mkt_prime    { border-left-color: #2563eb !important; }
+.lightMode .mkt_standard { border-left-color: #059669 !important; }
+.lightMode .mkt_growth   { border-left-color: #7c3aed !important; }
+

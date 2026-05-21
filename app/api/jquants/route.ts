@@ -6,8 +6,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const path = searchParams.get('path')
 
-  // クライアント提供キー → 環境変数キー の優先順でフォールバック
-  const apiKey = req.headers.get('x-api-key') || process.env.JQUANTS_API_KEY || ''
+  // サーバー環境変数キーを優先（設定されていればクライアントキーは無視）
+  const apiKey = process.env.JQUANTS_API_KEY || req.headers.get('x-api-key') || ''
 
   if (!path) return NextResponse.json({ error: 'path required' }, { status: 400 })
   if (!apiKey) return NextResponse.json({ error: 'api key required' }, { status: 401 })

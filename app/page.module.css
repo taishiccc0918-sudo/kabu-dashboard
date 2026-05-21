@@ -419,9 +419,19 @@
 .cardName { font-size: 14px; font-weight: 700; color: #e8eef8; line-height: 1.3; margin-bottom: 4px; }
 .cardRight { text-align: right; }
 .cardMcap { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 10px; color: #4e6280; margin-top: 4px; }
-.cardPriceRow { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+.cardPriceRow { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .cardPrice { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 22px; font-weight: 700; color: #e8eef8; }
 .cardChange { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; font-weight: 600; }
+.cardGenreRow {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-bottom: 10px;
+}
+.cardGenreTag {
+  font-size: 10px; padding: 2px 7px; border-radius: 4px;
+  background: rgba(96,165,250,0.1); color: #60a5fa;
+  border: 1px solid rgba(96,165,250,0.2);
+  font-weight: 500; white-space: nowrap;
+}
 .cardMetrics {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px;
 }

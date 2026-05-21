@@ -1934,7 +1934,10 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
-  const [visible, setVisible] = useState(false)
+  // キャッシュが存在する場合は即visible=true（外部ボタン等でリマウントされても即再表示）
+  const [visible, setVisible] = useState(() =>
+    (['3months','1year','3years'] as ChartMode[]).some(m => getChartCache(code, m) !== null)
+  )
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const areaRef = useRef<HTMLDivElement>(null)
   const lastRefreshKeyRef = useRef(refreshKey)
@@ -2532,6 +2535,11 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
         <div className={styles.cardPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
         <div className={`${styles.cardChange} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</div>
       </div>
+      {r.genres.length > 0 && (
+        <div className={styles.cardGenreRow}>
+          {r.genres.map(g => <span key={g} className={styles.cardGenreTag}>{g}</span>)}
+        </div>
+      )}
       <div className={styles.cardMetrics}>
         {[
           ['1ヶ月%',   r.chg1m != null ? fmtPct(r.chg1m) : '—',   pctClass(r.chg1m)],

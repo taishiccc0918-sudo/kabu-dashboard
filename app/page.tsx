@@ -111,10 +111,11 @@ function useEscapeClose(open: boolean, close: () => void) {
 function initFavorites(): Set<string> {
   if (typeof window === 'undefined') return new Set(DEFAULT_WATCHLIST)
   const favArr = ls<string[] | null>('favorites', null)
-  if (favArr !== null) return new Set(favArr)
+  // null または [] (ログインバグで空になった) は未設定扱いでフォールバック
+  if (favArr !== null && favArr.length > 0) return new Set(favArr)
   // 旧 watchlist から移行
   const oldWl = ls<string[] | null>('watchlist', null)
-  if (oldWl !== null) {
+  if (oldWl !== null && oldWl.length > 0) {
     const set = new Set<string>(oldWl)
     lsSet('favorites', Array.from(set))
     return set
@@ -247,15 +248,16 @@ export default function Page() {
         // Supabase が空 = 初回ログイン → localStorage のデータを Supabase に移行
         const localStars  = ls<string[]>('favorites', [])
         const localHearts = ls<string[]>('superFavorites', [])
-        if (localStars.length > 0 || localHearts.length > 0) {
-          const rows = [
-            ...localStars.map(code  => ({ user_id: userId, code, type: 'star'  as const })),
-            ...localHearts.map(code => ({ user_id: userId, code, type: 'heart' as const })),
-          ]
-          await sb.from('favorites').upsert(rows)
-          console.log(`[Supabase移行] ★${localStars.length}件 ♥${localHearts.length}件 をクラウドに保存しました`)
-        }
-        // ローカルデータはそのまま維持（State上書き不要）
+        // localStorage も空なら新規ユーザー → DEFAULT_WATCHLIST で初期化
+        const effectiveStars = localStars.length > 0 ? localStars : DEFAULT_WATCHLIST
+        const rows = [
+          ...effectiveStars.map(code => ({ user_id: userId, code, type: 'star'  as const })),
+          ...localHearts.map(code    => ({ user_id: userId, code, type: 'heart' as const })),
+        ]
+        await sb.from('favorites').upsert(rows)
+        setFavorites(new Set(effectiveStars))
+        lsSet('favorites', effectiveStars)
+        console.log(`[Supabase移行] ★${effectiveStars.length}件 ♥${localHearts.length}件 をクラウドに保存しました`)
       } else {
         // Supabase にデータあり → Supabase のデータで同期
         setFavorites(stars)

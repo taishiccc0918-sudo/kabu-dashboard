@@ -189,7 +189,7 @@ export default function Page() {
   const [lastUpdate, setLastUpdate] = useState('')
   const [dataLoaded, setDataLoaded] = useState(false)   // このセッションで実際にデータ取得済みか
   const [status,     setStatus]     = useState<StatusType>('idle')
-  const [statusMsg,  setStatusMsg]  = useState('待機中 — APIキーを入力して「全更新」を押してください')
+  const [statusMsg,  setStatusMsg]  = useState('準備中...')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
   const [filter,     setFilter]     = useState<'all'|'buy'>('all')
@@ -219,6 +219,7 @@ export default function Page() {
   const [chartRefreshKey, setChartRefreshKey] = useState(0)
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const abortSignalRef = useRef({ aborted: false })
+  const autoFetchedRef = useRef(false)
 
   // ── 認証ユーザー状態 ───────────────────────────────────────────────
   type AuthUser = { id: string; email?: string; name?: string }
@@ -259,11 +260,24 @@ export default function Page() {
         lsSet('favorites', effectiveStars)
         console.log(`[Supabase移行] ★${effectiveStars.length}件 ♥${localHearts.length}件 をクラウドに保存しました`)
       } else {
-        // Supabase にデータあり → Supabase のデータで同期
+        // Supabase にデータあり → 基本は Supabase のデータで同期
         setFavorites(stars)
-        setSuperFavorites(hearts)
         lsSet('favorites', Array.from(stars))
-        lsSet('superFavorites', Array.from(hearts))
+        if (hearts.size > 0) {
+          // ♥ が Supabase にある → そのまま同期
+          setSuperFavorites(hearts)
+          lsSet('superFavorites', Array.from(hearts))
+        } else {
+          // ♥ が Supabase にない（★だけSQLで手動追加されたケース等）→ localStorage から移行を試みる
+          const localHearts = ls<string[]>('superFavorites', [])
+          if (localHearts.length > 0) {
+            const heartRows = localHearts.map(code => ({ user_id: userId, code, type: 'heart' as const }))
+            await sb.from('favorites').upsert(heartRows)
+            setSuperFavorites(new Set(localHearts))
+            console.log(`[Supabase移行] ♥${localHearts.length}件 をクラウドに保存しました`)
+          }
+          // localStorage も空の場合は何もしない
+        }
       }
     }
     if (memoData) {
@@ -344,7 +358,6 @@ export default function Page() {
     fetch('/api/has-key').then(r => r.json()).then((d: { hasKey: boolean }) => {
       if (d.hasKey) {
         setServerHasKey(true)
-        setStatusMsg('「更新する」ボタンを押してデータを取得してください')
       }
     }).catch(() => {})
   }, [])
@@ -456,6 +469,16 @@ export default function Page() {
       setTimeout(() => setProgress(0), 1200)
     }
   }, [apiKey, serverHasKey, loading])
+
+  // ── 自動更新: ページ読み込み時にサーバーキーが確認できたら即座にデータ取得 ────
+  useEffect(() => {
+    if (!mounted) return               // マウント完了を待つ
+    if (autoFetchedRef.current) return // 1度だけ実行
+    if (dataLoaded || loading) return  // すでに取得中/取得済み
+    if (!serverHasKey && !apiKey.trim()) return  // APIキーがない場合は待機
+    autoFetchedRef.current = true
+    fetchAll()
+  }, [mounted, serverHasKey, apiKey, dataLoaded, loading, fetchAll])
 
   // ── Supabase 同期ヘルパー ─────────────────────────────────────────
   function sbSyncFav(code: string, type: 'star' | 'heart', add: boolean) {
@@ -778,12 +801,12 @@ export default function Page() {
             </button>
           )}
           <button
-            className={`${styles.btnPrimary} ${!loading && dataLoaded ? styles.btnDone : ''}`}
+            className={styles.btnSecondary}
             onClick={fetchAll}
             disabled={loading}
             title={lastUpdate && !dataLoaded ? `前回取得: ${lastUpdate}` : undefined}
           >
-            {loading ? '更新中...' : dataLoaded ? '更新済み ↺' : '更新する'}
+            {loading ? '更新中...' : dataLoaded ? '再読込 ↺' : '取得中...'}
           </button>
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           <button className={`${styles.helpBtn} ${styles.spHide}`} onClick={() => setShowHelp(h => !h)} title="ヘルプ">?</button>
@@ -1198,6 +1221,10 @@ function StockManager({
   function scrollToWlRow(code: string) {
     setWlShowDropdown(false); setWlDropdownActive(-1)
 
+    // ★/♥フィルターで対象銘柄が除外されている場合、フィルターを解除
+    if (showFavOnly && !favorites.has(code)) setShowFavOnly(false)
+    if (showHeartOnly && !superFavorites.has(code)) setShowHeartOnly(false)
+
     let idx = filteredCodes.indexOf(code)
 
     if (idx < 0) {
@@ -1206,8 +1233,7 @@ function StockManager({
       const noSearchCodes = allCodes.filter(c => {
         const rec = masterDB[c]
         if (!rec) return false
-        if (showFavOnly   && !favorites.has(c))      return false
-        if (showHeartOnly && !superFavorites.has(c)) return false
+        // フィルター解除後の状態を考慮
         if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
         if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
         if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
@@ -1284,6 +1310,8 @@ function StockManager({
             activeIndex={wlDropdownActive}
             visible={wlShowDropdown && wlSearch.trim().length > 0}
             onSelect={code => scrollToWlRow(code)}
+            onToggleFavorite={onToggleFavorite}
+            favorites={favorites}
           />
         </div>
 
@@ -2882,11 +2910,14 @@ function SettingsPanel({
 // ─── SearchDropdown（共通UIコンポーネント）────────────────────────────
 function SearchDropdown({
   results, activeIndex, onSelect, visible,
+  onToggleFavorite, favorites,
 }: {
   results: DropdownResult[]
   activeIndex: number
   onSelect: (code: string) => void
   visible: boolean
+  onToggleFavorite?: (code: string) => void
+  favorites?: Set<string>
 }) {
   if (!visible) return null
   const codeNameResults = results.filter(r => r.matchType === 'code_name')
@@ -2908,6 +2939,20 @@ function SearchDropdown({
                 >
                   <span className={styles.searchDropdownCode}>{r.code}</span>
                   <span className={styles.searchDropdownName}>{r.name}</span>
+                  {onToggleFavorite && (
+                    <button
+                      className={styles.dropdownFavBtn}
+                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); onToggleFavorite(r.code) }}
+                      title={favorites?.has(r.code) ? 'お気に入り解除' : 'お気に入りに追加'}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 14, padding: '0 4px', marginLeft: 'auto',
+                        color: favorites?.has(r.code) ? '#fbbf24' : 'rgba(156,163,175,0.4)',
+                        transition: 'color .1s',
+                        flexShrink: 0,
+                      }}
+                    >★</button>
+                  )}
                 </div>
               ))}
             </>
@@ -2924,6 +2969,20 @@ function SearchDropdown({
                   <span className={styles.searchDropdownCode}>{r.code}</span>
                   <span className={styles.searchDropdownName}>{r.name}</span>
                   {r.memoSnippet && <div className={styles.searchDropdownSnippet}>{r.memoSnippet}</div>}
+                  {onToggleFavorite && (
+                    <button
+                      className={styles.dropdownFavBtn}
+                      onMouseDown={e => { e.stopPropagation(); e.preventDefault(); onToggleFavorite(r.code) }}
+                      title={favorites?.has(r.code) ? 'お気に入り解除' : 'お気に入りに追加'}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 14, padding: '0 4px', marginLeft: 'auto',
+                        color: favorites?.has(r.code) ? '#fbbf24' : 'rgba(156,163,175,0.4)',
+                        transition: 'color .1s',
+                        flexShrink: 0,
+                      }}
+                    >★</button>
+                  )}
                 </div>
               ))}
             </>

@@ -563,6 +563,12 @@
 .statusDot { width: 5px; height: 5px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
 .statusLoading { background: #f59e0b; animation: pulse 1s ease infinite; }
 .statusError   { background: #ef4444; }
+/* 更新中: ステータスバー全体を琥珀色に */
+.statusBarLoading {
+  background: rgba(60, 40, 5, 0.97) !important;
+  border-top-color: rgba(251, 191, 36, 0.45) !important;
+  color: #fbbf24 !important;
+}
 .progressWrap { width: 100px; }
 .progressBar { height: 2px; background: #2a3a52; border-radius: 1px; overflow: hidden; }
 .progressFill { height: 100%; background: #3b82f6; border-radius: 1px; transition: width .3s; }
@@ -1801,7 +1807,24 @@
 }
 
 /* ── 銘柄管理 SP コンパクトリスト ────────────────────── */
-.wlSpList { } /* mobileOnly クラスが display を制御 */
+.wlSpList { flex: 1; min-height: 0; overflow-y: auto; } /* mobileOnly クラスが display を制御 */
+/* SP: 列ヘッダー（スティッキー） */
+.wlSpStickyHeader {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px;
+  background: #0d1723; border-bottom: 2px solid #2a3a52;
+  font-size: 10px; font-weight: 700; color: #4e6280;
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em;
+  user-select: none;
+}
+.wlSpHdrHeart { width: 26px; flex-shrink: 0; text-align: center; color: rgba(244,63,94,0.5); }
+.wlSpHdrStar  { width: 26px; flex-shrink: 0; text-align: center; color: rgba(251,191,36,0.5); }
+.wlSpHdrCode  { width: 38px; flex-shrink: 0; }
+.wlSpHdrName  { flex: 1; min-width: 0; }
+.wlSpHdrMkt   { flex-shrink: 0; width: 36px; text-align: center; }
+.wlSpHdrGenre { flex-shrink: 0; width: 56px; }
+.wlSpHdrMemo  { flex-shrink: 0; width: 26px; text-align: center; }
 .wlMobileItem {
   border-bottom: 1px solid #1f2d40;
 }
@@ -1817,6 +1840,11 @@
   border-radius: 3px; flex-shrink: 0; color: #4e6280;
 }
 .wlMobileIconBtn:active { background: rgba(255,255,255,0.06); }
+/* ♥/★ボタンの色: wlMobileIconBtnのデフォルトcolor(#4e6280)が上書きしないよう明示 */
+.wlMobileIconBtn.heartBtnOn { color: #f43f5e !important; filter: drop-shadow(0 0 4px rgba(244,63,94,0.45)); }
+.wlMobileIconBtn.heartBtn   { color: rgba(156,163,175,0.3) !important; }
+.wlMobileIconBtn.favBtnOn   { color: #fbbf24 !important; filter: drop-shadow(0 0 4px rgba(251,191,36,0.5)); }
+.wlMobileIconBtn.favBtn     { color: rgba(156,163,175,0.35) !important; }
 .wlMobileCode {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; color: #4e6280; flex-shrink: 0; width: 38px;

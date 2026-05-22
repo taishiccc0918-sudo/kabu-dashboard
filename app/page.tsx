@@ -229,6 +229,10 @@ export default function Page() {
   const autoFetchedRef = useRef(false)
   const [bgFetching, setBgFetching] = useState(false)
   const cacheStaleRef = useRef(false)
+  // ── 銘柄管理 Undo/Redo（★/♥操作のみ） ──────────────────────────
+  const [undoStack, setUndoStack] = useState<Array<{fav: string[], sfav: string[]}>>([])
+  const [redoStack, setRedoStack] = useState<Array<{fav: string[], sfav: string[]}>>([])
+
 
   // ── 銘柄管理フィルター状態（ツールバーと共有）────────────────────────
   const [wlSearch, setWlSearch] = useState('')
@@ -645,7 +649,39 @@ export default function Page() {
   }
 
   // ── お気に入り操作 ────────────────────────────────────────────────
+  function pushUndo() {
+    setUndoStack(prev => [...prev.slice(-9), { fav: Array.from(favorites), sfav: Array.from(superFavorites) }])
+    setRedoStack([])
+  }
+  function applyFavSnapshot(snapshot: {fav: string[], sfav: string[]}, prevFav: Set<string>, prevSFav: Set<string>) {
+    const newFav  = new Set(snapshot.fav)
+    const newSFav = new Set(snapshot.sfav)
+    // 変更分だけ Supabase 同期
+    for (const code of new Set([...Array.from(prevFav), ...snapshot.fav])) {
+      if (prevFav.has(code) !== newFav.has(code)) sbSyncFav(code, 'star', newFav.has(code))
+    }
+    for (const code of new Set([...Array.from(prevSFav), ...snapshot.sfav])) {
+      if (prevSFav.has(code) !== newSFav.has(code)) sbSyncFav(code, 'heart', newSFav.has(code))
+    }
+    setFavorites(newFav);    lsSet('favorites',      snapshot.fav)
+    setSuperFavorites(newSFav); lsSet('superFavorites', snapshot.sfav)
+  }
+  function handleUndo() {
+    if (undoStack.length === 0) return
+    const snapshot = undoStack[undoStack.length - 1]
+    setRedoStack(rd => [...rd, { fav: Array.from(favorites), sfav: Array.from(superFavorites) }])
+    applyFavSnapshot(snapshot, favorites, superFavorites)
+    setUndoStack(ud => ud.slice(0, -1))
+  }
+  function handleRedo() {
+    if (redoStack.length === 0) return
+    const snapshot = redoStack[redoStack.length - 1]
+    setUndoStack(ud => [...ud, { fav: Array.from(favorites), sfav: Array.from(superFavorites) }])
+    applyFavSnapshot(snapshot, favorites, superFavorites)
+    setRedoStack(rd => rd.slice(0, -1))
+  }
   function toggleFavorite(code: string) {
+    pushUndo()
     setFavorites(prev => {
       const next = new Set(prev)
       const adding = !next.has(code)
@@ -656,8 +692,17 @@ export default function Page() {
     })
   }
   function toggleSuperFavorite(code: string) {
+    pushUndo()
     const isSuper = superFavorites.has(code)
-    if (!isSuper && !favorites.has(code)) toggleFavorite(code)
+    if (!isSuper && !favorites.has(code)) {
+      // ★と♥を同時に追加する場合は pushUndo が2回呼ばれないよう直接 setFavorites
+      setFavorites(prev => {
+        const next = new Set(prev); next.add(code)
+        lsSet('favorites', Array.from(next))
+        sbSyncFav(code, 'star', true)
+        return next
+      })
+    }
     setSuperFavorites(prev => {
       const next = new Set(prev)
       const adding = !next.has(code)
@@ -1137,6 +1182,20 @@ export default function Page() {
             <button className={styles.btnSecondary} onClick={exportToExcel} title="お気に入り銘柄をExcelにエクスポート">
               ↓ Excel
             </button>
+            <button
+              className={styles.btnSecondary}
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              title={undoStack.length > 0 ? `★/♥の操作を${undoStack.length}件まで元に戻せます` : '元に戻す操作がありません'}
+              style={{minWidth:52}}
+            >↩ 戻る</button>
+            <button
+              className={styles.btnSecondary}
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              title={redoStack.length > 0 ? `${redoStack.length}件やり直せます` : 'やり直す操作がありません'}
+              style={{minWidth:52}}
+            >↪ 進む</button>
           </>
         )}
         <div className={styles.spacer} />
@@ -1357,7 +1416,7 @@ export default function Page() {
         serverHasKey={serverHasKey}
       />
 
-      <div className={styles.statusBar}>
+      <div className={`${styles.statusBar} ${(loading || bgFetching) ? styles.statusBarLoading : ''}`}>
         <div className={`${styles.statusDot} ${
           status === 'loading' ? styles.statusLoading :
           status === 'error'   ? styles.statusError   : ''
@@ -1633,6 +1692,16 @@ function StockManager({
 
       {/* SP: コンパクト1行リスト */}
       <div className={`${styles.wlSpList} ${styles.mobileOnly}`}>
+        {/* SP: 固定列ヘッダー */}
+        <div className={styles.wlSpStickyHeader}>
+          <span className={styles.wlSpHdrHeart}>♥</span>
+          <span className={styles.wlSpHdrStar}>★</span>
+          <span className={styles.wlSpHdrCode}>コード</span>
+          <span className={styles.wlSpHdrName}>銘柄名</span>
+          <span className={styles.wlSpHdrMkt}>市場</span>
+          <span className={styles.wlSpHdrGenre}>ジャンル</span>
+          <span className={styles.wlSpHdrMemo}>メモ</span>
+        </div>
         {allCodes.length === 0
           ? <div className={styles.emptyCell}>銘柄マスタ読込中...</div>
           : pageCodes.length === 0

@@ -1902,6 +1902,66 @@
 }
 .wlMobileLinkBtn:active { background: rgba(59,130,246,0.2); border-color: #60a5fa; }
 
+/* ── 銘柄管理ツールバー 2段レイアウト（SP用） ───────── */
+/* PC: display:contents で親flexに溶け込む（透明なラッパー） */
+.wlTbRow1 { display: contents; }
+.wlTbRow2 { display: contents; }
+@media (max-width: 768px) {
+  .wlTbRow1 {
+    display: flex; align-items: center;
+    width: 100%; gap: 5px;
+  }
+  .wlTbRow1 .wlToolbarSearch { flex: 1; min-width: 0; }
+  .wlTbRow1 .wlHeaderSearch { width: 100% !important; }
+  .wlTbRow2 {
+    display: flex; align-items: center;
+    width: 100%; gap: 4px;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── 銘柄管理 SP ジャンルフィルターバー ─────────────── */
+.wlSpGenreBar {
+  display: none; /* PC では非表示; モバイルで display:flex にオーバーライド */
+  align-items: center; gap: 6px;
+  padding: 5px 8px;
+  background: #0d1723;
+  border-bottom: 1px solid #1f2d40;
+  flex-shrink: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 768px) {
+  .wlSpGenreBar { display: flex; }
+}
+.wlSpGenreBarLabel {
+  font-size: 11px; font-weight: 600; color: #4e6280;
+  white-space: nowrap; flex-shrink: 0;
+}
+.wlSpGenreChips {
+  display: flex; gap: 5px; flex-wrap: nowrap;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  flex: 1; min-width: 0;
+}
+.wlSpGenreChip {
+  font-size: 11px; color: #8fa3be;
+  padding: 3px 9px; border-radius: 12px;
+  border: 1px solid #2a3a52;
+  background: rgba(255,255,255,0.03);
+  white-space: nowrap; cursor: pointer;
+  flex-shrink: 0; transition: all .12s;
+}
+.wlSpGenreChipActive {
+  color: #60a5fa !important;
+  border-color: #3b82f6 !important;
+  background: rgba(59,130,246,0.12) !important;
+}
+.wlSpGenreClearBtn {
+  font-size: 11px; color: #f87171;
+  background: none; border: none;
+  cursor: pointer; padding: 2px 5px;
+  flex-shrink: 0; white-space: nowrap;
+}
+
 /* ── THEME TOGGLE BUTTON ────────────────────────────── */
 .themeToggle {
   padding: 5px 8px; border-radius: 6px;
@@ -2646,6 +2706,10 @@
 .lightMode .wlMobileLinkRow { background: rgba(0,0,0,0.04) !important; border-top-color: #e2e8f0 !important; }
 .lightMode .wlMobileLinkBtn { color: #2563eb !important; background: rgba(37,99,235,0.06) !important; border-color: #bfdbfe !important; }
 .lightMode .wlMobileNameCaret { color: #94a3b8 !important; }
+.lightMode .wlSpGenreBar { background: #e8edf3 !important; border-bottom-color: #cbd5e1 !important; }
+.lightMode .wlSpGenreBarLabel { color: #64748b !important; }
+.lightMode .wlSpGenreChip { color: #475569 !important; border-color: #94a3b8 !important; background: #f8fafc !important; }
+.lightMode .wlSpGenreChipActive { color: #2563eb !important; border-color: #3b82f6 !important; background: rgba(37,99,235,0.08) !important; }
 
 /* ── 銘柄管理ヘッダー SP 縦並びレイアウト ─────────────── */
 @media (max-width: 768px) {

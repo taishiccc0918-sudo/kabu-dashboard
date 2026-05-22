@@ -1008,7 +1008,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em'}}>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
             <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
             <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
             <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
@@ -1053,6 +1053,9 @@ export default function Page() {
                     {forcePc ? 'SP版に戻す' : 'PC版表示に切替'}
                   </button>
                 )}
+                <button className={styles.moreMenuItem} onClick={() => { exportToExcel(); setShowMoreMenu(false) }}>
+                  <span>📥</span> ★リストをExcel保存
+                </button>
               </div>
             )}
           </div>
@@ -1132,76 +1135,94 @@ export default function Page() {
         )}
         {tab === 'watchlist' && (
           <>
-            {/* SP専用: 一覧画面に戻るボタン */}
-            <button
-              className={`${styles.btnSecondary} ${styles.spOnly}`}
-              onClick={() => setTab('card')}
-              style={{flexShrink:0, whiteSpace:'nowrap'}}
-            >← 一覧</button>
-            <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
-              <input
-                className={styles.wlHeaderSearch}
-                placeholder="🔍 銘柄名・コード検索..."
-                value={wlSearch}
-                onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setWlPage(1) }}
-                onFocus={() => setWlShowDropdown(true)}
-                onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
-                onKeyDown={e => {
-                  if (!wlShowDropdown || !wlSearch.trim()) return
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
-                  else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
-                  else if (e.key === 'Enter') { const ti = wlDropdownActive >= 0 ? wlDropdownActive : 0; if (wlDropdownResults[ti]) { wlScrollFnRef.current?.(wlDropdownResults[ti].code); setWlShowDropdown(false) } }
-                }}
-              />
-              <SearchDropdown
-                results={wlDropdownResults}
-                activeIndex={wlDropdownActive}
-                visible={wlShowDropdown && wlSearch.trim().length > 0}
-                onSelect={code => { wlScrollFnRef.current?.(code); setWlShowDropdown(false) }}
-                onToggleFavorite={toggleFavorite}
-                favorites={favorites}
-              />
+            {/* SP行1: ← 一覧 + 検索窓（full-width on SP） */}
+            <div className={styles.wlTbRow1}>
+              <button
+                className={`${styles.btnSecondary} ${styles.spOnly}`}
+                onClick={() => setTab('card')}
+                style={{flexShrink:0, whiteSpace:'nowrap'}}
+              >← 一覧</button>
+              <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
+                <input
+                  className={styles.wlHeaderSearch}
+                  placeholder="🔍 銘柄検索（複数は , 区切りで一括登録）"
+                  value={wlSearch}
+                  onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setWlPage(1) }}
+                  onFocus={() => setWlShowDropdown(true)}
+                  onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
+                  onKeyDown={e => {
+                    // カンマ区切り一括登録: "7203,6758" + Enter
+                    if (e.key === 'Enter' && wlSearch.includes(',')) {
+                      e.preventDefault()
+                      const codes = wlSearch.split(/[,，\s　]+/).map(s => s.trim()).filter(Boolean)
+                      if (codes.length > 0) {
+                        pushUndo()
+                        const toAdd = codes.filter(c => masterDB[c] && !favorites.has(c))
+                        if (toAdd.length > 0) {
+                          setFavorites(prev => {
+                            const next = new Set(prev)
+                            toAdd.forEach(c => { next.add(c); sbSyncFav(c, 'star', true) })
+                            lsSet('favorites', Array.from(next))
+                            return next
+                          })
+                        }
+                        setWlSearch(''); setWlPage(1); setWlShowDropdown(false)
+                        return
+                      }
+                    }
+                    if (!wlShowDropdown || !wlSearch.trim()) return
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
+                    else if (e.key === 'Escape') { setWlShowDropdown(false); setWlDropdownActive(-1) }
+                    else if (e.key === 'Enter') { const ti = wlDropdownActive >= 0 ? wlDropdownActive : 0; if (wlDropdownResults[ti]) { wlScrollFnRef.current?.(wlDropdownResults[ti].code); setWlShowDropdown(false) } }
+                  }}
+                />
+                <SearchDropdown
+                  results={wlDropdownResults}
+                  activeIndex={wlDropdownActive}
+                  visible={wlShowDropdown && wlSearch.trim().length > 0}
+                  onSelect={code => { wlScrollFnRef.current?.(code); setWlShowDropdown(false) }}
+                  onToggleFavorite={toggleFavorite}
+                  favorites={favorites}
+                />
+              </div>
             </div>
-            <button
-              className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${wlShowHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
-              onClick={() => { setWlShowHeartOnly(h => !h); setWlPage(1) }}
-              title="超お気に入り（♥）のみ表示"
-            >♥</button>
-            <button
-              className={`${styles.wlIconFilterBtn} ${wlShowFavOnly ? styles.wlIconFilterBtnActive : ''}`}
-              onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
-              title="お気に入りのみ表示"
-            >★</button>
-            <div className={styles.wlMktSegment}>
-              {(['all','prime','standard','growth'] as const).map(k => (
-                <button key={k}
-                  className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
-                  onClick={() => { setWlMktF(k); setWlPage(1) }}
-                >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
-              ))}
+            {/* SP行2: ♥ ★ 市場 件数 ↩ ↪ */}
+            <div className={styles.wlTbRow2}>
+              <button
+                className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${wlShowHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
+                onClick={() => { setWlShowHeartOnly(h => !h); setWlPage(1) }}
+                title="超お気に入り（♥）のみ表示"
+              >♥</button>
+              <button
+                className={`${styles.wlIconFilterBtn} ${wlShowFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+                onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
+                title="お気に入りのみ表示"
+              >★</button>
+              <div className={styles.wlMktSegment}>
+                {(['all','prime','standard','growth'] as const).map(k => (
+                  <button key={k}
+                    className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
+                    onClick={() => { setWlMktF(k); setWlPage(1) }}
+                  >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+                ))}
+              </div>
+              <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
+              <button
+                className={styles.btnSecondary}
+                onClick={handleUndo}
+                disabled={undoStack.length === 0}
+                title={undoStack.length > 0 ? `★/♥の操作を${undoStack.length}件まで元に戻せます` : '元に戻す操作がありません'}
+                style={{minWidth:52}}
+              >↩ 戻る</button>
+              <button
+                className={styles.btnSecondary}
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+                title={redoStack.length > 0 ? `${redoStack.length}件やり直せます` : 'やり直す操作がありません'}
+                style={{minWidth:52}}
+              >↪ 進む</button>
             </div>
-            <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
-            <button className={styles.btnSecondary} onClick={() => setWlShowBulkAdd(s => !s)} title="銘柄コードを一括で★に追加">
-              + 一括登録
-            </button>
-            <button className={styles.btnSecondary} onClick={exportToExcel} title="お気に入り銘柄をExcelにエクスポート">
-              ↓ Excel
-            </button>
-            <button
-              className={styles.btnSecondary}
-              onClick={handleUndo}
-              disabled={undoStack.length === 0}
-              title={undoStack.length > 0 ? `★/♥の操作を${undoStack.length}件まで元に戻せます` : '元に戻す操作がありません'}
-              style={{minWidth:52}}
-            >↩ 戻る</button>
-            <button
-              className={styles.btnSecondary}
-              onClick={handleRedo}
-              disabled={redoStack.length === 0}
-              title={redoStack.length > 0 ? `${redoStack.length}件やり直せます` : 'やり直す操作がありません'}
-              style={{minWidth:52}}
-            >↪ 進む</button>
           </>
         )}
         <div className={styles.spacer} />
@@ -1695,6 +1716,25 @@ function StockManager({
           </tbody>
         </table>
       </div>
+
+      {/* SP: ジャンルフィルターバー */}
+      {allGenreOptions.length > 0 && (
+        <div className={styles.wlSpGenreBar}>
+          <span className={styles.wlSpGenreBarLabel}>ジャンル</span>
+          <div className={styles.wlSpGenreChips}>
+            {allGenreOptions.map(g => (
+              <button
+                key={g}
+                className={`${styles.wlSpGenreChip} ${genreFilters.has(g) ? styles.wlSpGenreChipActive : ''}`}
+                onClick={() => { setGenreFilters(prev => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n }); setPage(1) }}
+              >{g}</button>
+            ))}
+          </div>
+          {genreFilters.size > 0 && (
+            <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>✕</button>
+          )}
+        </div>
+      )}
 
       {/* SP: コンパクト1行リスト */}
       <div className={`${styles.wlSpList} ${styles.mobileOnly}`}>

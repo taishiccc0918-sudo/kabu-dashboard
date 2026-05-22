@@ -1878,6 +1878,30 @@
 }
 .wlMobileMemoTextarea:focus { border-color: #3b82f6; }
 
+/* ── WlMobileRow: 銘柄名タップ / リンク展開 ─────────── */
+.wlMobileNameTap {
+  cursor: pointer;
+  transition: opacity .1s;
+}
+.wlMobileNameTap:active { opacity: 0.65; }
+.wlMobileNameCaret {
+  font-size: 9px; color: #4e6280; font-weight: 400;
+  flex-shrink: 0;
+}
+.wlMobileLinkRow {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 7px 10px 10px; border-top: 1px solid #1f2d40;
+  background: rgba(0,0,0,0.2);
+}
+.wlMobileLinkBtn {
+  font-size: 12px; color: #60a5fa; padding: 4px 10px;
+  border: 1px solid #2a3a52; border-radius: 14px;
+  background: rgba(59,130,246,0.07); text-decoration: none;
+  display: inline-flex; align-items: center; white-space: nowrap;
+  transition: background .1s, border-color .1s;
+}
+.wlMobileLinkBtn:active { background: rgba(59,130,246,0.2); border-color: #60a5fa; }
+
 /* ── THEME TOGGLE BUTTON ────────────────────────────── */
 .themeToggle {
   padding: 5px 8px; border-radius: 6px;
@@ -2619,6 +2643,9 @@
 .lightMode .wlMobileEditBtnActive { color: #2563eb !important; }
 .lightMode .wlMobileMemoTextarea { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlMobileMemoTextarea:focus { border-color: #2563eb !important; }
+.lightMode .wlMobileLinkRow { background: rgba(0,0,0,0.04) !important; border-top-color: #e2e8f0 !important; }
+.lightMode .wlMobileLinkBtn { color: #2563eb !important; background: rgba(37,99,235,0.06) !important; border-color: #bfdbfe !important; }
+.lightMode .wlMobileNameCaret { color: #94a3b8 !important; }
 
 /* ── 銘柄管理ヘッダー SP 縦並びレイアウト ─────────────── */
 @media (max-width: 768px) {

@@ -1132,6 +1132,12 @@ export default function Page() {
         )}
         {tab === 'watchlist' && (
           <>
+            {/* SP専用: 一覧画面に戻るボタン */}
+            <button
+              className={`${styles.btnSecondary} ${styles.spOnly}`}
+              onClick={() => setTab('card')}
+              style={{flexShrink:0, whiteSpace:'nowrap'}}
+            >← 一覧</button>
             <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
               <input
                 className={styles.wlHeaderSearch}
@@ -1811,6 +1817,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
   highlighted: boolean
 }) {
   const [editingMemo, setEditingMemo] = useState(false)
+  const [showLinks, setShowLinks] = useState(false)
   const [draft, setDraft] = useState(meta.memo)
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
   const mainGenre = meta.genres[0] ?? null
@@ -1822,6 +1829,18 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
     if (draft !== meta.memo) onSaveMeta({ ...meta, memo: draft, memoUpdatedAt: draft.trim() ? new Date().toISOString() : undefined })
   }
 
+  const links = [
+    { label: '四季報',      href: `https://shikiho.toyokeizai.net/stocks/${code}` },
+    { label: 'かぶたん',    href: `https://kabutan.jp/stock/?code=${code}` },
+    { label: 'Yahoo',       href: `https://finance.yahoo.co.jp/quote/${code}.T` },
+    { label: 'IRBank',      href: `https://irbank.net/${code}` },
+    { label: 'みんかぶ',   href: `https://minkabu.jp/stock/${code}` },
+    { label: 'Buffett',     href: `https://www.buffett-code.com/company/${code}` },
+    { label: 'TV',          href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
+    { label: 'X検索',       href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + rec.name)}&f=live` },
+    { label: '公式IR',      href: `https://www.google.com/search?q=${encodeURIComponent(code + ' ' + rec.name + ' IR 投資家情報')}` },
+  ]
+
   return (
     <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''}`} data-code-wl={code}>
       <div className={styles.wlMobileRow}>
@@ -1830,14 +1849,32 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
         <button onClick={onToggleFav}
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}>{isFav ? '★' : '☆'}</button>
         <span className={styles.wlMobileCode}>{code}</span>
-        <span className={styles.wlMobileName}>{rec.name}</span>
+        {/* 銘柄名タップでリンク展開 */}
+        <span
+          className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
+          onClick={() => { setShowLinks(l => !l); if (editingMemo) setEditingMemo(false) }}
+        >
+          {rec.name}
+          <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
+        </span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         {mainGenre && <span className={styles.wlMobileGenre}>{mainGenre}</span>}
         <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => setEditingMemo(e => !e)}
+          onClick={() => { setEditingMemo(e => !e); if (showLinks) setShowLinks(false) }}
           title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
         >✏</button>
       </div>
+      {/* リンク展開パネル */}
+      {showLinks && (
+        <div className={styles.wlMobileLinkRow}>
+          {links.map(l => (
+            <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
+              className={styles.wlMobileLinkBtn}
+              onClick={e => e.stopPropagation()}
+            >{l.label}</a>
+          ))}
+        </div>
+      )}
       {editingMemo && (
         <div className={styles.wlMobileMemoEdit}>
           <textarea

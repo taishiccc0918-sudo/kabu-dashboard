@@ -58,3 +58,23 @@ npm run dev
 ```
 
 → http://localhost:3000 で起動
+
+---
+
+## テスト
+
+判定エンジン（app/lib/judgmentEngine.ts）と財務計算（app/lib/format.ts）のユニットテストを Vitest で実装。
+
+```bash
+npm test          # 単発実行
+npm run test:watch  # 監視モード
+```
+
+テストファイル: `tests/` 配下
+
+## セキュリティ運用メモ
+
+- J-Quants API キーはサーバー環境変数 `JQUANTS_API_KEY` に格納し、ブラウザに露出させない（クライアント入力フィールドはレガシー互換用）
+- `/api/jquants` はパス・ホワイトリスト＋IP単位の簡易レート制限（60req/min）あり
+- 直近の監査ログ: `docs/security-audit-2026-05-28.md`
+- `npm audit` を定期実行し、HIGH 以上は速やかに対応

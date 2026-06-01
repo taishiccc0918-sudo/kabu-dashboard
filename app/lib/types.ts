@@ -144,6 +144,7 @@ export interface FinRecord {
   nyOP: number
   feps1m: number | null   // 1ヶ月前時点のFEPS（過去PER計算用）
   fepsShifted?: boolean   // FY確定後に次期予想EPSをPER今期に充当した場合true
+  fyEps?: { d: string; eps: number }[]  // FY決算ごとのEPS実績ヒストリー（PERバンド計算用・直近5件）
 }
 export interface MasterRecord {
   name: string
@@ -170,9 +171,11 @@ export interface StockRow {
   divY: number | null
   epsCurGr: number | null
   peg: number | null
+  likePer?: number | null   // 成長加味の予想PER（close / (feps*(1+epsCurGr))）
   opMgn: number | null
   nySalesGr: number | null
   judgment: string
+  perBand?: import('./perBand').PerBand | null  // 四季報式PERバンド（page側で算出して付与）
 }
 export type SortKey = keyof StockRow
 export type FilterKey = 'all' | 'buy'

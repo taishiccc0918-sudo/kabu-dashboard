@@ -57,7 +57,8 @@ export function buildStockRow(
   priceDB: Record<string, PriceRecord>,
   finDB: Record<string, FinRecord>,
   masterDB: Record<string, MasterRecord>,
-  stockMeta: Record<string, StockMeta>
+  stockMeta: Record<string, StockMeta>,
+  perBandDB?: Record<string, import('./perBand').PerBand | null>
 ): StockRow {
   const p = priceDB[code] ?? { close: 0 }
   const f = finDB[code]
@@ -76,6 +77,9 @@ export function buildStockRow(
   const pbr   = (close && bps)   ? close / bps   : null
   const divY  = (close && fdiv)  ? fdiv  / close : null
   const peg   = (perF != null && epsCurGr !== null && epsCurGr !== 0) ? perF / (epsCurGr * 100) : null
+  // 成長加味の予想PER（1年先のEPSに割り戻したイメージ）。成長率が-100%以下なら無効
+  const likePer = (close && feps && epsCurGr !== null && (1 + epsCurGr) > 0)
+    ? close / (feps * (1 + epsCurGr)) : null
 
   // 新計算式: (現在PER) / (過去PER) - 1 = (close * pastFeps) / (pastClose * feps) - 1
   // pastFeps が null の場合は null を返す（≠ 非開示。IPO直後等でデータなし）
@@ -110,8 +114,10 @@ export function buildStockRow(
     divY,
     epsCurGr,
     peg,
+    likePer,
     opMgn:      f?.opMgn  ?? null,
     nySalesGr:  f?.nySalesGr ?? null,
     judgment:   '',  // [旧: getJudgment(perFAt(prev1m)) → page.tsx の判定エンジンに移行]
+    perBand:    perBandDB?.[code] ?? null,
   }
 }

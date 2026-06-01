@@ -1,4 +1,5 @@
 import { MasterRecord, PriceRecord, FinRecord } from './types'
+import type { DailyClose, FyEps } from './perBand'
 
 // J-Quants MarketCode → 日本語市場名
 const MARKET_CODE_MAP: Record<string, string> = {
@@ -79,6 +80,41 @@ function getHistoricalFEPS(stmts: Record<string,string>[], daysAgo: number): num
     if (best === null || s.DiscDate > best) { best = s.DiscDate; bestFeps = v }
   }
   return bestFeps
+}
+
+// FY決算ごとのEPS実績ヒストリーを抽出（PERバンド計算用）。
+// CurPerType==='FY' かつ EPS>0 のレコードを DiscDate 昇順で、直近5件返す。
+export function extractFyEps(stmts: Record<string,string>[]): FyEps[] {
+  const byDate = new Map<string, number>()
+  for (const s of stmts) {
+    if (s.CurPerType !== 'FY' || !s.DiscDate) continue
+    const eps = n(s.EPS)
+    if (eps > 0) byDate.set(s.DiscDate, eps)  // 同一開示日は後勝ち
+  }
+  const arr = Array.from(byDate.entries())
+    .map(([d, eps]) => ({ d, eps }))
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))
+  return arr.slice(-5)
+}
+
+// 銘柄別の日次株価（調整後終値）をレンジ取得（PERバンド／チャート共用）。
+// fromStr/toStr は 'YYYYMMDD' 形式。調整後終値(AdjC)優先、なければ終値(C)。
+export async function fetchDailyBars(
+  code: string, fromStr: string, toStr: string, apiKey: string
+): Promise<DailyClose[]> {
+  const data = await jqFetch(
+    `/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`, apiKey
+  )
+  const rows = (data as { data?: Record<string, unknown>[] }).data ?? []
+  const fromISO = `${fromStr.slice(0,4)}-${fromStr.slice(4,6)}-${fromStr.slice(6,8)}`
+  const out: DailyClose[] = []
+  for (const d of rows) {
+    const date = (d.Date as string) ?? ''
+    if (!date || date < fromISO) continue  // APIが余分な過去を返す場合に備える
+    const price = n(d.AdjC) || n(d.C)
+    if (price > 0) out.push({ date, price })
+  }
+  return out
 }
 
 export async function findLatestBizDate(apiKey: string): Promise<{ dateStr: string; dateDisp: string }> {
@@ -297,6 +333,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
           nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
           feps1m: getHistoricalFEPS(all, 30),
           fepsShifted,
+          fyEps: extractFyEps(all),
         },
         shOut,
       }
@@ -383,6 +420,7 @@ export async function fetchAllFinancials(
       nySalesGr:(sales&&nySalesRaw!=null)?nySalesRaw/sales-1:null,
       feps1m: getHistoricalFEPS(all, 30),
       fepsShifted,
+      fyEps: extractFyEps(all),
     }
   }
 

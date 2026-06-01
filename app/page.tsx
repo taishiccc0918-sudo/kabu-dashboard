@@ -9,8 +9,9 @@ import { evaluateLogic, formatLogicDescription } from './lib/judgmentEngine'
 import { DEFAULT_LOGICS } from './lib/defaultLogics'
 import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
-  findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials,
+  findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars,
 } from './lib/api'
+import { buildPerBand, PerBand } from './lib/perBand'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale } from './lib/format'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
@@ -68,6 +69,25 @@ function clearChartCaches() {
   try {
     Object.keys(localStorage).filter(k => k.startsWith('chart_cache_')).forEach(k => localStorage.removeItem(k))
   } catch { /* ignore */ }
+}
+
+// ── PERバンド（四季報式）キャッシュ：当日内は再計算しない ──────────────
+const PER_BAND_CACHE_VER = 'v1'
+function getPerBandCache(code: string): PerBand | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(`per_band_cache_${PER_BAND_CACHE_VER}_${code}`)
+    if (!raw) return null
+    const { band, date } = JSON.parse(raw) as { band: PerBand; date: string }
+    if (date !== localDateStr()) return null
+    return band
+  } catch { return null }
+}
+function setPerBandCache(code: string, band: PerBand) {
+  try {
+    localStorage.setItem(`per_band_cache_${PER_BAND_CACHE_VER}_${code}`,
+      JSON.stringify({ band, date: localDateStr() }))
+  } catch { /* quota */ }
 }
 
 function fmtJpDate(iso: string): string {
@@ -189,6 +209,7 @@ export default function Page() {
   const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>({})
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
+  const [perBandDB,  setPerBandDB]  = useState<Record<string, PerBand | null>>({})
   const [masterDB,   setMasterDB]   = useState<Record<string, MasterRecord>>({})
   const [lastUpdate, setLastUpdate] = useState('')
   const [dataLoaded, setDataLoaded] = useState(false)   // このセッションで実際にデータ取得済みか
@@ -227,6 +248,9 @@ export default function Page() {
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
+  const bandFetchingRef = useRef(false)
+  const perBandDBRef = useRef<Record<string, PerBand | null>>({})
+  const priceDBRef = useRef<Record<string, PriceRecord>>({})
   const [bgFetching, setBgFetching] = useState(false)
   const cacheStaleRef = useRef(false)
   // ── 銘柄管理 Undo/Redo（★/♥操作のみ） ──────────────────────────
@@ -623,6 +647,71 @@ export default function Page() {
     }
   }, [apiKey, serverHasKey, loading, bgFetching])
 
+  // ── PERバンド（四季報式）をバックグラウンド計算 ───────────────────────
+  // finDB と favorites が揃ったら、♥優先で3年日次株価を取得しバンドを算出。
+  // 当日キャッシュがある銘柄はスキップ。重さは並列数で律速。
+  // perBandDB/priceDB は ref 経由で読み、再トリガーのチャーンを避ける。
+  perBandDBRef.current = perBandDB
+  priceDBRef.current = priceDB
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!serverHasKey && !apiKey.trim()) return
+    if (Object.keys(finDB).length === 0) return
+    if (bandFetchingRef.current) return
+
+    // 表示対象（★）を ♥優先で並べ、まだバンド未確定の銘柄を抽出
+    const heart = Array.from(superFavorites)
+    const rest  = Array.from(favorites).filter(c => !superFavorites.has(c))
+    const ordered = [...heart, ...rest]
+
+    const cachedUpdates: Record<string, PerBand | null> = {}
+    const need: string[] = []
+    for (const code of ordered) {
+      if (code in perBandDBRef.current) continue   // 既に算出済み（このセッション）
+      const cached = getPerBandCache(code)
+      if (cached) { cachedUpdates[code] = cached; continue }
+      if (finDB[code]?.fyEps && finDB[code]!.fyEps!.length > 0) need.push(code)
+    }
+    if (Object.keys(cachedUpdates).length > 0) setPerBandDB(prev => ({ ...prev, ...cachedUpdates }))
+    if (need.length === 0) return
+
+    bandFetchingRef.current = true
+    let cancelled = false
+    const today = new Date()
+    const from = new Date(today); from.setFullYear(from.getFullYear() - 3)
+    const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
+    const fromStr = fmt(from), toStr = fmt(today)
+    const CONCURRENCY = 6
+
+    ;(async () => {
+      for (let i = 0; i < need.length; i += CONCURRENCY) {
+        if (cancelled) break
+        const batch = need.slice(i, i + CONCURRENCY)
+        const results = await Promise.all(batch.map(async code => {
+          try {
+            const daily = await fetchDailyBars(code, fromStr, toStr, apiKey)
+            const f = finDB[code]
+            const close = priceDBRef.current[code]?.close ?? 0
+            const feps = f?.feps ?? null
+            const fwdPER = (close && feps) ? close / feps : null
+            const band = buildPerBand(daily, f?.fyEps ?? null, fwdPER)
+            return { code, band }
+          } catch { return { code, band: null as PerBand | null } }
+        }))
+        if (cancelled) break
+        const updates: Record<string, PerBand | null> = {}
+        for (const r of results) {
+          updates[r.code] = r.band
+          if (r.band) setPerBandCache(r.code, r.band)
+        }
+        setPerBandDB(prev => ({ ...prev, ...updates }))
+      }
+      bandFetchingRef.current = false
+    })()
+
+    return () => { cancelled = true; bandFetchingRef.current = false }
+  }, [finDB, favorites, superFavorites, apiKey, serverHasKey])
+
   // ── 自動更新: ページ読み込み時にデータ取得（キャッシュがある場合はバックグラウンド更新）
   useEffect(() => {
     if (!mounted) return               // マウント完了を待つ
@@ -724,8 +813,8 @@ export default function Page() {
 
   // ── allRows（★銘柄のみ） ──────────────────────────────────────────
   const allRows = useMemo(
-    () => Array.from(favorites).map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta)),
-    [favorites, priceDB, finDB, masterDB, stockMeta]
+    () => Array.from(favorites).map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta, perBandDB)),
+    [favorites, priceDB, finDB, masterDB, stockMeta, perBandDB]
   )
 
   // ── 判定エンジン ──────────────────────────────────────────────────
@@ -1000,7 +1089,7 @@ export default function Page() {
     XLSX.writeFile(wb, `kabu-favorites-${date}.xlsx`)
   }
 
-  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, stockMeta) : null
+  const detailRow = detailCode ? buildStockRow(detailCode, priceDB, finDB, masterDB, stockMeta, perBandDB) : null
   const detailFin = detailCode ? finDB[detailCode] : null
 
   return (
@@ -2456,6 +2545,7 @@ function DashboardTable({
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
     { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: 'PER今期の1ヶ月前との変化率。\n(現在PER÷1M前PER−1)で計算。\nセルにホバーで過去FEPS・現在FEPSなど詳細表示。\n\n⚠ 大きなズレが出る場合の主な原因:\n① 期末後に予想EPS(FEPS)が翌期に切替わったとき\n② 会社が業績予想を大幅修正したとき\n→ いずれも株価ではなくEPS基準の変化が原因' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER今期÷EPS今期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
+    { label: 'PER位置', cls: `${styles.thRight} ${styles.thPerGroup}`, key: null, group: 'per', tooltip: '四季報式の高値平均PER・安値平均PER（直近3年）の中で、\n今の予想PERがどこにあるかを示すバー。\n左=安値平均(割安)、右=高値平均(割高)、●=現在の予想PER。\nセルにホバーで平均値・成長加味PERを表示。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
     { label: 'EPS今期\n成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, group: 'other', tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
@@ -2466,7 +2556,7 @@ function DashboardTable({
     { label: '外部\nリンク', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,64,88,64,88,108,88,64,64,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,84,64,88,64,88,108,88,64,64,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -2505,6 +2595,31 @@ function DashboardTable({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── PerBandBar（四季報式PER位置バー）────────────────────────────────
+function perBandZone(pos: number): string {
+  return pos <= 0.33 ? '割安圏' : pos >= 0.67 ? '割高圏' : '中立'
+}
+function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; likePer?: number | null; big?: boolean }) {
+  if (!band || band.position == null || band.highAvgPER == null || band.lowAvgPER == null) {
+    return <span className={styles.tdNonDisclosure} style={{ fontSize: 10 }}>—</span>
+  }
+  const pos = Math.max(0, Math.min(1, band.position))
+  const title =
+    `予想PER ${fmtN(band.fwdPER)}倍\n` +
+    `高値平均 ${fmtN(band.highAvgPER)}倍・安値平均 ${fmtN(band.lowAvgPER)}倍（直近${band.years}年）\n` +
+    `位置: ${perBandZone(pos)}` +
+    (likePer != null ? `\n成長加味PER(Like) ${fmtN(likePer)}倍` : '')
+  const h = big ? 8 : 6
+  const dot = big ? 11 : 8
+  return (
+    <div title={title} style={{ position: 'relative', width: '100%', height: big ? 24 : 18, display: 'flex', alignItems: 'center' }}>
+      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#10b981,#fbbf24,#f43f5e)' }}>
+        <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '1px solid #0d1219', boxShadow: '0 0 2px rgba(0,0,0,0.7)' }} />
       </div>
     </div>
   )
@@ -2560,6 +2675,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
       <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
+      <td className={styles.tdPerGroup} style={{padding:'0 6px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>
@@ -2686,10 +2802,16 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
           <span className={`${styles.spChgSub} ${styles[pctClass(r.chg1w)]}`}>1W {fmtPct(r.chg1w)}</span>
         </div>
       </div>
-      {/* Row4: PER今期 */}
+      {/* Row4: PER今期 + PER位置バー */}
       {r.perF != null && (
         <div className={styles.spCardPerFRow}>
           <span className={styles.spCardPerF}>PER今期 {fmtN(r.perF)}倍</span>
+          {r.peg != null && <span className={styles.spCardPerF} style={{ marginLeft: 8, color: r.peg < 1 ? '#10b981' : undefined }}>PEG {fmtN(r.peg, 2)}</span>}
+        </div>
+      )}
+      {r.perBand && r.perBand.position != null && (
+        <div style={{ padding: '2px 2px 0' }}>
+          <PerBandBar band={r.perBand} likePer={r.likePer} big />
         </div>
       )}
       {/* メモエリア: 空なら1行プレースホルダー */}

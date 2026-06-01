@@ -2675,10 +2675,10 @@ function DashboardTable({
     { label: '3ヶ月%',  cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg3m' as keyof StockRow, w: 80, group: 'price', tooltip: '約65営業日前の終値からの変化率。\n中期トレンドや季節性の確認に使う。' },
     { label: '1年%',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'chg1y' as keyof StockRow, w: 76, group: 'price', tooltip: '約250営業日前の終値からの変化率。\n長期トレンドの確認に使う。' },
     { label: 'PER実績',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perA' as keyof StockRow, w: 76, group: 'per', tooltip: '株価÷直近実績EPS。\n会社が利益の何年分で買えるかの指標。\n同業界平均と比較して割安かを判断する。' },
-    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, w: 76, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
+    { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, w: 76, group: 'per', tooltip: '株価÷今期予想EPS（会社予想ベース）。\n企業が公式発表した予想EPSを使用。\n四季報は東洋経済の独自予想を使うため数字がズレる場合があります（特に期初・FY確定直後の保守的予想時）。' },
     { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, w: 76, group: 'per', tooltip: 'PER今期の1ヶ月前との変化率。\n(現在PER÷1M前PER−1)で計算。\nセルにホバーで過去FEPS・現在FEPSなど詳細表示。\n\n⚠ 大きなズレが出る場合の主な原因:\n① 期末後に予想EPS(FEPS)が翌期に切替わったとき\n② 会社が業績予想を大幅修正したとき\n→ いずれも株価ではなくEPS基準の変化が原因' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, w: 64, group: 'per', tooltip: 'PER今期÷EPS今期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
-    { label: 'PER位置', cls: `${styles.thRight} ${styles.thPerGroup}`, key: null, w: 168, group: 'per', tooltip: '直近1年のPER高値〜安値の中で、\n今の予想PERがどこにあるかを示すバー。\n左=安値(割安)、右=高値(割高)、●=現在の予想PER。\n赤字/非開示などで出せない時は理由を表示。' },
+    { label: 'PER位置', cls: `${styles.thRight} ${styles.thPerGroup}`, key: null, w: 168, group: 'per', tooltip: '直近1年のPER高値〜安値の中で、\n今の予想PER（会社予想ベース）がどこにあるかを示すバー。\n左=安値(割安)、右=高値(割高)、●=現在の予想PER。\n赤字/非開示などで出せない時は理由を表示。' },
     { label: '来期売上成長',cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'nySalesGr' as keyof StockRow, w: 100, group: 'per', tooltip: '来期予想売上÷最新FY確定売上−1。\nPEGの構成要素（成長率）。\n15%超で高成長企業の目安。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, w: 64, group: 'other', detail: true, tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, w: 88, group: 'other', detail: true, tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
@@ -2823,7 +2823,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
       >{r.perA ? fmtN(r.perA) : '—'}</td>
       <td className={`${styles.tdNum} ${styles.tdPerGroup} ${(fin?.perType || fin?.fepsShifted) ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
-        title={fin?.fepsShifted ? `今期予想EPS基準 ※FY確定後のため次期予想EPSを充当 / 開示: ${fin.discDate}` : fin?.perType ? `今期予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
+        title={fin?.fepsShifted ? `会社予想EPS基準 ※FY確定後のため次期予想EPSを充当 / 開示: ${fin.discDate}（四季報の独自予想とは異なる場合あり）` : fin?.perType ? `会社予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}（四季報の独自予想とは異なる場合あり）` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
       >{r.perF != null ? fmtN(r.perF) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}

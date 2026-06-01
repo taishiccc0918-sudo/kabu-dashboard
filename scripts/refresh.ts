@@ -17,13 +17,17 @@ import { extractFyEps } from '../app/lib/api'
 const JQ_BASE = 'https://api.jquants.com/v2'
 const API_KEY = (process.env.JQUANTS_API_KEY ?? '').trim()
 const SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
-// URLはコピペ事故（改行/空白/スキーム抜け/末尾スラッシュ）を吸収して正規化
+// URLはコピペ事故（改行/空白/囲みクォート/スキーム抜け/末尾スラッシュ）を吸収して正規化
 function normalizeUrl(raw: string): string {
-  let u = (raw ?? '').trim().replace(/\/+$/, '')
+  let u = (raw ?? '').trim()
+  u = u.replace(/^["'`\s]+|["'`\s]+$/g, '') // 前後のクォート・空白
+  u = u.replace(/\s+/g, '')                  // 内部の空白・改行も除去
+  u = u.replace(/\/+$/, '')                   // 末尾スラッシュ
   if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u
   return u
 }
-const SUPABASE_URL = normalizeUrl(process.env.SUPABASE_URL ?? '')
+const RAW_URL = process.env.SUPABASE_URL ?? ''
+const SUPABASE_URL = normalizeUrl(RAW_URL)
 const FALLBACK_WATCHLIST = ['7203', '8306', '8058']
 const CONCURRENCY = 4
 
@@ -31,7 +35,17 @@ if (!API_KEY || !SUPABASE_URL || !SERVICE_KEY) {
   console.error('必須の環境変数が未設定です（JQUANTS_API_KEY / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY）')
   process.exit(1)
 }
-console.log(`SUPABASE_URL = ${SUPABASE_URL}`)  // URLは秘密でないので診断用に表示
+// URLは秘密でないので診断表示。隠れ文字を見抜けるよう raw を JSON 文字列でも出す
+console.log('SUPABASE_URL(raw) =', JSON.stringify(RAW_URL))
+console.log('SUPABASE_URL(used) =', SUPABASE_URL)
+try {
+  // eslint-disable-next-line no-new
+  new URL(SUPABASE_URL)
+} catch {
+  console.error(`SUPABASE_URL が不正です: ${JSON.stringify(SUPABASE_URL)}`)
+  console.error('GitHubのSecret「SUPABASE_URL」を正しく登録してください（正: https://bnynzvtogffjlwxudiro.supabase.co ／ 余計なクォートや空白を入れない）')
+  process.exit(1)
+}
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 

@@ -774,7 +774,7 @@ export default function Page() {
         setLastUpdate(biz); setDataLoaded(true); setStatus('ok'); cacheStaleRef.current = false
         autoFetchedRef.current = true   // サーバー版で表示済み → 自動ライブ取得は抑止（再読込ボタンで手動更新可）
         const upd = meta?.updated_at ? new Date(meta.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
-        setStatusMsg(`サーバー更新済み (${rows.length}銘柄 / 基準日 ${biz}${upd ? ` / ${upd}更新` : ''})`)
+        setStatusMsg(`サーバー更新済み (${rows.length}銘柄 / 基準日 ${biz}${upd ? ` / ${upd}更新` : ''}) — 毎平日16:30に自動更新（引け後の決算開示・データ反映を待つため）。最新が必要なら「再読込」`)
       } catch (e) {
         console.warn('[snapshot] 読込失敗 → ライブ取得にフォールバック', e)
         liveSuppressedRef.current = false

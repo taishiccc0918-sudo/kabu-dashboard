@@ -217,9 +217,9 @@
 .table thead th {
   background: #1a2535;
   padding: 7px 8px;
-  font-size: 11px; font-weight: 600;
+  font-size: 11.5px; font-weight: 700;
   font-family: 'Noto Sans JP', sans-serif;
-  color: #9ca3af;
+  color: #c2cdda;
   white-space: pre-line;
   word-break: keep-all;
   line-height: 1.35;
@@ -294,8 +294,8 @@
 .starSymbol { font-size: 13px; color: rgba(251,191,36,0.4); }
 .tdCode {
   padding: 0 8px;
-  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
-  color: #8fa3be;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; font-weight: 600;
+  color: #c3cfdf;
   width: 60px; min-width: 60px; max-width: 60px;
   position: sticky; left: 48px; z-index: 5;
   background: #111827;
@@ -310,9 +310,9 @@
 }
 .tdName {
   padding: 0 10px;
-  font-weight: 500; font-size: 12px;
+  font-weight: 600; font-size: 13px;
   width: 140px; min-width: 140px; max-width: 140px;
-  color: #e8eef8;
+  color: #f1f6fc;
   position: sticky; left: 108px; z-index: 5;
   border-right: 2px solid rgba(255,255,255,0.08);
   background: #131825;
@@ -320,8 +320,8 @@
 .tdNum {
   padding: 0 10px; text-align: right;
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12.5px;
-  font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
-  color: #dbe6f2;
+  font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+  color: #ecf3fb;
 }
 .tdPct {
   padding: 0 10px; text-align: right;

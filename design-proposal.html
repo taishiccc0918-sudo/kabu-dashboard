@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kabu-dashboard デザイン刷新案</title>
+<style>
+  :root{
+    /* ── 提案カラーシステム（ダーク基準）── */
+    --bg:#0b0f17; --surface:#121826; --surface2:#161d2e; --line:#1f2a3d;
+    --text:#e8eef6; --text-dim:#94a3b8; --text-faint:#5b6678;
+    --accent:#3b82f6;
+    --cheap:#22c55e;   /* 割安・好調 */
+    --rich:#ef4444;    /* 割高・不調 */
+    --mid:#eab308;     /* 中立 */
+    --heart:#f43f5e;
+    --radius:14px;
+  }
+  .light{
+    --bg:#eef2f7; --surface:#ffffff; --surface2:#f5f8fc; --line:#dde5ef;
+    --text:#0f172a; --text-dim:#475569; --text-faint:#94a3b8;
+    --cheap:#15803d; --rich:#dc2626; --mid:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,'Segoe UI','Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;
+    -webkit-font-smoothing:antialiased;padding:28px;transition:background .2s,color .2s}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  .head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .head h1{font-size:18px;margin:0;font-weight:700}
+  .head .sub{color:var(--text-dim);font-size:13px}
+  .toggle{margin-left:auto;display:flex;gap:8px}
+  .toggle button{background:var(--surface);color:var(--text-dim);border:1px solid var(--line);
+    border-radius:9px;padding:7px 14px;cursor:pointer;font-size:13px}
+  .toggle button.on{color:var(--text);border-color:var(--accent)}
+
+  .note{max-width:880px;color:var(--text-dim);font-size:13px;line-height:1.7;margin:0 0 22px}
+  .note b{color:var(--text)}
+
+  /* ── テーブル（脱Excel：罫線を消し、行をカード的に）── */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;max-width:1080px}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:11px;color:var(--text-faint);font-weight:600;text-align:right;
+    padding:13px 14px;background:transparent;border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th.l{text-align:left}
+  tbody td{padding:12px 14px;text-align:right;border-bottom:1px solid var(--line);font-size:14px}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--surface2)}
+  td.l{text-align:left}
+
+  .heart{color:var(--heart);font-size:15px;margin-right:7px}
+  .code{color:var(--text-dim);font-size:12px;font-weight:600}
+  .name{font-weight:600;font-size:14px}
+  .price{font-weight:600}
+  .perf.up{color:var(--cheap)} .perf.down{color:var(--rich)}
+  .per{font-weight:700;font-size:15px}
+  .peg.good{color:var(--cheap);font-weight:700}
+
+  /* ── PER位置バー（主役・大きく）── */
+  .band{display:flex;flex-direction:column;gap:5px;min-width:170px}
+  .band .track{position:relative;height:10px;border-radius:6px;
+    background:linear-gradient(90deg,var(--cheap) 0%,var(--mid) 50%,var(--rich) 100%);opacity:.9}
+  .band .dot{position:absolute;top:50%;transform:translate(-50%,-50%);
+    width:15px;height:15px;border-radius:50%;background:#fff;border:2px solid var(--bg);
+    box-shadow:0 0 4px rgba(0,0,0,.6)}
+  .band .lbls{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--text-faint)}
+  .band .lbls .cur{font-weight:700;font-size:13px}
+  .cur.cheap{color:var(--cheap)} .cur.rich{color:var(--rich)} .cur.mid{color:var(--mid)}
+
+  .badge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
+  .badge.buy{background:rgba(34,197,94,.16);color:var(--cheap)}
+  .badge.sell{background:rgba(239,68,68,.16);color:var(--rich)}
+  .badge.none{color:var(--text-faint)}
+
+  .detailToggle{margin:16px 0 8px;color:var(--accent);font-size:13px;cursor:pointer;display:inline-block}
+  .legend{max-width:1080px;margin-top:14px;color:var(--text-faint);font-size:12px;line-height:1.7}
+  .warn{color:var(--mid);font-size:11px;margin-left:5px}
+</style>
+</head>
+<body class="">
+  <div class="head">
+    <h1>📈 株式ウォッチ <span class="sub">デザイン刷新案（モック）</span></h1>
+    <div class="toggle">
+      <button id="bDark" class="on" onclick="setTheme('dark')">🌙 ダーク</button>
+      <button id="bLight" onclick="setTheme('light')">☀️ ライト</button>
+    </div>
+  </div>
+
+  <p class="note">
+    狙い：<b>「PERが今どの水準か＝買い場か」を一目で</b>。①罫線だらけのExcel感をやめ、行間と余白で読ませる
+    ②<b>PER位置バーを主役</b>に大きく（安値平均〜高値平均の中で今の予想PERがどこか）③ROE・営業益率・配当・PBRは
+    「詳細」に折りたたみ ④騰落の色は<b>ダーク/ライト両対応の濃さ</b>に。下は<b>デフォルト表示</b>のイメージ（右上で配色切替）。
+  </p>
+
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">銘柄</th>
+          <th>株価</th>
+          <th>PER今期</th>
+          <th class="l" style="text-align:center">PER位置（安値平均〜高値平均・直近3年）</th>
+          <th>PEG</th>
+          <th>1ヶ月</th>
+          <th style="text-align:center">判定</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="l"><span class="heart">♥</span><span class="name">コニカミノルタ</span> <span class="code">4902</span></td>
+          <td class="price num">609.6</td>
+          <td class="per num">10.6</td>
+          <td>
+            <div class="band">
+              <div class="track"><span class="dot" style="left:22%"></span></div>
+              <div class="lbls num"><span>8</span><span class="cur cheap">10.6倍 割安</span><span>18</span></div>
+            </div>
+          </td>
+          <td class="peg num good">0.62</td>
+          <td class="perf up num">+13.9%</td>
+          <td style="text-align:center"><span class="badge buy">買い</span></td>
+        </tr>
+        <tr>
+          <td class="l"><span class="heart">♥</span><span class="name">東京精密</span> <span class="code">7729</span></td>
+          <td class="price num">17,385</td>
+          <td class="per num">25.2</td>
+          <td>
+            <div class="band">
+              <div class="track"><span class="dot" style="left:55%"></span></div>
+              <div class="lbls num"><span>16</span><span class="cur mid">25.2倍 中立</span><span>34</span></div>
+            </div>
+          </td>
+          <td class="peg num">1.93</td>
+          <td class="perf down num">−23.0%</td>
+          <td style="text-align:center"><span class="badge none">—</span></td>
+        </tr>
+        <tr>
+          <td class="l"><span class="heart">♥</span><span class="name">デクセリアルズ</span> <span class="code">4980</span></td>
+          <td class="price num">4,038</td>
+          <td class="per num">24.7</td>
+          <td>
+            <div class="band">
+              <div class="track"><span class="dot" style="left:88%"></span></div>
+              <div class="lbls num"><span>11</span><span class="cur rich">24.7倍 割高</span><span>27</span></div>
+            </div>
+          </td>
+          <td class="peg num">2.10</td>
+          <td class="perf up num">+54.3%</td>
+          <td style="text-align:center"><span class="badge sell">売り</span></td>
+        </tr>
+        <tr>
+          <td class="l"><span class="heart">♥</span><span class="name">三井E&amp;S</span> <span class="code">7003</span><span class="warn">⚠予想が実績と乖離</span></td>
+          <td class="price num">4,456</td>
+          <td class="per num">15.0</td>
+          <td>
+            <div class="band">
+              <div class="track"><span class="dot" style="left:38%"></span></div>
+              <div class="lbls num"><span>7</span><span class="cur cheap">15.0倍 やや割安</span><span>22</span></div>
+            </div>
+          </td>
+          <td class="peg num good">0.71</td>
+          <td class="perf down num">−20.5%</td>
+          <td style="text-align:center"><span class="badge none">—</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <span class="detailToggle">＋ 詳細指標を表示（PER実績・PBR・ROE・営業利益率・来期売上・配当利回り・1週/3ヶ月/1年）</span>
+
+  <div class="legend">
+    ・<b>PER位置バー</b>：左端＝安値平均PER、右端＝高値平均PER（直近3年）、●＝今の予想PER。緑寄り＝割安、赤寄り＝割高。<br>
+    ・<b>判定</b>：買い（割安圏＋成長条件）／売り（割高圏）／—。条件はあなたが調整可能。<br>
+    ・<b>⚠予想が実績と乖離</b>：今期予想PERが実績PERから大きくズレている銘柄に理由つきで注意表示（信頼性の担保）。<br>
+    ・色は<b>ダーク/ライトで濃さを切替</b>（右上トグルで確認）。Excel的な縦罫線は廃止、行間で区切る。
+  </div>
+
+<script>
+  function setTheme(t){
+    document.body.className = (t==='light') ? 'light' : '';
+    document.getElementById('bDark').classList.toggle('on', t!=='light');
+    document.getElementById('bLight').classList.toggle('on', t==='light');
+  }
+</script>
+</body>
+</html>

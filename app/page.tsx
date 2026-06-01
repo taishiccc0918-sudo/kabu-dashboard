@@ -695,25 +695,22 @@ export default function Page() {
     bandFetchingRef.current = true
     let cancelled = false
     const today = new Date()
-    const from = new Date(today); from.setFullYear(from.getFullYear() - 3)
+    const from = new Date(today); from.setFullYear(from.getFullYear() - 1); from.setDate(from.getDate() - 14)  // 直近1年（営業日確保で+2週）
     const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
     const fromStr = fmt(from), toStr = fmt(today)
-    const CONCURRENCY = 6
-    const heartSet = superFavorites
+    const CONCURRENCY = 5
 
-    // fyEps を解決：①一括取得で十分(>=2期)ならそれ ②当日キャッシュ ③♥なら個別取得して補完
+    // fyEps を解決：①一括取得ぶん ②当日キャッシュ ③不足なら個別取得で補完（全銘柄対象）
     async function resolveFyEps(code: string): Promise<FyEps[]> {
       const fromBulk = finDB[code]?.fyEps ?? []
       if (fromBulk.length >= 2) return fromBulk
       const cached = getFyEpsCache(code)
       if (cached && cached.length >= 1) return cached
-      if (heartSet.has(code)) {
-        try {
-          const fetched = await fetchFyEpsForCode(code, apiKey)
-          if (fetched.length > 0) { setFyEpsCache(code, fetched); return fetched }
-        } catch { /* fall through */ }
-      }
-      return fromBulk   // ♥以外で履歴不足 → 一括ぶん（0〜1期）で best-effort
+      try {
+        const fetched = await fetchFyEpsForCode(code, apiKey)
+        if (fetched.length > 0) { setFyEpsCache(code, fetched); return fetched }
+      } catch { /* fall through */ }
+      return fromBulk
     }
 
     ;(async () => {
@@ -2579,7 +2576,7 @@ function DashboardTable({
     { label: 'PER今期',    cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perF' as keyof StockRow, group: 'per', tooltip: '株価÷今期予想EPS。\n今期の業績予想を加味した割安度。\n15倍前後が標準的とされる。' },
     { label: 'PER今期\n1ヶ月前比', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'perFChg1m' as keyof StockRow, group: 'per', tooltip: 'PER今期の1ヶ月前との変化率。\n(現在PER÷1M前PER−1)で計算。\nセルにホバーで過去FEPS・現在FEPSなど詳細表示。\n\n⚠ 大きなズレが出る場合の主な原因:\n① 期末後に予想EPS(FEPS)が翌期に切替わったとき\n② 会社が業績予想を大幅修正したとき\n→ いずれも株価ではなくEPS基準の変化が原因' },
     { label: 'PEG', cls: `${styles.thRight} ${styles.thPerGroup}`, key: 'peg' as keyof StockRow, group: 'per', tooltip: 'PER今期÷EPS今期成長率（%）。\n1未満=成長率に対して株価が割安と判断される指標。\n成長株の割安度を見るのに使う。' },
-    { label: 'PER位置', cls: `${styles.thRight} ${styles.thPerGroup}`, key: null, group: 'per', tooltip: '四季報式の高値平均PER・安値平均PER（直近3年）の中で、\n今の予想PERがどこにあるかを示すバー。\n左=安値平均(割安)、右=高値平均(割高)、●=現在の予想PER。\nセルにホバーで平均値・成長加味PERを表示。' },
+    { label: 'PER位置', cls: `${styles.thRight} ${styles.thPerGroup}`, key: null, group: 'per', tooltip: '直近1年のPER高値〜安値の中で、\n今の予想PERがどこにあるかを示すバー。\n左=安値(割安)、右=高値(割高)、●=現在の予想PER。\n赤字/非開示などで出せない時は理由を表示。' },
     { label: 'PBR', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'pbr' as keyof StockRow, group: 'other', tooltip: '株価÷1株あたり純資産（BPS）。\n1倍未満=純資産より安く買える。\n1〜2倍が標準的とされる。' },
     { label: 'ROE', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'roe' as keyof StockRow, group: 'other', tooltip: '純利益÷自己資本。\n資本をどれだけ効率よく使って利益を出しているか。\n10%超で優良、15%超で高収益企業。' },
     { label: 'EPS今期\n成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, group: 'other', tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
@@ -2634,33 +2631,43 @@ function DashboardTable({
   )
 }
 
-// ─── PerBandBar（四季報式PER位置バー）────────────────────────────────
+// ─── PerBandBar（PER位置バー・直近1年）──────────────────────────────
 function perBandZone(pos: number): { label: string; color: string } {
-  if (pos <= 0.33) return { label: '割安', color: '#10b981' }
-  if (pos >= 0.67) return { label: '割高', color: '#f43f5e' }
-  return { label: '中立', color: '#eab308' }
+  if (pos <= 0.33) return { label: '割安', color: '#34d399' }
+  if (pos >= 0.67) return { label: '割高', color: '#f87171' }
+  return { label: '中立', color: '#fbbf24' }
+}
+const PER_BAND_REASON_LABEL: Record<string, string> = {
+  no_history: '履歴待ち',
+  loss: '赤字',
+  no_price: 'データ不足',
 }
 function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; likePer?: number | null; big?: boolean }) {
-  if (!band || band.position == null || band.highAvgPER == null || band.lowAvgPER == null) {
-    return <span className={styles.tdNonDisclosure} style={{ fontSize: 10 }}>—</span>
+  // レンジ自体が出せない（赤字・履歴待ち・データ不足）→ 理由を表示
+  if (!band || band.highPER == null || band.lowPER == null) {
+    const label = band?.reason ? (PER_BAND_REASON_LABEL[band.reason] ?? '—') : '—'
+    return <span className={styles.tdNonDisclosure} style={{ fontSize: 10 }}>{label}</span>
   }
-  const pos = Math.max(0, Math.min(1, band.position))
-  const zone = perBandZone(pos)
+  const hasPos = band.position != null
+  const pos = hasPos ? Math.max(0, Math.min(1, band.position!)) : 0.5
+  const zone = hasPos ? perBandZone(pos) : { label: '予想なし', color: '#94a3b8' }
   const title =
-    `予想PER ${fmtN(band.fwdPER)}倍 → ${zone.label}\n` +
-    `安値平均 ${fmtN(band.lowAvgPER)}倍 ｜ 高値平均 ${fmtN(band.highAvgPER)}倍（直近${band.years}年）` +
+    (hasPos ? `予想PER ${fmtN(band.fwdPER)}倍 → ${zone.label}\n` : '予想EPS非開示（現在位置なし）\n') +
+    `直近1年 PER 安値 ${fmtN(band.lowPER)}倍 ｜ 高値 ${fmtN(band.highPER)}倍` +
     (likePer != null ? `\n成長加味PER(Like) ${fmtN(likePer)}倍` : '')
   const h = big ? 9 : 7
   const dot = big ? 13 : 10
   return (
     <div title={title} style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#10b981 0%,#fbbf24 50%,#f43f5e 100%)' }}>
-        <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '2px solid #0d1219', boxShadow: '0 0 3px rgba(0,0,0,0.8)' }} />
+      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#34d399 0%,#fbbf24 50%,#f87171 100%)' }}>
+        {hasPos && (
+          <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '2px solid #0d1219', boxShadow: '0 0 3px rgba(0,0,0,0.85)' }} />
+        )}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 9.5, lineHeight: 1, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
-        <span title="安値平均PER">{fmtN(band.lowAvgPER, 0)}</span>
-        <span style={{ color: zone.color, fontWeight: 700, fontSize: big ? 13 : 11 }}>{fmtN(band.fwdPER)}倍 {zone.label}</span>
-        <span title="高値平均PER">{fmtN(band.highAvgPER, 0)}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 10, lineHeight: 1, color: '#a9b6c6', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+        <span title="直近1年のPER安値">{fmtN(band.lowPER, 0)}</span>
+        <span style={{ color: zone.color, fontWeight: 800, fontSize: big ? 13 : 11.5 }}>{hasPos ? `${fmtN(band.fwdPER)}倍 ${zone.label}` : zone.label}</span>
+        <span title="直近1年のPER高値">{fmtN(band.highPER, 0)}</span>
       </div>
     </div>
   )
@@ -2850,7 +2857,7 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
           {r.peg != null && <span className={styles.spCardPerF} style={{ marginLeft: 8, color: r.peg < 1 ? '#10b981' : undefined }}>PEG {fmtN(r.peg, 2)}</span>}
         </div>
       )}
-      {r.perBand && r.perBand.position != null && (
+      {r.perBand && (r.perBand.highPER != null || r.perBand.reason) && (
         <div style={{ padding: '2px 2px 0' }}>
           <PerBandBar band={r.perBand} likePer={r.likePer} big />
         </div>

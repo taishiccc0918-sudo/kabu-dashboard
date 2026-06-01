@@ -110,9 +110,22 @@ export async function fetchFyEpsForCode(code: string, apiKey: string): Promise<F
 export async function fetchDailyBars(
   code: string, fromStr: string, toStr: string, apiKey: string
 ): Promise<DailyClose[]> {
-  const data = await jqFetch(
-    `/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`, apiKey
-  )
+  // 429（レート制限）バックオフ: 2→5→10秒
+  const waits = [2000, 5000, 10000]
+  let data: Record<string, unknown> | null = null
+  for (let attempt = 0; ; attempt++) {
+    try {
+      data = await jqFetch(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`, apiKey)
+      break
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg.startsWith('429') && attempt < waits.length) {
+        await new Promise(r => setTimeout(r, waits[attempt]))
+        continue
+      }
+      throw e
+    }
+  }
   const rows = (data as { data?: Record<string, unknown>[] }).data ?? []
   const fromISO = `${fromStr.slice(0,4)}-${fromStr.slice(4,6)}-${fromStr.slice(6,8)}`
   const out: DailyClose[] = []

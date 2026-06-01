@@ -809,6 +809,20 @@ export default function Page() {
     sb.from('memos').upsert({ user_id: u.id, code, memo, updated_at: new Date().toISOString() }).then(() => {})
   }
 
+  // 手動の最新取得（重い・数分）。確認ポップで時点と所要を伝えてから実行
+  function handleManualRefresh() {
+    setShowMoreMenu(false)
+    if (loading || bgFetching) return
+    const ok = window.confirm(
+      `最新の株価・財務を取得して更新しますか？\n\n`
+      + `・いま表示中: ${lastUpdate || '—'} 時点のデータ\n`
+      + `・取得には数分（目安5〜8分）かかります\n`
+      + `・完了するまで今の表示のまま使えます\n\n`
+      + `※通常は毎平日16:30に自動更新されるので、急ぎでなければ押す必要はありません。`
+    )
+    if (ok) fetchAll()
+  }
+
   // テーマ切替：切替の一瞬だけ全トランジションを無効化して即時に切り替える
   function toggleTheme() {
     if (typeof document !== 'undefined') {
@@ -1177,7 +1191,21 @@ export default function Page() {
     <div className={`${styles.root}${darkMode ? '' : ' ' + styles.lightMode}`}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>株式<span>ウォッチ</span></div>
+          <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>
+            <svg width="24" height="24" viewBox="0 0 64 64" style={{flexShrink:0}} aria-hidden="true">
+              <defs>
+                <linearGradient id="hdrRing" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#818cf8"/><stop offset="1" stopColor="#3b82f6"/>
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="32" r="19" fill="none" stroke="url(#hdrRing)" strokeWidth="5"
+                      strokeLinecap="round" strokeDasharray="104 30" transform="rotate(125 32 32)"/>
+              <polyline points="21,40 28,32 34,36 43,23" fill="none" stroke="#34d399"
+                        strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="43" cy="23" r="3.8" fill="#34d399"/>
+            </svg>
+            株式<span>ウォッチ</span>
+          </div>
           <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
             <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
             <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
@@ -1190,14 +1218,7 @@ export default function Page() {
               ⚙ APIキー未設定
             </button>
           )}
-          <button
-            className={styles.btnSecondary}
-            onClick={fetchAll}
-            disabled={loading}
-            title={lastUpdate && !dataLoaded ? `前回取得: ${lastUpdate}` : undefined}
-          >
-            {loading ? '更新中...' : dataLoaded ? '再読込 ↺' : '取得中...'}
-          </button>
+          {loading && <span className={styles.btnSecondary} style={{cursor:'default'}}>更新中…</span>}
           <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           {/* ⋯ More Menu */}
           <div ref={moreMenuRef} style={{position:'relative'}}>
@@ -1208,6 +1229,9 @@ export default function Page() {
             >メニュー</button>
             {showMoreMenu && (
               <div className={styles.moreMenu}>
+                <button className={styles.moreMenuItem} onClick={handleManualRefresh} disabled={loading || bgFetching}>
+                  <span>↺</span> 最新に更新（数分かかる）
+                </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
                   <span className={styles.helpBadge}>?</span> ヘルプ
                 </button>

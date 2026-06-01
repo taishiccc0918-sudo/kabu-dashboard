@@ -40,27 +40,42 @@ function cutoffDateStr(daysAgo: number): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 // FEPS選択: FY確定後でFEPS空欄の場合は次期予想EPS(NxFEPS)にフォールバック
-function selectFEPS(
+// fy(最新の本決算) と nfy(最新の四半期) のうち開示日が新しい方を返す
+export function newerStmt(
+  fy: Record<string,string>, nfy: Record<string,string>
+): Record<string,string> {
+  if (!nfy?.DiscDate) return fy
+  if (!fy?.DiscDate) return nfy
+  return fy.DiscDate >= nfy.DiscDate ? fy : nfy
+}
+// 今期予想EPS: 「最新開示」の予想EPSを最優先（四半期が本決算より新しければ四半期の更新後予想を使う）。
+// 例: 本決算(11月)後に四半期(2月・5月)で予想が更新された銘柄で、古い本決算予想を使い続ける不具合を防ぐ。
+export function selectFEPS(
   fy: Record<string,string>,
   nfy: Record<string,string>,
   all: Record<string,string>[],
   bestValOrNullFn: (stmts: Record<string,string>[], ...keys: string[]) => number | null
 ): number | null {
-  const fyFeps = nOrNull(fy.FEPS)
-  if (fyFeps !== null) return fyFeps
-  // fy.FEPS が空欄かつ fy が nfy より新しい → 通期確定済み → 次期予想EPSを今期として充当
-  if (fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return nOrNull(fy.NxFEPS) ?? null
-  // nfy のほうが新しい（または同日）→ 四半期予想を継続使用
-  return nOrNull(nfy.FEPS) ?? bestValOrNullFn(all, 'FEPS')
+  const newer = newerStmt(fy, nfy)
+  const newerFeps = nOrNull(newer.FEPS)
+  if (newerFeps !== null) return newerFeps
+  // 最新開示の今期FEPSが空欄（通期確定後など）→ 次期予想EPSを今期に充当
+  const newerNx = nOrNull(newer.NxFEPS)
+  if (newerNx !== null) return newerNx
+  // フォールバック: もう一方→履歴
+  const other = newer === fy ? nfy : fy
+  return nOrNull(other.FEPS) ?? bestValOrNullFn(all, 'FEPS')
 }
 // 来期EPS選択: FEPS充当(shifted)の場合は来期予想をnullにする（四季報と整合）
-function selectNyEPS(
+export function selectNyEPS(
   fy: Record<string,string>,
   nfy: Record<string,string>,
   all: Record<string,string>[],
   bestValOrNullFn: (stmts: Record<string,string>[], ...keys: string[]) => number | null
 ): { nyEPS: number | null; fepsShifted: boolean } {
-  if (nOrNull(fy.FEPS) === null && fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) {
+  const newer = newerStmt(fy, nfy)
+  // 最新開示の今期FEPSが空欄で、次期予想を今期に充当した → 来期はnull・shifted
+  if (nOrNull(newer.FEPS) === null && nOrNull(newer.NxFEPS) !== null) {
     return { nyEPS: null, fepsShifted: true }
   }
   return {
@@ -345,7 +360,7 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
         fin: {
           sales,op,odp:bestVal(all,'OdP'),np,eps,feps,nyEPS,
           bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
-          fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
+          fdiv,shOut,discDate:newerStmt(fy,nfy).DiscDate??'',perType:newerStmt(fy,nfy).CurPerType??'',
           fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
           nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
           roe:(equity&&np)?np/equity:null, eqRat:assets?equity/assets:0,
@@ -432,7 +447,7 @@ export async function fetchAllFinancials(
       sales,op,odp:bestVal(all,'OdP'),np,
       eps,feps,nyEPS,
       bps:fyVal('BPS')||bestVal(all,'BPS'),equity,assets,divAnn:bestVal(all,'DivAnn'),
-      fdiv,shOut,discDate:fy.DiscDate??'',perType:fy.CurPerType??'',
+      fdiv,shOut,discDate:newerStmt(fy,nfy).DiscDate??'',perType:newerStmt(fy,nfy).CurPerType??'',
       fsales,fop:n(nfy.FOP)||n(fy.FOP)||bestVal(all,'FOP'),
       nySales,nyOP:n(fy.NxFOP)||n(nfy.NxFOP)||bestVal(all,'NxFOP'),
       roe:(equity&&np)?np/equity:null, eqRat:assets?equity/assets:0,

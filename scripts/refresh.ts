@@ -86,13 +86,21 @@ function getHistoricalFEPS(stmts: Record<string,string>[], daysAgo: number): num
   }
   return bestFeps
 }
+function newerStmt(fy: Record<string,string>, nfy: Record<string,string>): Record<string,string> {
+  if (!nfy?.DiscDate) return fy
+  if (!fy?.DiscDate) return nfy
+  return fy.DiscDate >= nfy.DiscDate ? fy : nfy
+}
 function selectFEPS(fy: Record<string,string>, nfy: Record<string,string>, all: Record<string,string>[]): number | null {
-  const fyFeps = nOrNull(fy.FEPS); if (fyFeps !== null) return fyFeps
-  if (fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return nOrNull(fy.NxFEPS) ?? null
-  return nOrNull(nfy.FEPS) ?? bestValOrNull(all, 'FEPS')
+  const newer = newerStmt(fy, nfy)
+  const newerFeps = nOrNull(newer.FEPS); if (newerFeps !== null) return newerFeps
+  const newerNx = nOrNull(newer.NxFEPS); if (newerNx !== null) return newerNx
+  const other = newer === fy ? nfy : fy
+  return nOrNull(other.FEPS) ?? bestValOrNull(all, 'FEPS')
 }
 function selectNyEPS(fy: Record<string,string>, nfy: Record<string,string>, all: Record<string,string>[]): { nyEPS: number | null; fepsShifted: boolean } {
-  if (nOrNull(fy.FEPS) === null && fy.DiscDate && nfy.DiscDate && fy.DiscDate > nfy.DiscDate) return { nyEPS: null, fepsShifted: true }
+  const newer = newerStmt(fy, nfy)
+  if (nOrNull(newer.FEPS) === null && nOrNull(newer.NxFEPS) !== null) return { nyEPS: null, fepsShifted: true }
   return { nyEPS: nOrNull(fy.NxFEPS) ?? nOrNull(nfy.NxFEPS) ?? bestValOrNull(all, 'NxFEPS'), fepsShifted: false }
 }
 
@@ -125,7 +133,7 @@ function buildFin(stmts: Record<string,string>[]) {
   const fin = {
     sales, op, odp: bestVal(all,'OdP'), np, eps, feps, nyEPS,
     bps: fyVal('BPS') || bestVal(all,'BPS'), equity, assets, divAnn: bestVal(all,'DivAnn'),
-    fdiv, shOut, discDate: fy.DiscDate ?? '', perType: fy.CurPerType ?? '',
+    fdiv, shOut, discDate: newerStmt(fy, nfy).DiscDate ?? '', perType: newerStmt(fy, nfy).CurPerType ?? '',
     fsales, fop: n(nfy.FOP) || n(fy.FOP) || bestVal(all,'FOP'),
     nySales, nyOP: n(fy.NxFOP) || n(nfy.NxFOP) || bestVal(all,'NxFOP'),
     roe: (equity && np) ? np / equity : null, eqRat: assets ? equity / assets : 0,

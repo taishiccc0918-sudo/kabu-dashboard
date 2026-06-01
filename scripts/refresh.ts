@@ -15,9 +15,15 @@ import { buildPerBand, type DailyClose, type FyEps } from '../app/lib/perBand'
 import { extractFyEps } from '../app/lib/api'
 
 const JQ_BASE = 'https://api.jquants.com/v2'
-const API_KEY = process.env.JQUANTS_API_KEY ?? ''
-const SUPABASE_URL = process.env.SUPABASE_URL ?? ''
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const API_KEY = (process.env.JQUANTS_API_KEY ?? '').trim()
+const SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
+// URLはコピペ事故（改行/空白/スキーム抜け/末尾スラッシュ）を吸収して正規化
+function normalizeUrl(raw: string): string {
+  let u = (raw ?? '').trim().replace(/\/+$/, '')
+  if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u
+  return u
+}
+const SUPABASE_URL = normalizeUrl(process.env.SUPABASE_URL ?? '')
 const FALLBACK_WATCHLIST = ['7203', '8306', '8058']
 const CONCURRENCY = 4
 
@@ -25,6 +31,7 @@ if (!API_KEY || !SUPABASE_URL || !SERVICE_KEY) {
   console.error('必須の環境変数が未設定です（JQUANTS_API_KEY / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY）')
   process.exit(1)
 }
+console.log(`SUPABASE_URL = ${SUPABASE_URL}`)  // URLは秘密でないので診断用に表示
 
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 

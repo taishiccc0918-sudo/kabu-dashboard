@@ -2826,7 +2826,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg != null && r.peg > 0 && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdPerGroup} style={{padding:'4px 8px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
       {showDetail && <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>}
@@ -2958,7 +2958,7 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
       {r.perF != null && (
         <div className={styles.spCardPerFRow}>
           <span className={styles.spCardPerF}>PER今期 {fmtN(r.perF)}倍</span>
-          {r.peg != null && <span className={styles.spCardPerF} style={{ marginLeft: 8, color: r.peg < 1 ? '#10b981' : undefined }}>PEG {fmtN(r.peg, 2)}</span>}
+          {r.peg != null && <span className={styles.spCardPerF} style={{ marginLeft: 8, color: r.peg > 0 && r.peg < 1 ? '#10b981' : undefined }}>PEG {fmtN(r.peg, 2)}</span>}
         </div>
       )}
       {r.perBand && (r.perBand.highPER != null || r.perBand.reason) && (
@@ -3058,7 +3058,7 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
         {[
           ['1ヶ月%',   r.chg1m != null ? fmtPct(r.chg1m) : '—',   pctClass(r.chg1m)],
           ['PER今期',  r.perF  != null ? fmtN(r.perF)     : '—',   ''],
-          ['PEG',      r.peg   != null ? fmtN(r.peg, 2)   : '—',   r.peg != null && r.peg < 1 ? 'up' : ''],
+          ['PEG',      r.peg   != null ? fmtN(r.peg, 2)   : '—',   r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : ''],
           ['来期売上%', r.nySalesGr != null ? fmtPct(r.nySalesGr) : '—', r.nySalesGr != null ? pctClass(r.nySalesGr) : ''],
           ['ROE',      r.roe   != null ? fmtPct(r.roe)    : '—',   r.roe != null && r.roe > 0.1 ? 'up' : ''],
           ['営業利益率', r.opMgn != null ? fmtPct(r.opMgn) : '—',  r.opMgn != null && r.opMgn > 0.15 ? 'up' : ''],
@@ -3467,7 +3467,7 @@ function DetailPanel({
           ['ROE',        null, r.roe  ? fmtPct(r.roe) : '—', r.roe && r.roe > 0.1 ? 'up' : ''],
           ['配当利回り', null, r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],
           ['EPS今期成長率',null, r.epsCurGr !== null ? fmtPct(r.epsCurGr) : '—', pctClass(r.epsCurGr)],
-          ['PEGレシオ',  null, r.peg  ? fmtN(r.peg,2) : '—', r.peg && r.peg < 1 ? 'up' : ''],
+          ['PEGレシオ',  null, r.peg  ? fmtN(r.peg,2) : '—', r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : ''],
           ['時価総額(億)',null, r.mcap ? r.mcap.toLocaleString() : '—', ''],
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],
         ]} />

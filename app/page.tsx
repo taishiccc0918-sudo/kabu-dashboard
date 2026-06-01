@@ -242,6 +242,7 @@ export default function Page() {
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
   const [showHelp,     setShowHelp]     = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showDetail,   setShowDetail]   = useState(false)  // 詳細列の表示（判定設定の隣のボタンで切替）
   const [filterHeart,  setFilterHeart]  = useState(false)
   const [filterFav,    setFilterFav]    = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
@@ -1314,6 +1315,12 @@ export default function Page() {
               title="買い判定設定を開く"
               style={{padding:'4px 10px'}}
             >⚙ 判定設定</button>
+            <button
+              className={`${styles.filterToggleBtn} ${showDetail ? styles.filterToggleBtnActive : ''}`}
+              onClick={() => setShowDetail(s => !s)}
+              title="時価総額・PBR・ROE・営業利益率・配当・EPS成長率 の表示を切替"
+              style={{padding:'4px 10px'}}
+            >{showDetail ? '指標を絞る' : '＋ 詳細指標'}</button>
           </>
         )}
         {tab === 'card' && (
@@ -1540,6 +1547,7 @@ export default function Page() {
                 judgmentResultsMap={judgmentResultsMap}
                 activeLogicDesc={activeLogicDesc}
                 activeLogicTooltip={activeLogicTooltip}
+                showDetail={showDetail}
               />
             )}
           </div>
@@ -2609,7 +2617,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc, activeLogicTooltip
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc, activeLogicTooltip, showDetail
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -2625,12 +2633,12 @@ function DashboardTable({
   judgmentResultsMap: Record<string, string | null>
   activeLogicDesc: string
   activeLogicTooltip: string
+  showDetail: boolean
 }) {
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const sbRef = useRef<HTMLDivElement>(null)   // ビューポート下端の連動スクロールバー
   const syncingRef = useRef(false)
-  const [showDetail, setShowDetail] = useState(false)
   const [scrollW, setScrollW] = useState(0)
   // 横スクロールを head / body / 下端バー で双方向同期（ループ防止フラグ付き）
   const syncScroll = (x: number) => {
@@ -2689,11 +2697,6 @@ function DashboardTable({
   )
   return (
     <div className={styles.dashWrap}>
-      <div className={styles.detailBar}>
-        <button className={styles.detailToggle} onClick={() => setShowDetail(v => !v)}>
-          {showDetail ? '− 指標を絞る（PER・PEG中心）' : '＋ 詳細指標（PBR・ROE・利益率・配当・実績PER・週/月/年%）'}
-        </button>
-      </div>
       <div className={styles.theadOuter} ref={headRef}>
         <table className={`${styles.table} ${styles.theadTable}`}>
           {colGroup}

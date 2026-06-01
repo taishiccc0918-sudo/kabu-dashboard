@@ -9,9 +9,9 @@ import { evaluateLogic, formatLogicDescription } from './lib/judgmentEngine'
 import { DEFAULT_LOGICS } from './lib/defaultLogics'
 import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
-  findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars,
+  findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars, fetchFyEpsForCode,
 } from './lib/api'
-import { buildPerBand, PerBand } from './lib/perBand'
+import { buildPerBand, PerBand, FyEps } from './lib/perBand'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale } from './lib/format'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
@@ -87,6 +87,23 @@ function setPerBandCache(code: string, band: PerBand) {
   try {
     localStorage.setItem(`per_band_cache_${PER_BAND_CACHE_VER}_${code}`,
       JSON.stringify({ band, date: localDateStr() }))
+  } catch { /* quota */ }
+}
+// FY EPS実績ヒストリーの当日キャッシュ（per-code取得を1日1回に抑える）
+function getFyEpsCache(code: string): FyEps[] | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(`fyeps_cache_${PER_BAND_CACHE_VER}_${code}`)
+    if (!raw) return null
+    const { fyEps, date } = JSON.parse(raw) as { fyEps: FyEps[]; date: string }
+    if (date !== localDateStr()) return null
+    return fyEps
+  } catch { return null }
+}
+function setFyEpsCache(code: string, fyEps: FyEps[]) {
+  try {
+    localStorage.setItem(`fyeps_cache_${PER_BAND_CACHE_VER}_${code}`,
+      JSON.stringify({ fyEps, date: localDateStr() }))
   } catch { /* quota */ }
 }
 
@@ -670,7 +687,7 @@ export default function Page() {
       if (code in perBandDBRef.current) continue   // 既に算出済み（このセッション）
       const cached = getPerBandCache(code)
       if (cached) { cachedUpdates[code] = cached; continue }
-      if (finDB[code]?.fyEps && finDB[code]!.fyEps!.length > 0) need.push(code)
+      need.push(code)   // fyEpsの有無は算出時に解決（♥は履歴を取りに行く）
     }
     if (Object.keys(cachedUpdates).length > 0) setPerBandDB(prev => ({ ...prev, ...cachedUpdates }))
     if (need.length === 0) return
@@ -682,6 +699,22 @@ export default function Page() {
     const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
     const fromStr = fmt(from), toStr = fmt(today)
     const CONCURRENCY = 6
+    const heartSet = superFavorites
+
+    // fyEps を解決：①一括取得で十分(>=2期)ならそれ ②当日キャッシュ ③♥なら個別取得して補完
+    async function resolveFyEps(code: string): Promise<FyEps[]> {
+      const fromBulk = finDB[code]?.fyEps ?? []
+      if (fromBulk.length >= 2) return fromBulk
+      const cached = getFyEpsCache(code)
+      if (cached && cached.length >= 1) return cached
+      if (heartSet.has(code)) {
+        try {
+          const fetched = await fetchFyEpsForCode(code, apiKey)
+          if (fetched.length > 0) { setFyEpsCache(code, fetched); return fetched }
+        } catch { /* fall through */ }
+      }
+      return fromBulk   // ♥以外で履歴不足 → 一括ぶん（0〜1期）で best-effort
+    }
 
     ;(async () => {
       for (let i = 0; i < need.length; i += CONCURRENCY) {
@@ -689,12 +722,13 @@ export default function Page() {
         const batch = need.slice(i, i + CONCURRENCY)
         const results = await Promise.all(batch.map(async code => {
           try {
+            const fyEps = await resolveFyEps(code)
+            if (fyEps.length === 0) return { code, band: null as PerBand | null }
             const daily = await fetchDailyBars(code, fromStr, toStr, apiKey)
-            const f = finDB[code]
             const close = priceDBRef.current[code]?.close ?? 0
-            const feps = f?.feps ?? null
+            const feps = finDB[code]?.feps ?? null
             const fwdPER = (close && feps) ? close / feps : null
-            const band = buildPerBand(daily, f?.fyEps ?? null, fwdPER)
+            const band = buildPerBand(daily, fyEps, fwdPER)
             return { code, band }
           } catch { return { code, band: null as PerBand | null } }
         }))
@@ -2556,7 +2590,7 @@ function DashboardTable({
     { label: '外部\nリンク', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
-  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,84,64,88,64,88,108,88,64,64,80]
+  const colWidths = [48,60,150,160,72,108,80,80,76,80,76,76,76,76,64,132,64,88,64,88,108,88,64,64,80]
   const colGroup = (
     <colgroup>
       {colWidths.map((w, i) => <col key={i} style={{width:w, minWidth:w}} />)}
@@ -2601,25 +2635,32 @@ function DashboardTable({
 }
 
 // ─── PerBandBar（四季報式PER位置バー）────────────────────────────────
-function perBandZone(pos: number): string {
-  return pos <= 0.33 ? '割安圏' : pos >= 0.67 ? '割高圏' : '中立'
+function perBandZone(pos: number): { label: string; color: string } {
+  if (pos <= 0.33) return { label: '割安', color: '#10b981' }
+  if (pos >= 0.67) return { label: '割高', color: '#f43f5e' }
+  return { label: '中立', color: '#eab308' }
 }
 function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; likePer?: number | null; big?: boolean }) {
   if (!band || band.position == null || band.highAvgPER == null || band.lowAvgPER == null) {
     return <span className={styles.tdNonDisclosure} style={{ fontSize: 10 }}>—</span>
   }
   const pos = Math.max(0, Math.min(1, band.position))
+  const zone = perBandZone(pos)
   const title =
-    `予想PER ${fmtN(band.fwdPER)}倍\n` +
-    `高値平均 ${fmtN(band.highAvgPER)}倍・安値平均 ${fmtN(band.lowAvgPER)}倍（直近${band.years}年）\n` +
-    `位置: ${perBandZone(pos)}` +
+    `予想PER ${fmtN(band.fwdPER)}倍 → ${zone.label}\n` +
+    `安値平均 ${fmtN(band.lowAvgPER)}倍 ｜ 高値平均 ${fmtN(band.highAvgPER)}倍（直近${band.years}年）` +
     (likePer != null ? `\n成長加味PER(Like) ${fmtN(likePer)}倍` : '')
-  const h = big ? 8 : 6
-  const dot = big ? 11 : 8
+  const h = big ? 9 : 7
+  const dot = big ? 13 : 10
   return (
-    <div title={title} style={{ position: 'relative', width: '100%', height: big ? 24 : 18, display: 'flex', alignItems: 'center' }}>
-      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#10b981,#fbbf24,#f43f5e)' }}>
-        <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '1px solid #0d1219', boxShadow: '0 0 2px rgba(0,0,0,0.7)' }} />
+    <div title={title} style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#10b981 0%,#fbbf24 50%,#f43f5e 100%)' }}>
+        <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '2px solid #0d1219', boxShadow: '0 0 3px rgba(0,0,0,0.8)' }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 9.5, lineHeight: 1, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+        <span title="安値平均PER">{fmtN(band.lowAvgPER, 0)}</span>
+        <span style={{ color: zone.color, fontWeight: 700, fontSize: big ? 13 : 11 }}>{fmtN(band.fwdPER)}倍 {zone.label}</span>
+        <span title="高値平均PER">{fmtN(band.highAvgPER, 0)}</span>
       </div>
     </div>
   )
@@ -2675,7 +2716,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
       <td className={`${styles.tdNum} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
-      <td className={styles.tdPerGroup} style={{padding:'0 6px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
+      <td className={styles.tdPerGroup} style={{padding:'4px 8px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
       <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>
       <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>
       <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>

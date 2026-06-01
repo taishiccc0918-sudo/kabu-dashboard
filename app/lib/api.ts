@@ -97,6 +97,14 @@ export function extractFyEps(stmts: Record<string,string>[]): FyEps[] {
   return arr.slice(-5)
 }
 
+// 銘柄別のFY EPS実績ヒストリーを単独取得（PERバンドのカバレッジ補完用）。
+// 一括取得では過去履歴が足りない銘柄向けに、code指定で全開示履歴を引いて抽出する。
+export async function fetchFyEpsForCode(code: string, apiKey: string): Promise<FyEps[]> {
+  const data = await jqFetch(`/fins/summary?code=${code}`, apiKey)
+  const stmts: Record<string,string>[] = (data as { data?: Record<string,string>[] }).data ?? []
+  return extractFyEps(stmts)
+}
+
 // 銘柄別の日次株価（調整後終値）をレンジ取得（PERバンド／チャート共用）。
 // fromStr/toStr は 'YYYYMMDD' 形式。調整後終値(AdjC)優先、なければ終値(C)。
 export async function fetchDailyBars(

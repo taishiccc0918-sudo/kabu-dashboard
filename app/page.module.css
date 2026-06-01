@@ -319,13 +319,15 @@
 }
 .tdNum {
   padding: 0 10px; text-align: right;
-  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
-  color: #c8d8e8;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12.5px;
+  font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+  color: #dbe6f2;
 }
 .tdPct {
   padding: 0 10px; text-align: right;
-  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px;
-  font-weight: 600; color: #9ca3af;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12.5px;
+  font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+  color: #aab6c4;
 }
 .tdInfoLink { padding: 0 6px; text-align: center; }
 .tdInfoLink a { text-decoration: none; }
@@ -2124,7 +2126,7 @@
 /* ── LIGHT MODE OVERRIDES ───────────────────────────── */
 /* .lightMode クラスが .root に付いている場合のみ適用。既存ダーク用CSSは変更なし。 */
 
-.lightMode { background: #f0f4f8 !important; color: #1e293b !important; }
+.lightMode { background: #eef2f7 !important; color: #0f172a !important; }
 
 .lightMode .header {
   background: rgba(255,255,255,0.97) !important;
@@ -2163,8 +2165,10 @@
 .lightMode .tdStar { background: #f8fafc !important; color: rgba(217,119,6,0.6) !important; }
 .lightMode .tdCode { background: #f8fafc !important; color: #334155 !important; }
 .lightMode .tdName { background: #f1f5f9 !important; color: #1e293b !important; border-right-color: rgba(0,0,0,0.1) !important; }
-.lightMode .tdNum { color: #1a2c4a !important; }
-.lightMode .tdPct { color: #475569 !important; }
+.lightMode .tdNum { color: #0f1f3d !important; }
+.lightMode .tdPct { color: #334155 !important; }
+/* ライトモードでも騰落の色信号を残す（背景は薄いので文字を濃いめに） */
+.lightMode .table thead th { font-weight: 700 !important; }
 .lightMode .emptyCell { color: #64748b !important; }
 
 .lightMode .card { background: #fff !important; border-color: #cbd5e1 !important; }

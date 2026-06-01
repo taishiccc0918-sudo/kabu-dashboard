@@ -268,6 +268,11 @@ export default function Page() {
   const bandFetchingRef = useRef(false)
   const perBandDBRef = useRef<Record<string, PerBand | null>>({})
   const priceDBRef = useRef<Record<string, PriceRecord>>({})
+  const snapshotTriedRef = useRef(false)
+  // Supabaseが設定されていれば、まずサーバー事前計算(snapshot)を試す間ライブ取得を抑止
+  const liveSuppressedRef = useRef(
+    !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  )
   const [bgFetching, setBgFetching] = useState(false)
   const cacheStaleRef = useRef(false)
   // ── 銘柄管理 Undo/Redo（★/♥操作のみ） ──────────────────────────
@@ -743,9 +748,45 @@ export default function Page() {
     return () => { cancelled = true; bandFetchingRef.current = false }
   }, [finDB, favorites, superFavorites, apiKey, serverHasKey])
 
+  // ── Phase3: サーバー事前計算(snapshot)を読んで即時表示。成功すればライブ取得を回避 ──
+  useEffect(() => {
+    if (!mounted || snapshotTriedRef.current) return
+    snapshotTriedRef.current = true
+    const sb = getSb()
+    if (!sb) { liveSuppressedRef.current = false; return }
+    ;(async () => {
+      try {
+        const [snapRes, metaRes, listed] = await Promise.all([
+          sb.from('stock_snapshot').select('code, price, fin, per_band, biz_date'),
+          sb.from('snapshot_meta').select('biz_date, count, updated_at').eq('id', 1).maybeSingle(),
+          fetch('/api/listed-info').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        ])
+        const rows = (snapRes.data ?? []) as { code: string; price: PriceRecord; fin: FinRecord | null; per_band: PerBand | null; biz_date: string }[]
+        if (rows.length === 0) { liveSuppressedRef.current = false; if (!autoFetchedRef.current && (serverHasKey || apiKey.trim())) { autoFetchedRef.current = true; fetchAll(dataLoaded ? { silent: true } : undefined) } return }
+        const pDB: Record<string, PriceRecord> = {}, fDB: Record<string, FinRecord> = {}, bDB: Record<string, PerBand | null> = {}
+        for (const r of rows) { pDB[r.code] = r.price ?? { close: 0 }; if (r.fin) fDB[r.code] = r.fin; bDB[r.code] = r.per_band ?? null }
+        const mDB: Record<string, MasterRecord> = {}
+        for (const [code, rec] of Object.entries(listed as Record<string, { name: string; market: string }>)) if (rec?.name && rec?.market) mDB[code] = rec
+        setPriceDB(pDB); setFinDB(fDB); setPerBandDB(bDB)
+        if (Object.keys(mDB).length) setMasterDB(mDB)
+        const meta = metaRes.data as { biz_date?: string; updated_at?: string } | null
+        const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
+        setLastUpdate(biz); setDataLoaded(true); setStatus('ok'); cacheStaleRef.current = false
+        autoFetchedRef.current = true   // サーバー版で表示済み → 自動ライブ取得は抑止（再読込ボタンで手動更新可）
+        const upd = meta?.updated_at ? new Date(meta.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+        setStatusMsg(`サーバー更新済み (${rows.length}銘柄 / 基準日 ${biz}${upd ? ` / ${upd}更新` : ''})`)
+      } catch (e) {
+        console.warn('[snapshot] 読込失敗 → ライブ取得にフォールバック', e)
+        liveSuppressedRef.current = false
+        if (!autoFetchedRef.current && (serverHasKey || apiKey.trim())) { autoFetchedRef.current = true; fetchAll(dataLoaded ? { silent: true } : undefined) }
+      }
+    })()
+  }, [mounted, serverHasKey, apiKey, dataLoaded, fetchAll])
+
   // ── 自動更新: ページ読み込み時にデータ取得（キャッシュがある場合はバックグラウンド更新）
   useEffect(() => {
     if (!mounted) return               // マウント完了を待つ
+    if (liveSuppressedRef.current) return // Supabase事前計算を試行中/採用中 → ライブ取得しない
     if (autoFetchedRef.current) return // 1度だけ実行
     if (loading || bgFetching) return  // すでに取得中
     if (!serverHasKey && !apiKey.trim()) return  // APIキーがない場合は待機

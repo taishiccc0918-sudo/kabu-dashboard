@@ -3105,6 +3105,14 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
   )
 }
 
+// 業種（ジャンル）から決定的に色を作る（同じジャンルは常に同じ色）。ロゴチップ用。
+function genreColor(g: string): string {
+  if (!g) return 'hsl(210 25% 40%)'
+  let h = 0
+  for (let i = 0; i < g.length; i++) h = (h * 31 + g.charCodeAt(i)) % 360
+  return `hsl(${h} 58% 44%)`
+}
+
 // ─── StockCard ───────────────────────────────────────────────────────
 function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey = 0, chartMode, onChartModeChange }: {
   row: StockRow; apiKey: string; serverHasKey?: boolean; onClick: () => void; refreshKey?: number
@@ -3121,6 +3129,9 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
           {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
         <div className={styles.cardRight}>
+          <div className={styles.cardLogo} style={{ background: genreColor(r.genres[0] || '') }} title={r.genres[0] || ''}>
+            {(r.name || r.code).slice(0, 1)}
+          </div>
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -4121,6 +4132,59 @@ function WeeklyReport({
     return v >= 0 ? '#3fb950' : '#f85149'
   }
 
+  // ── 週報サマリ（お気に入り集合の「事実」。発信ネタにそのまま使える） ──
+  const [newsCount, setNewsCount] = useState<Record<string, number>>({})
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/news-stored').then(r => r.json()).then((d: { items?: { code: string; pubDate: string }[] }) => {
+      if (cancelled) return
+      const wk = Date.now() - 7 * 86400000
+      const cnt: Record<string, number> = {}
+      for (const it of d.items ?? []) {
+        if (!favorites.has(it.code)) continue
+        const t = new Date(it.pubDate).getTime()
+        if (t && t >= wk) cnt[it.code] = (cnt[it.code] ?? 0) + 1
+      }
+      setNewsCount(cnt)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [favorites])
+
+  const summary = useMemo(() => {
+    const valid = favRows.filter(r => r.perF != null && r.perFChg1m != null && Math.abs(r.perFChg1m) <= 2)
+    const sales = favRows.map(r => r.nySalesGr).filter((v): v is number => v != null).sort((a, b) => a - b)
+    const pos = favRows.map(r => r.perBand?.position).filter((v): v is number => v != null && !Number.isNaN(v))
+    const posLow = pos.filter(p => p <= 0.33).length
+    const posHigh = pos.filter(p => p >= 0.66).length
+    return {
+      n: favRows.length,
+      perDown: valid.filter(r => (r.perFChg1m ?? 0) < 0).length,
+      perUp: valid.filter(r => (r.perFChg1m ?? 0) > 0).length,
+      priceUp: favRows.filter(r => (r.chg1m ?? 0) > 0).length,
+      priceDown: favRows.filter(r => (r.chg1m ?? 0) < 0).length,
+      salesMed: sales.length ? sales[Math.floor(sales.length / 2)] : null,
+      posLow, posHigh, posMid: pos.length - posLow - posHigh,
+    }
+  }, [favRows])
+
+  const newsTop = useMemo(() =>
+    Object.entries(newsCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([code, n]) => ({ code, n, name: favRows.find(r => r.code === code)?.name || code })),
+    [newsCount, favRows])
+
+  const [copied, setCopied] = useState(false)
+  const copyText =
+    `【私のウォッチリスト週報 ${dateStr}】\n対象 ${summary.n}銘柄\n` +
+    `・直近1ヶ月でPER低下 ${summary.perDown} / 上昇 ${summary.perUp}\n` +
+    `・株価1ヶ月 上昇 ${summary.priceUp} / 下落 ${summary.priceDown}\n` +
+    `・来期売上成長の中央値 ${summary.salesMed != null ? fmtPct(summary.salesMed) : '—'}\n` +
+    `・PER位置(過去1年比) 下方${summary.posLow} / 中立${summary.posMid} / 上方${summary.posHigh}` +
+    (newsTop.length ? `\n・今週ニュースが多かった: ${newsTop.map(t => t.name).join('、')}` : '') +
+    `\n※会社予想ベースの事実集計。投資判断は自己責任で。`
+  function copy() {
+    navigator.clipboard?.writeText(copyText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
+  }
+
   function renderTable(rows: typeof perDownRows) {
     return (
       <div className={styles.rpTable}>
@@ -4181,6 +4245,24 @@ function WeeklyReport({
     <div className={styles.reportRoot}>
       <div className={styles.rpHdr}>
         <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{favRows.length}銘柄</span>
+      </div>
+
+      {/* 週報サマリ（集合の事実・発信ネタ） */}
+      <div className={styles.rpSummary}>
+        <div className={styles.rpSummaryHead}>
+          <span className={styles.rpSummaryTitle}>今週のウォッチリスト</span>
+          <button className={styles.rpCopyBtn} onClick={copy}>{copied ? 'コピーしました ✓' : '📋 Xにコピー'}</button>
+        </div>
+        <div className={styles.rpSummaryGrid}>
+          <div className={styles.rpStat}><div className={styles.rpStatLabel}>PER 低下 / 上昇（1ヶ月）</div><div className={styles.rpStatVal}>{summary.perDown} <span className={styles.rpStatSlash}>/</span> {summary.perUp}</div></div>
+          <div className={styles.rpStat}><div className={styles.rpStatLabel}>株価 上昇 / 下落（1ヶ月）</div><div className={styles.rpStatVal}>{summary.priceUp} <span className={styles.rpStatSlash}>/</span> {summary.priceDown}</div></div>
+          <div className={styles.rpStat}><div className={styles.rpStatLabel}>来期売上成長 中央値</div><div className={styles.rpStatVal}>{summary.salesMed != null ? fmtPct(summary.salesMed) : '—'}</div></div>
+          <div className={styles.rpStat}><div className={styles.rpStatLabel}>PER位置 下方/中立/上方</div><div className={styles.rpStatVal}>{summary.posLow}/{summary.posMid}/{summary.posHigh}</div></div>
+        </div>
+        {newsTop.length > 0 && (
+          <div className={styles.rpSummaryNews}>📰 今週ニュースが多い：{newsTop.map(t => `${t.name}(${t.n})`).join(' ・ ')}</div>
+        )}
+        <div className={styles.rpSummaryNote}>※会社予想EPSベースの「事実の集計」です（買い／売りの判断ではありません）</div>
       </div>
 
       {/* PER低下 */}

@@ -3579,8 +3579,9 @@ function NewsSection({ code, name }: { code: string; name: string }) {
 }
 
 // ─── NewsFeed（お気に入り銘柄のニュース一覧タブ） ─────────────────────
-type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string }
+type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean }
 type FeedScope = 'all' | 'hearts'
+const IR_FILTER = '__IR__' // メディア絞り込みの特別項目（公式・IR発表）
 
 // タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
 let feedCache: { key: string; items: FeedItem[] } | null = null
@@ -3684,11 +3685,14 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
     return [...m.values()].sort((a, b) => b.n - a.n)
   }, [items])
 
+  const irCount = useMemo(() => (items ?? []).filter(i => i.ir).length, [items])
   const q = normJa(stockQuery.trim())
   const filtered = useMemo(() =>
     (items ?? []).filter(i => {
       const okStock = !q || normJa(i.name).includes(q) || i.code.toLowerCase().includes(q)
-      const okMedia = mediaSet.size === 0 || mediaSet.has(i.source)
+      const okMedia = mediaSet.size === 0
+        || mediaSet.has(i.source)
+        || (mediaSet.has(IR_FILTER) && i.ir)
       return okStock && okMedia
     }),
     [items, q, mediaSet])
@@ -3705,8 +3709,12 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         </div>
         <div className={styles.feedActions}>
           <div className={styles.newsSortBtns}>
-            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')}>すべて(♥+★)</button>
-            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')}>♥のみ</button>
+            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')}>
+              すべて(<span className={styles.heartGlyph}>♥</span>+<span className={styles.starGlyph}>★</span>)
+            </button>
+            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')}>
+              <span className={styles.heartGlyph}>♥</span>のみ
+            </button>
           </div>
           <button className={styles.feedRefreshBtn} disabled={loading} onClick={() => load(true)} title="キャッシュを無視して最新ニュースを取得">
             {loading ? '⏳' : '⟳'} 更新
@@ -3720,7 +3728,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
           <span className={styles.feedSearchIcon}>🔍</span>
           <input
             className={styles.feedSearchInput}
-            placeholder="銘柄で絞り込み（例: IMV、リクルート、7974）"
+            placeholder="銘柄名・コードで絞り込み"
             value={stockQuery}
             onChange={e => setStockQuery(e.target.value)}
           />
@@ -3740,6 +3748,18 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
                   <button className={styles.feedClearBtn} onClick={() => setMediaSet(new Set())}>クリア</button>
                 </div>
                 <div className={styles.feedMediaPanelList}>
+                  <label className={`${styles.feedMediaOpt} ${styles.feedMediaOptIr}`}>
+                    <input
+                      type="checkbox"
+                      checked={mediaSet.has(IR_FILTER)}
+                      onChange={() => setMediaSet(prev => {
+                        const n = new Set(prev); n.has(IR_FILTER) ? n.delete(IR_FILTER) : n.add(IR_FILTER); return n
+                      })}
+                    />
+                    <span className={styles.feedIrIcon}>🏢</span>
+                    <span className={styles.feedMediaName}>公式・IR発表（適時開示・新製品等）</span>
+                    <span className={styles.feedMediaCount}>{irCount}</span>
+                  </label>
                   {mediaList.map(m => (
                     <label key={m.source} className={styles.feedMediaOpt}>
                       <input

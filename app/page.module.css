@@ -692,6 +692,11 @@
 .feedMediaOpt:hover { background: rgba(59,130,246,0.1); }
 .feedMediaOpt input { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
 .feedMediaOpt .feedMediaName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feedMediaOptIr { border-bottom: 1px solid #1f2d40; margin-bottom: 4px; padding-bottom: 9px; font-weight: 700; color: #ffd479; }
+.feedIrIcon { font-size: 15px; }
+/* フィードのスコープ切替内の色付きグリフ */
+.heartGlyph { color: #f43f5e; font-size: 14px; }
+.starGlyph { color: #fbbf24; font-size: 14px; }
 
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {

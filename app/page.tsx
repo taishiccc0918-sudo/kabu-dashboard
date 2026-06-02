@@ -1676,6 +1676,9 @@ export default function Page() {
           </div>
         )}
       </div>
+
+      {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
+      <BottomNav tab={tab} onSelect={setTab} />
     </div>
   )
 }
@@ -3072,48 +3075,65 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
     if (draft !== memo) onSaveMemo(r.code, draft)
   }
 
+  const dayCls = pctClass(r.chg1d)
+  const arrow = r.chg1d == null ? '' : r.chg1d > 0 ? '▲' : r.chg1d < 0 ? '▼' : '—'
+  // メトリクス帯（読める大きさ・色分け）
+  const metrics: [string, string, string][] = [
+    ['1週',     fmtPct(r.chg1w), pctClass(r.chg1w)],
+    ['1ヶ月',   fmtPct(r.chg1m), pctClass(r.chg1m)],
+    ['PER今期', r.perF != null ? fmtN(r.perF) + '倍' : '—', ''],
+    ['PEG',     r.peg  != null ? fmtN(r.peg, 2) : '—', r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : ''],
+  ]
+
   return (
-    <div className={styles.spMemoCard}>
-      {/* Row1: ★/♥ + CODE + Market + Judgment */}
+    <div className={`${styles.spMemoCard} ${styles['spAccent_' + dayCls]}`}>
+      {/* 見出し: ★/♥ + 銘柄名 + 市場バッジ */}
       <div className={styles.spCardRow1}>
         <button className={`${styles.spFavBtn} ${isFav ? styles.spFavBtnActive : ''}`}
-          onClick={e => { e.stopPropagation(); onToggleFav(r.code) }}>
+          onClick={e => { e.stopPropagation(); onToggleFav(r.code) }} aria-label="お気に入り（★）">
           {isFav ? '★' : '☆'}
         </button>
         <button className={`${styles.spSuperFavBtn} ${isSuperFav ? styles.spSuperFavBtnActive : ''}`}
-          onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }}>
+          onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）">
           {isSuperFav ? '♥' : '♡'}
         </button>
-        <span className={styles.spCardCode}>{r.code}</span>
+        <span className={styles.spCardName}>{r.name || '—'}</span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
       </div>
-      {/* Row2: 銘柄名 (左) | 株価 (右) */}
-      <div className={styles.spCardRow2}>
-        <span className={styles.spCardName}>{r.name || '—'}</span>
-        <span className={styles.spCardPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
+      {/* コード + ジャンル */}
+      <div className={styles.spCardCodeRow}>
+        <span className={styles.spCardCode}>{r.code}</span>
+        {r.genres.slice(0, 3).map(g => <span key={g} className={styles.spGenreBadge}>{g}</span>)}
       </div>
-      {/* Row3: ジャンル (左) | 前日比/1W (右) */}
-      <div className={styles.spCardRow3}>
-        <div className={styles.spCardGenres}>
-          {r.genres.slice(0, 2).map(g => <span key={g} className={styles.spGenreBadge}>{g}</span>)}
+
+      {/* ヒーロー: 株価（大）+ 前日比（大・色付きピル） */}
+      <div className={styles.spHero}>
+        <div className={styles.spHeroPrice}>
+          <span className={styles.spHeroYen}>¥</span>{r.close ? r.close.toLocaleString() : '—'}
         </div>
-        <div className={styles.spCardChgs}>
-          <span className={`${styles.spChg} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</span>
-          <span className={`${styles.spChgSub} ${styles[pctClass(r.chg1w)]}`}>1W {fmtPct(r.chg1w)}</span>
+        <div className={`${styles.spHeroChg} ${styles['spChgBox_' + dayCls]}`}>
+          <span className={styles.spHeroArrow}>{arrow}</span>
+          <span>{fmtPct(r.chg1d)}</span>
         </div>
       </div>
-      {/* Row4: PER今期 + PER位置バー */}
-      {r.perF != null && (
-        <div className={styles.spCardPerFRow}>
-          <span className={styles.spCardPerF}>PER今期 {fmtN(r.perF)}倍</span>
-          {r.peg != null && <span className={styles.spCardPerF} style={{ marginLeft: 8, color: r.peg > 0 && r.peg < 1 ? '#10b981' : undefined }}>PEG {fmtN(r.peg, 2)}</span>}
-        </div>
-      )}
+
+      {/* メトリクス帯（4分割） */}
+      <div className={styles.spMetrics}>
+        {metrics.map(([l, v, c]) => (
+          <div key={l} className={styles.spMetric}>
+            <div className={styles.spMetricLabel}>{l}</div>
+            <div className={`${styles.spMetricValue} ${c ? styles[c] : ''}`}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* PER位置バー */}
       {r.perBand && (r.perBand.highPER != null || r.perBand.reason) && (
-        <div style={{ padding: '2px 2px 0' }}>
+        <div className={styles.spBandWrap}>
           <PerBandBar band={r.perBand} likePer={r.likePer} big />
         </div>
       )}
+
       {/* メモエリア: 空なら1行プレースホルダー */}
       <div className={`${styles.spMemoArea} ${memo ? '' : styles.spMemoAreaEmpty}`}
         onClick={() => !editing && setEditing(true)}>
@@ -3131,13 +3151,56 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
           <>
             {memo
               ? <div className={styles.spMemoText}>{memo}</div>
-              : <div className={styles.spMemoPlaceholder}>メモ（タップして入力）</div>
+              : <div className={styles.spMemoPlaceholder}>📝 メモ（タップして入力）</div>
             }
             {memo && memoUpdatedAt && <div className={styles.spMemoDate}>{fmtJpDate(memoUpdatedAt)}</div>}
           </>
         )}
       </div>
     </div>
+  )
+}
+
+// ─── BottomNav（SP専用・固定ボトムナビ）──────────────────────────────
+function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => void }) {
+  const items: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'card', label: 'ダッシュ', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
+        <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+      </svg>
+    ) },
+    { key: 'watchlist', label: 'ウォッチ', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
+      </svg>
+    ) },
+    { key: 'news', label: 'ニュース', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/>
+        <line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>
+      </svg>
+    ) },
+    { key: 'report', label: 'レポート', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="20" x2="20" y2="20"/><rect x="5" y="11" width="3.5" height="7" rx="0.8"/>
+        <rect x="10.2" y="6" width="3.5" height="12" rx="0.8"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.8"/>
+      </svg>
+    ) },
+  ]
+  const isActive = (k: TabKey) => k === 'card' ? (tab === 'card' || tab === 'dashboard') : tab === k
+  return (
+    <nav className={styles.bottomNav} aria-label="メインナビゲーション">
+      {items.map(it => (
+        <button key={it.key}
+          className={`${styles.bottomNavBtn} ${isActive(it.key) ? styles.bottomNavBtnActive : ''}`}
+          onClick={() => onSelect(it.key)}
+          aria-current={isActive(it.key) ? 'page' : undefined}>
+          {it.icon}
+          <span className={styles.bottomNavLabel}>{it.label}</span>
+        </button>
+      ))}
+    </nav>
   )
 }
 

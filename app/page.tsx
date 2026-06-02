@@ -3735,6 +3735,11 @@ function normJa(s: string): string {
   return s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).toLowerCase()
 }
 
+// メディア名の表記ゆれ吸収（全角/半角括弧・空白の差）。「株探(かぶたん)」と「株探（かぶたん）」を同一視。
+function normSource(s: string): string {
+  return (s || '').replace(/（/g, '(').replace(/）/g, ')').replace(/\s+/g, '').toLowerCase()
+}
+
 // カナ→ローマ字（簡易ヘボン式）。「ファナック」→"fanakku" 等。検索でローマ字/英語入力に対応するため。
 const ROMAJI_2: Record<string, string> = {
   'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho','チャ':'cha','チュ':'chu','チョ':'cho',
@@ -3858,7 +3863,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         setPhase('読み込み中…')
         const res = await fetch('/api/news-stored').then(r => r.json()).catch(() => null)
         if (res?.ready && Array.isArray(res.items) && res.items.length > 0) {
-          all = res.items as FeedItem[]
+          // 蓄積DBは link 一意だが、旧仕様で溜まった「同一見出し×別リンク」の重複が残るため
+          // 表示前に必ず cleanFeed（重複除去＋新着順）を通す。
+          all = cleanFeed(res.items as FeedItem[])
           setItems(all)
         } else {
           all = await liveFanout(false)
@@ -3878,11 +3885,13 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
 
   // 絞り込み用の一覧（メディア・銘柄）と、適用後のリスト
   const mediaList = useMemo(() => {
-    const m = new Map<string, { source: string; sourceUrl: string; n: number }>()
+    // 表記ゆれを正規化キーで束ねる（key=正規化, source=表示用の代表名）
+    const m = new Map<string, { key: string; source: string; sourceUrl: string; n: number }>()
     for (const it of items ?? []) {
-      const cur = m.get(it.source) || { source: it.source, sourceUrl: it.sourceUrl, n: 0 }
+      const key = normSource(it.source)
+      const cur = m.get(key) || { key, source: it.source, sourceUrl: it.sourceUrl, n: 0 }
       cur.n++; if (!cur.sourceUrl && it.sourceUrl) cur.sourceUrl = it.sourceUrl
-      m.set(it.source, cur)
+      m.set(key, cur)
     }
     return [...m.values()].sort((a, b) => b.n - a.n)
   }, [items])
@@ -3896,7 +3905,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       if (!okScope) return false
       const okStock = !q || stockHaystack(i.name, i.code).includes(q)
       const okMedia = mediaSet.size === 0
-        || mediaSet.has(i.source)
+        || mediaSet.has(normSource(i.source))
         || (mediaSet.has(IR_FILTER) && i.ir)
         || (mediaSet.has(DISC_FILTER) && i.disc)
       return okStock && okMedia
@@ -3982,12 +3991,12 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
                     <span className={styles.feedMediaCount}>{irCount}</span>
                   </label>
                   {mediaList.map(m => (
-                    <label key={m.source} className={styles.feedMediaOpt}>
+                    <label key={m.key} className={styles.feedMediaOpt}>
                       <input
                         type="checkbox"
-                        checked={mediaSet.has(m.source)}
+                        checked={mediaSet.has(m.key)}
                         onChange={() => setMediaSet(prev => {
-                          const n = new Set(prev); n.has(m.source) ? n.delete(m.source) : n.add(m.source); return n
+                          const n = new Set(prev); n.has(m.key) ? n.delete(m.key) : n.add(m.key); return n
                         })}
                       />
                       {faviconUrl(m.sourceUrl) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl)} alt="" loading="lazy" />}

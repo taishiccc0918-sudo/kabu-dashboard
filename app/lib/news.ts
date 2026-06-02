@@ -136,8 +136,9 @@ function collectFromXml(xml: string, name: string, code: string, articles: Artic
     if (hasOtherSecurityOnly) continue
     if (!hasCode && !nameTitleOK && !isOfficial) continue
 
-    // 重複排除はリンク優先（多クエリで同一記事が再出現するため）。リンク無しはタイトル先頭で代替。
-    const key = link || title.slice(0, 40)
+    // 重複排除は「正規化タイトル」基準（多クエリfan-outで同一記事がGoogleの別リンクで再出現するため、
+    // リンク基準だと同じ見出しが重複する＝旧バグ）。fetchStockNewsは銘柄単位なのでタイトル重複＝同記事。
+    const key = nTitle || link
     if (seen.has(key)) continue
     seen.add(key)
 

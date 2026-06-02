@@ -575,53 +575,53 @@
   z-index: 600; display: flex; align-items: flex-start; justify-content: flex-end;
 }
 .detailPanel {
-  background: #111827; width: 440px; height: 100vh;
-  overflow-y: auto; border-left: 1px solid #2a3a52;
+  background: var(--surface-0); width: 440px; height: 100vh;
+  overflow-y: auto; border-left: 1px solid var(--line);
   padding: 24px; animation: slideIn .18s ease; position: relative;
-  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-md);
 }
 .detailClose {
   position: absolute; top: 14px; right: 14px;
-  background: rgba(255,255,255,0.05); border: 1px solid #1f2d40;
-  color: #4e6280; width: 28px; height: 28px;
-  border-radius: 6px; cursor: pointer; font-size: 14px;
+  background: var(--surface-1); border: 1px solid var(--line);
+  color: var(--text-3); width: 28px; height: 28px;
+  border-radius: var(--r-chip); cursor: pointer; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
 }
-.detailClose:hover { color: #e8eef8; background: rgba(255,255,255,0.09); }
-.detailCode { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px; color: #4e6280; }
-.detailName { font-size: 18px; font-weight: 700; margin: 4px 0 8px; color: #e8eef8; }
+.detailClose:hover { color: var(--text-1); background: var(--surface-2); }
+.detailCode { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px; color: var(--text-3); }
+.detailName { font-size: 18px; font-weight: 700; margin: 4px 0 8px; color: var(--text-1); }
 .detailBadgeRow { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
-.detailPrice { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 30px; font-weight: 700; margin: 10px 0 4px; }
-.detailSubPrice { font-size: 11px; color: #4e6280; }
+.detailPrice { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 30px; font-weight: 700; margin: 10px 0 4px; color: var(--text-1); }
+.detailSubPrice { font-size: 11px; color: var(--text-3); }
 .detailSection { margin-top: 20px; }
 .detailSectionTitle {
-  font-size: 9px; color: #6a8096; text-transform: uppercase;
+  font-size: 9px; color: var(--text-2); text-transform: uppercase;
   letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 6px;
-  border-bottom: 1px solid #1f2d40; font-family: 'JetBrains Mono', 'Courier New', monospace;
+  border-bottom: 1px solid var(--line); font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
 .detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.detailItem { background: rgba(255,255,255,0.04); border-radius: 7px; padding: 10px 12px; border: 1px solid #243450; }
-.detailItemLabel { font-size: 11px; color: #b4c6d8; margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.2; }
+.detailItem { background: var(--surface-1); border-radius: var(--r-chip); padding: 10px 12px; border: 1px solid var(--line); }
+.detailItemLabel { font-size: 11px; color: var(--text-2); margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: var(--text-1); line-height: 1.2; }
 .detailMemo {
-  width: 100%; background: rgba(255,255,255,0.03);
-  border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 9px;
-  border-radius: 6px; font-size: 12px;
+  width: 100%; background: var(--surface-1);
+  border: 1px solid var(--line);
+  color: var(--text-1); padding: 9px;
+  border-radius: var(--r-chip); font-size: 12px;
   resize: vertical; min-height: 80px; display: block;
   transition: border-color .12s; box-sizing: border-box;
   font-family: 'Noto Sans JP', sans-serif;
 }
-.detailMemo:focus { outline: none; border-color: #3b82f6; }
+.detailMemo:focus { outline: none; border-color: var(--accent); }
 .detailLinks { display: flex; gap: 6px; }
 .detailLinkBtn {
-  flex: 1; padding: 9px; border-radius: 6px;
-  border: 1px solid #2a3a52; background: rgba(255,255,255,0.03);
-  color: #60a5fa; text-align: center; font-size: 11px;
+  flex: 1; padding: 9px; border-radius: var(--r-chip);
+  border: 1px solid var(--line); background: var(--surface-1);
+  color: var(--accent); text-align: center; font-size: 11px;
   transition: all .12s; display: block;
 }
-.detailLinkBtn:hover { background: rgba(59,130,246,0.1); border-color: #3b82f6; }
+.detailLinkBtn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
 
 /* ── ニュース（詳細パネル） ─────────────────────────
    2026-06-02: 全面トークン化。ライト/ダーク両対応（旧:ライト未対応で白飛びしていた）。 */

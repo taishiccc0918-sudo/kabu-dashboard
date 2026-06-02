@@ -403,7 +403,7 @@ export default function Page() {
     if (!sb) return
     const [{ data: favData }, { data: memoData }] = await Promise.all([
       sb.from('favorites').select('code, type').eq('user_id', userId),
-      sb.from('memos').select('code, memo, updated_at').eq('user_id', userId),
+      sb.from('memos').select('code, memo, genres, updated_at').eq('user_id', userId),
     ])
     if (favData) {
       const stars  = new Set(favData.filter(f => f.type === 'star').map(f => f.code as string))
@@ -448,11 +448,11 @@ export default function Page() {
         // Supabase が空 = 初回ログイン → localStorage のメモを Supabase に移行
         const localMeta = ls<Record<string, StockMeta>>('stockMetadata', {})
         const memoRows = Object.entries(localMeta)
-          .filter(([, meta]) => meta.memo && meta.memo.trim())
-          .map(([code, meta]) => ({ user_id: userId, code, memo: meta.memo }))
+          .filter(([, meta]) => (meta.memo && meta.memo.trim()) || (meta.genres && meta.genres.length > 0))
+          .map(([code, meta]) => ({ user_id: userId, code, memo: meta.memo ?? '', genres: meta.genres ?? [] }))
         if (memoRows.length > 0) {
           await sb.from('memos').upsert(memoRows)
-          console.log(`[Supabase移行] メモ${memoRows.length}件 をクラウドに保存しました`)
+          console.log(`[Supabase移行] メモ/ジャンル${memoRows.length}件 をクラウドに保存しました`)
         }
         // ローカルメモはそのまま維持
       } else {
@@ -460,11 +460,34 @@ export default function Page() {
           const next = { ...prev }
           for (const m of memoData) {
             const code = m.code as string
-            if (!next[code]) next[code] = { genres: (DEFAULT_GENRES[code] ?? '').split(',').filter(Boolean), memo: '' }
-            next[code] = { ...next[code], memo: m.memo as string, memoUpdatedAt: m.updated_at as string }
+            const cloudGenres = Array.isArray((m as { genres?: unknown }).genres) ? ((m as { genres: string[] }).genres) : null
+            if (!next[code]) next[code] = { genres: cloudGenres ?? (DEFAULT_GENRES[code] ?? '').split(',').filter(Boolean), memo: '' }
+            next[code] = {
+              ...next[code],
+              memo: m.memo as string,
+              memoUpdatedAt: m.updated_at as string,
+              // クラウドにジャンルがあれば正として反映（無ければローカルを維持）
+              ...(cloudGenres && cloudGenres.length ? { genres: cloudGenres } : {}),
+            }
           }
           lsSet('stockMetadata', next)
           return next
+        })
+      }
+      // 既存ユーザーのジャンルをクラウドに後追い同期（ローカルにあってクラウドにまだ無い分）。
+      // ドメイン移行などでローカルにしか無いジャンルを、次回以降どの端末でも残るようにする。
+      const localMeta = ls<Record<string, StockMeta>>('stockMetadata', {})
+      const cloudHasGenres = new Set(
+        (memoData as { code: string; genres?: unknown }[])
+          .filter(m => Array.isArray(m.genres) && (m.genres as unknown[]).length > 0)
+          .map(m => m.code)
+      )
+      const backfill = Object.entries(localMeta)
+        .filter(([code, meta]) => meta.genres && meta.genres.length > 0 && !cloudHasGenres.has(code))
+        .map(([code, meta]) => ({ user_id: userId, code, memo: meta.memo ?? '', genres: meta.genres }))
+      if (backfill.length > 0) {
+        sb.from('memos').upsert(backfill).then(() => {
+          console.log(`[Supabase] ローカルのジャンル${backfill.length}件をクラウドに後追い保存しました`)
         })
       }
     }
@@ -800,10 +823,21 @@ export default function Page() {
     if (add) sb.from('favorites').upsert({ user_id: u.id, code, type }).then(() => {})
     else sb.from('favorites').delete().eq('user_id', u.id).eq('code', code).eq('type', type).then(() => {})
   }
-  function sbSyncMemo(code: string, memo: string) {
+  // メモ＋ジャンルをまとめてSupabaseに同期（ドメイン/端末をまたいで残る）
+  function sbSyncMeta(code: string, meta: StockMeta) {
     const u = userRef.current; const sb = getSb()
     if (!u || !sb) return
-    sb.from('memos').upsert({ user_id: u.id, code, memo, updated_at: new Date().toISOString() }).then(() => {})
+    sb.from('memos').upsert({ user_id: u.id, code, memo: meta.memo ?? '', genres: meta.genres ?? [], updated_at: new Date().toISOString() }).then(() => {})
+  }
+  // 一括ジャンル操作（改名/削除）後に、ローカルの最新ジャンルをまとめてクラウドへ反映
+  function sbSyncAllMetaFromLS() {
+    const u = userRef.current; const sb = getSb()
+    if (!u || !sb) return
+    const meta = ls<Record<string, StockMeta>>('stockMetadata', {})
+    const rows = Object.entries(meta)
+      .filter(([, m]) => (m.genres && m.genres.length > 0) || (m.memo && m.memo.trim()))
+      .map(([code, m]) => ({ user_id: u.id, code, memo: m.memo ?? '', genres: m.genres ?? [] }))
+    for (let i = 0; i < rows.length; i += 200) sb.from('memos').upsert(rows.slice(i, i + 200)).then(() => {})
   }
 
   // 手動の最新取得（重い・数分）。確認ポップで時点と所要を伝えてから実行
@@ -901,6 +935,7 @@ export default function Page() {
       lsSet('stockMetadata', next)
       return next
     })
+    sbSyncMeta(code, meta) // メモ＋ジャンルをクラウドへ
   }
 
   // ── allRows（★銘柄のみ） ──────────────────────────────────────────
@@ -1087,6 +1122,7 @@ export default function Page() {
       const next = [...removedDefaultGenres, name]
       setRemovedDefaultGenres(next); lsSet('removedDefaultGenres', next)
     }
+    setTimeout(sbSyncAllMetaFromLS, 0) // 変更後のジャンルをクラウドへ
   }
 
   function renameGenre(oldName: string, newName: string) {
@@ -1130,6 +1166,7 @@ export default function Page() {
 
     setRemovedDefaultGenres(nextRemoved); lsSet('removedDefaultGenres', nextRemoved)
     setCustomGenreOptions(nextCustom);    lsSet('customGenreOptions',    nextCustom)
+    setTimeout(sbSyncAllMetaFromLS, 0) // 改名後のジャンルをクラウドへ
   }
 
   function saveMemo(code: string, text: string) {
@@ -1139,8 +1176,7 @@ export default function Page() {
       ...prev,
       memo: text,
       memoUpdatedAt: trimmed ? new Date().toISOString() : undefined,
-    })
-    sbSyncMemo(code, text)
+    }) // saveStockMeta内でメモ＋ジャンルをSupabaseへ同期
   }
   function saveEarningsDate(code: string, date: string) {
     const next = { ...earningsDates, [code]: date }

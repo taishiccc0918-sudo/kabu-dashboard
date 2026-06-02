@@ -1437,7 +1437,6 @@ export default function Page() {
                 ))}
               </div>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
-              <span className={styles.wlUndoHint} title="★/♥の操作を元に戻す/やり直す">↩ Ctrl+Z / Ctrl+Y ↪</span>
             </div>
           </>
         )}

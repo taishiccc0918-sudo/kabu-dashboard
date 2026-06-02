@@ -1409,6 +1409,7 @@ export default function Page() {
 
       {showFilterBar && tab !== 'watchlist' && (
         <div className={styles.filterBar}>
+          {/* 1行にまとめて余白を減らす（折り返しあり） */}
           <div className={styles.filterBarRow}>
             <div className={styles.filterGroup}>
               <button
@@ -1417,7 +1418,7 @@ export default function Page() {
                 title="超お気に入り（♥）銘柄のみ表示"
               >♥</button>
               <button
-                className={`${styles.filterBtn} ${filterFav ? styles.filterBtnActive : ''}`}
+                className={`${styles.filterBtn} ${styles.starFilterBtn} ${filterFav ? styles.starFilterBtnActive : ''}`}
                 onClick={() => setFilterFav(f => !f)}
                 title="お気に入り（★）銘柄のみ表示"
               >★</button>
@@ -1451,12 +1452,11 @@ export default function Page() {
                 </div>
               )}
             </div>
-          </div>
-          <div className={styles.filterBarRow}>
-            <label className={styles.filterPanelLabel}>時価総額（億円）以上</label>
+            <div className={styles.filterDivider} />
+            <label className={styles.filterPanelLabel}>時価総額(億)以上</label>
             <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
               value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
-            <label className={styles.filterPanelLabel} style={{marginLeft:12}}>PER今期 以下</label>
+            <label className={styles.filterPanelLabel}>PER今期以下</label>
             <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
               value={perFMax} onChange={e => setPerFMax(e.target.value)} />
             <button className={styles.filterPanelClear}
@@ -3591,6 +3591,11 @@ function faviconUrl(sourceUrl: string): string {
   catch { return '' }
 }
 
+// 検索用: 全角英数字を半角化＋小文字化（「ＩＭＶ」「imv」どちらでもヒット）
+function normJa(s: string): string {
+  return s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).toLowerCase()
+}
+
 async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean): Promise<FeedItem[]> {
   if (stocks.length === 0) return []
   const res = await fetch('/api/news-feed', {
@@ -3623,8 +3628,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [err, setErr] = useState<string | null>(null)
   const [phase, setPhase] = useState('')
   const [loading, setLoading] = useState(false)
-  const [stockF, setStockF] = useState('')   // 絞り込み: 銘柄コード（''=すべて）
-  const [mediaF, setMediaF] = useState('')    // 絞り込み: メディア名（''=すべて）
+  const [stockQuery, setStockQuery] = useState('')           // 銘柄の検索（名前/コード）
+  const [mediaSet, setMediaSet] = useState<Set<string>>(new Set()) // メディア絞り込み（複数選択）
+  const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
 
   // scope に応じた対象銘柄（all = ★∪♥、hearts = ♥のみ）
@@ -3678,18 +3684,14 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
     return [...m.values()].sort((a, b) => b.n - a.n)
   }, [items])
 
-  const stockList = useMemo(() => {
-    const m = new Map<string, { code: string; name: string; n: number }>()
-    for (const it of items ?? []) {
-      const cur = m.get(it.code) || { code: it.code, name: it.name, n: 0 }
-      cur.n++; m.set(it.code, cur)
-    }
-    return [...m.values()].sort((a, b) => b.n - a.n)
-  }, [items])
-
+  const q = normJa(stockQuery.trim())
   const filtered = useMemo(() =>
-    (items ?? []).filter(i => (!stockF || i.code === stockF) && (!mediaF || i.source === mediaF)),
-    [items, stockF, mediaF])
+    (items ?? []).filter(i => {
+      const okStock = !q || normJa(i.name).includes(q) || i.code.toLowerCase().includes(q)
+      const okMedia = mediaSet.size === 0 || mediaSet.has(i.source)
+      return okStock && okMedia
+    }),
+    [items, q, mediaSet])
 
   return (
     <div className={styles.feedWrap}>
@@ -3712,35 +3714,56 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         </div>
       </div>
 
-      {/* 絞り込み: 銘柄 */}
+      {/* 絞り込み: 銘柄（検索）＋ メディア（プルダウン複数選択） */}
       <div className={styles.feedFilterRow}>
-        <select className={styles.feedSelect} value={stockF} onChange={e => setStockF(e.target.value)}>
-          <option value="">すべての銘柄（{stockList.length}）</option>
-          {stockList.map(s => <option key={s.code} value={s.code}>{s.name}（{s.code}）・{s.n}</option>)}
-        </select>
-        {(stockF || mediaF) && (
-          <button className={styles.feedClearBtn} onClick={() => { setStockF(''); setMediaF('') }}>絞り込み解除</button>
+        <div className={styles.feedSearchWrap}>
+          <span className={styles.feedSearchIcon}>🔍</span>
+          <input
+            className={styles.feedSearchInput}
+            placeholder="銘柄で絞り込み（例: IMV、リクルート、7974）"
+            value={stockQuery}
+            onChange={e => setStockQuery(e.target.value)}
+          />
+          {stockQuery && <button className={styles.feedSearchClear} onClick={() => setStockQuery('')}>×</button>}
+        </div>
+
+        <div className={styles.feedMediaWrap}>
+          <button className={styles.feedSelect} onClick={() => setMediaOpen(o => !o)}>
+            メディア: {mediaSet.size === 0 ? 'すべて' : `${mediaSet.size}社`} ▼
+          </button>
+          {mediaOpen && (
+            <>
+              <div className={styles.feedMediaBackdrop} onClick={() => setMediaOpen(false)} />
+              <div className={styles.feedMediaPanel}>
+                <div className={styles.feedMediaPanelHead}>
+                  <span>メディアで絞り込み（複数可）</span>
+                  <button className={styles.feedClearBtn} onClick={() => setMediaSet(new Set())}>クリア</button>
+                </div>
+                <div className={styles.feedMediaPanelList}>
+                  {mediaList.map(m => (
+                    <label key={m.source} className={styles.feedMediaOpt}>
+                      <input
+                        type="checkbox"
+                        checked={mediaSet.has(m.source)}
+                        onChange={() => setMediaSet(prev => {
+                          const n = new Set(prev); n.has(m.source) ? n.delete(m.source) : n.add(m.source); return n
+                        })}
+                      />
+                      {faviconUrl(m.sourceUrl) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl)} alt="" loading="lazy" />}
+                      <span className={styles.feedMediaName}>{m.source}</span>
+                      <span className={styles.feedMediaCount}>{m.n}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {(stockQuery || mediaSet.size > 0) && (
+          <button className={styles.feedClearBtn} onClick={() => { setStockQuery(''); setMediaSet(new Set()) }}>絞り込み解除</button>
         )}
       </div>
-
-      {/* 絞り込み: メディア（ロゴ） */}
-      {mediaList.length > 0 && (
-        <div className={styles.feedMediaRow}>
-          <button className={`${styles.feedMediaChip} ${!mediaF ? styles.feedMediaChipActive : ''}`} onClick={() => setMediaF('')}>すべて</button>
-          {mediaList.map(m => (
-            <button
-              key={m.source}
-              className={`${styles.feedMediaChip} ${mediaF === m.source ? styles.feedMediaChipActive : ''}`}
-              onClick={() => setMediaF(mediaF === m.source ? '' : m.source)}
-              title={m.source}
-            >
-              {faviconUrl(m.sourceUrl) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl)} alt="" loading="lazy" />}
-              <span className={styles.feedMediaName}>{m.source}</span>
-              <span className={styles.feedMediaCount}>{m.n}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {phase && <div className={styles.feedPhase}>⏳ {phase}</div>}
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}

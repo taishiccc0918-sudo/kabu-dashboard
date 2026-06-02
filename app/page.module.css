@@ -567,12 +567,12 @@
   padding: 1px 5px; font-family: 'JetBrains Mono', monospace;
 }
 .newsSource {
-  font-size: 10px; color: #60a5fa; font-weight: 600;
+  font-size: 12.5px; color: #7cb3ff; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
 }
 .newsTime {
-  font-size: 10px; color: #4e6280; margin-left: auto;
+  font-size: 12.5px; color: #9fb4c9; margin-left: auto;
   font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
 }
 .newsTitle {
@@ -581,7 +581,7 @@
 }
 .newsEmpty { font-size: 12px; color: #4e6280; padding: 4px 0; }
 .newsSortRow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.newsCount { font-size: 10px; color: #6a8096; font-family: 'JetBrains Mono', monospace; }
+.newsCount { font-size: 13px; color: #aebfd0; font-family: 'JetBrains Mono', monospace; }
 .newsSortBtns { display: flex; gap: 4px; }
 .newsSortBtn {
   font-size: 11px; padding: 3px 9px; border-radius: 5px;
@@ -606,13 +606,13 @@
 .feedItemHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .feedStockChip {
   display: inline-flex; align-items: baseline; gap: 5px;
-  font-size: 12px; font-weight: 700; color: #cfe0f2;
+  font-size: 13px; font-weight: 700; color: #cfe0f2;
   background: rgba(59,130,246,0.12); border: 1px solid #2a3a52;
   border-radius: 5px; padding: 2px 8px; cursor: pointer; transition: all .12s;
   font-family: 'Noto Sans JP', sans-serif;
 }
 .feedStockChip:hover { background: rgba(59,130,246,0.25); border-color: #3b82f6; color: #fff; }
-.feedStockCode { font-size: 10px; color: #7a94b0; font-family: 'JetBrains Mono', monospace; }
+.feedStockCode { font-size: 12px; color: #a4b8cc; font-family: 'JetBrains Mono', monospace; }
 .feedItemTitle {
   display: block; font-size: 14px; line-height: 1.5; color: #d4e2f0;
   font-family: 'Noto Sans JP', sans-serif; text-decoration: none;
@@ -628,10 +628,11 @@
 .feedRefreshBtn:disabled { opacity: .5; cursor: default; }
 .feedFilterRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .feedSelect {
-  font-size: 12px; padding: 5px 10px; border-radius: 6px;
+  font-size: 13px; padding: 7px 12px; border-radius: 7px; cursor: pointer;
   border: 1px solid #2a3a52; background: #131c29; color: #d4e2f0;
-  font-family: 'Noto Sans JP', sans-serif; min-width: 200px;
+  font-family: 'Noto Sans JP', sans-serif; white-space: nowrap;
 }
+.feedSelect:hover { border-color: #3b82f6; }
 .feedClearBtn {
   font-size: 11px; padding: 4px 10px; border-radius: 6px;
   border: 1px solid #3a4a63; background: transparent; color: #93a8be; cursor: pointer;
@@ -649,9 +650,48 @@
 }
 .feedMediaChip:hover { border-color: #3b82f6; color: #fff; }
 .feedMediaChipActive { background: rgba(59,130,246,0.18); border-color: #3b82f6; color: #fff; }
-.feedMediaName { font-family: 'Noto Sans JP', sans-serif; }
-.feedMediaCount { font-size: 10px; color: #7a94b0; font-family: 'JetBrains Mono', monospace; }
-.feedFavicon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; object-fit: contain; background: #fff; }
+.feedMediaName { font-family: 'Noto Sans JP', sans-serif; font-size: 13px; }
+.feedMediaCount { font-size: 12px; color: #9fb4c9; font-family: 'JetBrains Mono', monospace; }
+.feedFavicon { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; object-fit: contain; background: #fff; }
+
+/* 銘柄検索ボックス（ニュースフィード） */
+.feedSearchWrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 220px; max-width: 420px; }
+.feedSearchIcon { position: absolute; left: 10px; font-size: 13px; opacity: .7; }
+.feedSearchInput {
+  width: 100%; padding: 7px 28px 7px 30px; border-radius: 7px;
+  border: 1px solid #2a3a52; background: #131c29; color: #e2edf7;
+  font-size: 13.5px; font-family: 'Noto Sans JP', sans-serif;
+}
+.feedSearchInput::placeholder { color: #7a8fa6; }
+.feedSearchInput:focus { outline: none; border-color: #3b82f6; }
+.feedSearchClear {
+  position: absolute; right: 8px; border: none; background: transparent;
+  color: #93a8be; font-size: 15px; cursor: pointer; line-height: 1;
+}
+.feedSearchClear:hover { color: #fff; }
+
+/* メディア複数選択プルダウン */
+.feedMediaWrap { position: relative; }
+.feedMediaBackdrop { position: fixed; inset: 0; z-index: 50; }
+.feedMediaPanel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 51;
+  width: 300px; max-height: 360px; display: flex; flex-direction: column;
+  background: #0f1925; border: 1px solid #2f4a6e; border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5); overflow: hidden;
+}
+.feedMediaPanelHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-bottom: 1px solid #1f2d40;
+  font-size: 12px; color: #aebfd0; font-family: 'Noto Sans JP', sans-serif;
+}
+.feedMediaPanelList { overflow-y: auto; padding: 4px; }
+.feedMediaOpt {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px;
+  border-radius: 6px; cursor: pointer; font-size: 13px; color: #d4e2f0;
+}
+.feedMediaOpt:hover { background: rgba(59,130,246,0.1); }
+.feedMediaOpt input { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
+.feedMediaOpt .feedMediaName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {
@@ -1683,16 +1723,20 @@
 .heartBtnOn:active { transform: scale(1.35); transition: transform 0.08s; }
 .heartBtn:active   { transform: scale(1.35); transition: transform 0.08s; }
 
-/* ── ハートフィルターボタン ──────────────────────── */
-.heartFilterBtn.filterBtnActive {
-  border-color: #f43f5e !important;
-  color: #f43f5e !important;
-  background: rgba(244,63,94,0.1) !important;
-}
+/* ── ハート/スターフィルターボタン（常時色付き） ──────── */
+.heartFilterBtn { color: #f43f5e !important; font-size: 16px; }
+.heartFilterBtn:hover { color: #fb7185 !important; background: rgba(244,63,94,0.08) !important; }
 .heartFilterBtnActive {
   border-color: #f43f5e !important;
-  color: #f43f5e !important;
-  background: rgba(244,63,94,0.1) !important;
+  color: #fff !important;
+  background: rgba(244,63,94,0.35) !important;
+}
+.starFilterBtn { color: #fbbf24 !important; font-size: 16px; }
+.starFilterBtn:hover { color: #fcd34d !important; background: rgba(251,191,36,0.08) !important; }
+.starFilterBtnActive {
+  border-color: #fbbf24 !important;
+  color: #fff !important;
+  background: rgba(251,191,36,0.35) !important;
 }
 
 /* ── 銘柄管理フィルターバー ──────────────────────── */

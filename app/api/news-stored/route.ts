@@ -18,14 +18,22 @@ export async function GET(_req: NextRequest) {
   }
   try {
     const sb = createClient(url, anon, { auth: { persistSession: false } })
-    // 新着順に最大4000件（フィードは全件保持しクライアントで絞り込み・描画は上限あり）
-    const { data, error } = await sb
-      .from('stock_news')
-      .select('link,code,name,title,source,source_url,pub_date,ir,disc')
-      .order('pub_date', { ascending: false, nullsFirst: false })
-      .limit(4000)
-    if (error) throw error
-    const items = ((data ?? []) as StoredRow[]).map(r => ({
+    // Supabase(PostgREST)は1リクエスト最大1000行のため、range でページ分割して集める（最大6000件）。
+    const PAGE = 1000
+    const MAX_PAGES = 6
+    const rows: StoredRow[] = []
+    for (let p = 0; p < MAX_PAGES; p++) {
+      const { data, error } = await sb
+        .from('stock_news')
+        .select('link,code,name,title,source,source_url,pub_date,ir,disc')
+        .order('pub_date', { ascending: false, nullsFirst: false })
+        .range(p * PAGE, p * PAGE + PAGE - 1)
+      if (error) throw error
+      const chunk = (data ?? []) as StoredRow[]
+      rows.push(...chunk)
+      if (chunk.length < PAGE) break // 最終ページ
+    }
+    const items = rows.map(r => ({
       title: r.title, link: r.link, source: r.source ?? '', sourceUrl: r.source_url ?? '',
       pubDate: r.pub_date ?? '', code: r.code, name: r.name ?? r.code, ir: r.ir, disc: r.disc,
     }))

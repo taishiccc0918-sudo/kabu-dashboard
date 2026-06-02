@@ -1574,7 +1574,9 @@ export default function Page() {
         {tab === 'report' && (
           <WeeklyReport
             allRows={allRows}
+            finDB={finDB}
             favorites={favorites}
+            superFavorites={superFavorites}
             onClickCode={(code) => setDetailCode(code)}
           />
         )}
@@ -4158,54 +4160,179 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
   )
 }
 
-// ─── WeeklyReport ─────────────────────────────────────────────────────
+// ─── WeeklyReport（レポート：俯瞰マップ＋銘柄カルテ）──────────────────
+// 設計方針: EPS基準が会社ごとに違う問題を踏まえ、銘柄間の横比較に頼らない。
+//   ・俯瞰マップ＝各銘柄の「PER位置（自分の過去1年レンジ内）」×「株価1ヶ月」
+//   ・銘柄カルテ＝1社完結の業績ビジュアル（PER位置バー＋EPS実績の推移）
+// コンプラ: 事実の提示のみ。買い／売りの判定・推奨は一切しない。
+type RepSort = 'move' | 'cheap' | 'growth' | 'code'
+
+function repZone(pos: number | null | undefined): { label: string; color: string } {
+  if (pos == null) return { label: '—', color: '#94a3b8' }
+  if (pos <= 0.33) return { label: '安値圏', color: '#34d399' }
+  if (pos >= 0.67) return { label: '高値圏', color: '#f87171' }
+  return { label: '中立', color: '#fbbf24' }
+}
+
+// 自動「気づき」（事実のみ。買い／売りは書かない）
+function repInsight(r: StockRow): string {
+  const parts: string[] = []
+  const pos = r.perBand?.position
+  if (pos != null) parts.push(`PERは1年レンジの${repZone(pos).label}（${Math.round(pos * 100)}%地点）`)
+  if (r.chg1m != null) parts.push(`直近1ヶ月 ${fmtPct(r.chg1m)}`)
+  if (r.nySalesGr != null) parts.push(`来期売上 ${fmtPct(r.nySalesGr)}予想`)
+  return parts.join('・') || 'データ取得待ち'
+}
+
+// 俯瞰マップ（散布図）: 横＝PER位置(0..1)、縦＝株価1ヶ月(±20%でクランプ)
+function PositionMap({ rows, hearts, onClickCode }: {
+  rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
+}) {
+  const pts = rows.filter(r => r.perBand?.position != null && r.chg1m != null)
+  const W = 360, H = 240, L = 14, R = 14, T = 14, B = 24
+  const pw = W - L - R, ph = H - T - B
+  const CAP = 0.2
+  const x = (pos: number) => L + pos * pw
+  const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
+  const y0 = y(0)
+  return (
+    <div className={styles.repMapWrap}>
+      <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
+        {/* PER位置の3ゾーン背景（PER位置バーの配色と一致） */}
+        <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.07)" />
+        <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.05)" />
+        <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.07)" />
+        {/* 株価0%ライン */}
+        <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="#3a4a5e" strokeWidth="1" strokeDasharray="4 4" />
+        <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="#2a3a52" strokeWidth="1" />
+        {pts.map(r => {
+          const px = x(r.perBand!.position!), py = y(r.chg1m!)
+          const heart = hearts.has(r.code)
+          return (
+            <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
+              <circle cx={px} cy={py} r={heart ? 6.5 : 5}
+                fill={genreColor(r.genres[0] || '')}
+                stroke={heart ? '#fbbf24' : '#0d1219'} strokeWidth={heart ? 2 : 1} />
+              <title>{`${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`}</title>
+            </g>
+          )
+        })}
+      </svg>
+      <div className={styles.repMapXax}>
+        <span>← 安値圏</span>
+        <span>PER位置（自分の過去1年レンジ）</span>
+        <span>高値圏 →</span>
+      </div>
+    </div>
+  )
+}
+
+// EPS実績の推移（1社完結。銘柄間の基準差の影響を受けない）
+function EpsBars({ fyEps }: { fyEps?: { d: string; eps: number }[] }) {
+  const hist = (fyEps ?? [])
+    .filter(e => e && typeof e.eps === 'number')
+    .slice().sort((a, b) => (a.d < b.d ? -1 : 1)).slice(-5)
+  if (hist.length < 2) return <span className={styles.repEpsEmpty}>EPS実績の履歴待ち</span>
+  const maxAbs = Math.max(...hist.map(h => Math.abs(h.eps)), 1)
+  return (
+    <div className={styles.repEps}>
+      <div className={styles.repEpsLabel}>EPS実績（直近{hist.length}期・自社の推移）</div>
+      <div className={styles.repEpsBars}>
+        {hist.map((h, i) => {
+          const loss = h.eps < 0
+          const hgt = Math.max(4, Math.abs(h.eps) / maxAbs * 46)
+          const grow = i > 0 ? h.eps - hist[i - 1].eps : 0
+          return (
+            <div key={h.d} className={styles.repEpsCol} title={`${h.d.slice(0, 7)} ＝ EPS ${fmtN(h.eps, 1)}円`}>
+              <div className={styles.repEpsBarTrack}>
+                <div className={styles.repEpsBar}
+                  style={{ height: hgt, background: loss ? '#f87171' : (grow >= 0 ? '#34d399' : '#7dd3a8') }} />
+              </div>
+              <div className={styles.repEpsYr}>{`'${h.d.slice(2, 4)}`}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// 銘柄カルテ（KaVIEW型のビジュアルカード・1枚で1社）
+function KarteCard({ r, fin, newsN, heart, onClick }: {
+  r: StockRow; fin?: FinRecord; newsN: number; heart: boolean; onClick: () => void
+}) {
+  const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+  return (
+    <div className={styles.repCard} onClick={onClick}>
+      <div className={styles.repCardHead}>
+        <div className={styles.repLogo} style={{ background: genreColor(r.genres[0] || '') }} title={r.genres[0] || ''}>
+          {(r.name || r.code).slice(0, 1)}
+        </div>
+        <div className={styles.repCardId}>
+          <div className={styles.repCardName}>
+            {heart && <span className={styles.repHeart}>♥</span>}
+            {r.name || r.code}
+          </div>
+          <div className={styles.repCardMeta}>
+            <span className={styles.repCardCode}>{r.code}</span>
+            <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+            {r.genres.slice(0, 3).map(g => <span key={g} className={styles.repGenre}>{g}</span>)}
+          </div>
+        </div>
+        <div className={styles.repCardPrice}>
+          <div className={styles.repPrice}>{r.close ? r.close.toLocaleString() : '—'}<span className={styles.repYen}>円</span></div>
+          <div className={styles.repChg1d} style={{ color: pctCellColor(r.chg1d) }}>{fmtPct(r.chg1d)}</div>
+        </div>
+      </div>
+
+      {/* 騰落チップ */}
+      <div className={styles.repChips}>
+        {(([['1W', r.chg1w], ['1M', r.chg1m], ['3M', r.chg3m], ['1Y', r.chg1y]]) as [string, number | null][]).map(([k, v]) => (
+          <div key={k} className={styles.repChip}>
+            <span className={styles.repChipK}>{k}</span>
+            <span className={styles.repChipV} style={{ color: pctCellColor(v) }}>{fmtPct(v)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* PER位置バー（ヒーロー要素・既存コンポーネント再利用） */}
+      <div className={styles.repBandRow}>
+        <div className={styles.repBandLabel}>PER位置（過去1年レンジ内）</div>
+        <div className={styles.repBandBar}><PerBandBar band={r.perBand} likePer={r.likePer} big /></div>
+      </div>
+
+      {/* EPS実績ビジュアル */}
+      <EpsBars fyEps={fin?.fyEps} />
+
+      {/* 気づき（事実のみ） */}
+      <div className={styles.repInsight}>
+        <span className={styles.repInsightDot} style={{ background: repZone(r.perBand?.position).color }} />
+        <span>{repInsight(r)}</span>
+        {newsN > 0 && <span className={styles.repNews}>📰 今週{newsN}件</span>}
+      </div>
+    </div>
+  )
+}
+
 function WeeklyReport({
-  allRows, favorites, onClickCode,
+  allRows, finDB, favorites, superFavorites, onClickCode,
 }: {
   allRows: StockRow[]
+  finDB: Record<string, FinRecord>
   favorites: Set<string>
+  superFavorites: Set<string>
   onClickCode: (code: string) => void
 }) {
-  const favRows = useMemo(() =>
-    allRows.filter(r => favorites.has(r.code)),
-    [allRows, favorites]
-  )
+  const [scope, setScope] = useState<'all' | 'heart'>('all')
+  const [sort, setSort] = useState<RepSort>('move')
 
-  // PER低下中の銘柄（割安化）: 閾値なしで全件、変化量昇順
-  const perDownRows = useMemo(() =>
-    favRows
-      .filter(r => r.perF != null && r.perFChg1m != null && r.perFChg1m < 0)
-      .sort((a, b) => (a.perFChg1m ?? 0) - (b.perFChg1m ?? 0))
-      .slice(0, 10),
-    [favRows]
-  )
+  const baseRows = useMemo(() =>
+    allRows.filter(r => favorites.has(r.code)), [allRows, favorites])
+  const scoped = useMemo(() =>
+    scope === 'heart' ? baseRows.filter(r => superFavorites.has(r.code)) : baseRows,
+    [baseRows, scope, superFavorites])
 
-  // PER上昇中の銘柄（注目・期待上昇）: 変化量降順
-  const perUpRows = useMemo(() =>
-    favRows
-      .filter(r => r.perF != null && r.perFChg1m != null && r.perFChg1m > 0)
-      .sort((a, b) => (b.perFChg1m ?? 0) - (a.perFChg1m ?? 0))
-      .slice(0, 10),
-    [favRows]
-  )
-
-  const today = new Date()
-  const dateStr = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`
-
-  function fmtPer(v: number | null) {
-    if (v == null) return '—'
-    return v.toFixed(1) + '倍'
-  }
-  function fmtPct(v: number | null) {
-    if (v == null) return '—'
-    return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%'
-  }
-  function pctColor(v: number | null) {
-    if (v == null) return '#6b7280'
-    return v >= 0 ? '#3fb950' : '#f85149'
-  }
-
-  // ── 週報サマリ（お気に入り集合の「事実」。発信ネタにそのまま使える） ──
+  // 今週ニュース件数（蓄積DB）
   const [newsCount, setNewsCount] = useState<Record<string, number>>({})
   useEffect(() => {
     let cancelled = false
@@ -4223,143 +4350,70 @@ function WeeklyReport({
     return () => { cancelled = true }
   }, [favorites])
 
-  const summary = useMemo(() => {
-    const valid = favRows.filter(r => r.perF != null && r.perFChg1m != null && Math.abs(r.perFChg1m) <= 2)
-    const sales = favRows.map(r => r.nySalesGr).filter((v): v is number => v != null).sort((a, b) => a - b)
-    const pos = favRows.map(r => r.perBand?.position).filter((v): v is number => v != null && !Number.isNaN(v))
-    const posLow = pos.filter(p => p <= 0.33).length
-    const posHigh = pos.filter(p => p >= 0.66).length
-    return {
-      n: favRows.length,
-      perDown: valid.filter(r => (r.perFChg1m ?? 0) < 0).length,
-      perUp: valid.filter(r => (r.perFChg1m ?? 0) > 0).length,
-      priceUp: favRows.filter(r => (r.chg1m ?? 0) > 0).length,
-      priceDown: favRows.filter(r => (r.chg1m ?? 0) < 0).length,
-      salesMed: sales.length ? sales[Math.floor(sales.length / 2)] : null,
-      posLow, posHigh, posMid: pos.length - posLow - posHigh,
-    }
-  }, [favRows])
+  const sorted = useMemo(() => {
+    const a = scoped.slice()
+    if (sort === 'move') a.sort((x, y) => Math.abs(y.chg1m ?? 0) - Math.abs(x.chg1m ?? 0))
+    else if (sort === 'cheap') a.sort((x, y) => (x.perBand?.position ?? 9) - (y.perBand?.position ?? 9))
+    else if (sort === 'growth') a.sort((x, y) => (y.nySalesGr ?? -9) - (x.nySalesGr ?? -9))
+    else a.sort((x, y) => (x.code < y.code ? -1 : 1))
+    return a
+  }, [scoped, sort])
 
-  const newsTop = useMemo(() =>
-    Object.entries(newsCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
-      .map(([code, n]) => ({ code, n, name: favRows.find(r => r.code === code)?.name || code })),
-    [newsCount, favRows])
+  const mapEligible = useMemo(() =>
+    scoped.filter(r => r.perBand?.position != null && r.chg1m != null), [scoped])
 
-  const [copied, setCopied] = useState(false)
-  const copyText =
-    `【私のウォッチリスト週報 ${dateStr}】\n対象 ${summary.n}銘柄\n` +
-    `・直近1ヶ月でPER低下 ${summary.perDown} / 上昇 ${summary.perUp}\n` +
-    `・株価1ヶ月 上昇 ${summary.priceUp} / 下落 ${summary.priceDown}\n` +
-    `・来期売上成長の中央値 ${summary.salesMed != null ? fmtPct(summary.salesMed) : '—'}\n` +
-    `・PER位置(過去1年比) 下方${summary.posLow} / 中立${summary.posMid} / 上方${summary.posHigh}` +
-    (newsTop.length ? `\n・今週ニュースが多かった: ${newsTop.map(t => t.name).join('、')}` : '') +
-    `\n※会社予想ベースの事実集計。投資判断は自己責任で。`
-  function copy() {
-    navigator.clipboard?.writeText(copyText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
-  }
-
-  function renderTable(rows: typeof perDownRows) {
-    return (
-      <div className={styles.rpTable}>
-        <div className={styles.rpTHead}>
-          <span className={styles.rpC0}>#</span>
-          <span className={styles.rpC1}>コード</span>
-          <span className={styles.rpC2}>銘柄</span>
-          <span className={styles.rpC3}>PER今期</span>
-          <span className={styles.rpC4}>PER変化</span>
-          <span className={styles.rpC5}>株価1M</span>
-          <span className={styles.rpC6}></span>
-        </div>
-        {rows.map((r, i) => {
-          // 1ヶ月前の推定値
-          const prevPER   = (r.perF != null && r.perFChg1m != null && (1 + r.perFChg1m) !== 0)
-            ? r.perF / (1 + r.perFChg1m) : null
-          const prevPrice = (r.chg1m != null && r.chg1m !== -1)
-            ? r.close / (1 + r.chg1m) : null
-          // 異常値（前期EPS≒0等でPER変化率が±200%超）
-          const isAnomaly = r.perFChg1m != null && Math.abs(r.perFChg1m) > 2.0
-          return (
-            <div key={r.code} className={styles.rpRow} onClick={() => onClickCode(r.code)}>
-              <span className={styles.rpC0}>{i + 1}</span>
-              <span className={styles.rpC1}>{r.code}</span>
-              <span className={styles.rpC2}>
-                <span className={styles.rpName}>{r.name}</span>
-                {r.genres.length > 0 && (
-                  <span className={styles.rpGenres}>
-                    {r.genres.map(g => <span key={g} className={styles.rpGenreBadge}>{g}</span>)}
-                  </span>
-                )}
-              </span>
-              <span className={styles.rpC3}>
-                {fmtPer(r.perF)}
-                {prevPER != null && !isAnomaly && (
-                  <span className={styles.rpSubText}>{prevPER.toFixed(1)}倍→</span>
-                )}
-              </span>
-              <span className={styles.rpC4} style={{color: isAnomaly ? '#9fb4c9' : pctColor(r.perFChg1m)}}>
-                {isAnomaly ? '※' : ''}{fmtPct(r.perFChg1m)}
-                {isAnomaly && <span className={styles.rpSubText} style={{color:'#8a9bb0'}}>EPS基準変動</span>}
-              </span>
-              <span className={styles.rpC5} style={{color: pctColor(r.chg1m)}}>
-                {fmtPct(r.chg1m)}
-                {prevPrice != null && (
-                  <span className={styles.rpSubText}>{Math.round(prevPrice).toLocaleString()}→{r.close.toLocaleString()}</span>
-                )}
-              </span>
-              <span className={styles.rpC6}></span>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
+  const today = new Date()
+  const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`
 
   return (
     <div className={styles.reportRoot}>
       <div className={styles.rpHdr}>
-        <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{favRows.length}銘柄</span>
+        <span className={styles.rpTitle}>レポート <span className={styles.rpTitleSub}>ウォッチリストの俯瞰と銘柄カルテ</span></span>
+        <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{baseRows.length}銘柄</span>
       </div>
 
-      {/* 週報サマリ（集合の事実・発信ネタ） */}
-      <div className={styles.rpSummary}>
-        <div className={styles.rpSummaryHead}>
-          <span className={styles.rpSummaryTitle}>今週のウォッチリスト</span>
-          <button className={styles.rpCopyBtn} onClick={copy}>{copied ? 'コピーしました ✓' : '📋 Xにコピー'}</button>
+      {/* スコープ＆並び替え */}
+      <div className={styles.repControls}>
+        <div className={styles.repToggle}>
+          <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
+          <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
         </div>
-        <div className={styles.rpSummaryGrid}>
-          <div className={styles.rpStat}><div className={styles.rpStatLabel}>PER 低下 / 上昇（1ヶ月）</div><div className={styles.rpStatVal}>{summary.perDown} <span className={styles.rpStatSlash}>/</span> {summary.perUp}</div></div>
-          <div className={styles.rpStat}><div className={styles.rpStatLabel}>株価 上昇 / 下落（1ヶ月）</div><div className={styles.rpStatVal}>{summary.priceUp} <span className={styles.rpStatSlash}>/</span> {summary.priceDown}</div></div>
-          <div className={styles.rpStat}><div className={styles.rpStatLabel}>来期売上成長 中央値</div><div className={styles.rpStatVal}>{summary.salesMed != null ? fmtPct(summary.salesMed) : '—'}</div></div>
-          <div className={styles.rpStat}><div className={styles.rpStatLabel}>PER位置 下方/中立/上方</div><div className={styles.rpStatVal}>{summary.posLow}/{summary.posMid}/{summary.posHigh}</div></div>
+        <div className={styles.repToggle}>
+          {(([['move', '動き順'], ['cheap', '割安順'], ['growth', '成長順'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
+            <button key={k} className={sort === k ? styles.repTogActive : styles.repTog} onClick={() => setSort(k)}>{l}</button>
+          ))}
         </div>
-        {newsTop.length > 0 && (
-          <div className={styles.rpSummaryNews}>📰 今週ニュースが多い：{newsTop.map(t => `${t.name}(${t.n})`).join(' ・ ')}</div>
+      </div>
+
+      {/* 俯瞰マップ */}
+      <div className={styles.repMapCard}>
+        <div className={styles.repMapTitle}>俯瞰マップ</div>
+        <div className={styles.repMapDesc}>
+          横＝PER位置（安値圏←→高値圏／各銘柄の過去1年レンジ内）、縦＝株価1ヶ月（上=上昇）。点をタップで詳細。
+        </div>
+        {mapEligible.length === 0
+          ? <div className={styles.rpEmpty}>マップに出せる銘柄がありません（PER位置の算出待ち）</div>
+          : <PositionMap rows={scoped} hearts={superFavorites} onClickCode={onClickCode} />}
+        {scoped.length - mapEligible.length > 0 && (
+          <div className={styles.repMapNote}>※ {scoped.length - mapEligible.length}銘柄はPER位置を算出できずマップ対象外（赤字・履歴待ち等）</div>
         )}
-        <div className={styles.rpSummaryNote}>※会社予想EPSベースの「事実の集計」です（買い／売りの判断ではありません）</div>
       </div>
 
-      {/* PER低下 */}
-      <div className={`${styles.rpSection} ${styles.rpSectionDown}`}>
-        <div className={styles.rpSectionHead}>
-          <span className={styles.rpSectionTitle}>PER 低下 上位{perDownRows.length}</span>
-          <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も低下した銘柄。株価の下落などで割安化している可能性がある</span>
-        </div>
-        {perDownRows.length === 0
-          ? <div className={styles.rpEmpty}>PERが低下中の銘柄はありません</div>
-          : renderTable(perDownRows)
-        }
-      </div>
+      {/* 銘柄カルテ */}
+      <div className={styles.repCardsHead}>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></div>
+      {sorted.length === 0
+        ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>
+        : (
+          <div className={styles.repCards}>
+            {sorted.map(r => (
+              <KarteCard key={r.code} r={r} fin={finDB[r.code]} newsN={newsCount[r.code] ?? 0}
+                heart={superFavorites.has(r.code)} onClick={() => onClickCode(r.code)} />
+            ))}
+          </div>
+        )}
 
-      {/* PER上昇 */}
-      <div className={`${styles.rpSection} ${styles.rpSectionUp}`}>
-        <div className={styles.rpSectionHead}>
-          <span className={styles.rpSectionTitle}>PER 上昇 上位{perUpRows.length}</span>
-          <span className={styles.rpSectionNote}>直近1ヶ月でPERが最も上昇した銘柄。市場の期待が高まっているサインでもある</span>
-        </div>
-        {perUpRows.length === 0
-          ? <div className={styles.rpEmpty}>PERが上昇中の銘柄はありません</div>
-          : renderTable(perUpRows)
-        }
+      <div className={styles.rpSummaryNote} style={{ marginTop: 18 }}>
+        ※ 会社予想EPSベースの事実の提示です（買い／売りの判断ではありません）。PER位置・EPS推移はいずれも「その銘柄自身の過去」との比較で、銘柄間のEPS基準差の影響を受けません。
       </div>
     </div>
   )

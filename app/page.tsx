@@ -3473,6 +3473,77 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
   )
 }
 
+// ─── NewsSection ─────────────────────────────────────────────────────
+// 銘柄別ニュース（GoogleニュースRSS / 無料・キー不要）。
+// 前回その銘柄の詳細を開いた時刻より新しい記事に「NEW」を付ける。
+type NewsArticle = { title: string; link: string; source: string; pubDate: string }
+const NEWS_SEEN_KEY = 'news_seen_v1' // { [code]: epoch ms } 銘柄ごとの最終閲覧時刻
+
+function fmtRelTime(pubDate: string): string {
+  const t = new Date(pubDate).getTime()
+  if (!t || Number.isNaN(t)) return ''
+  const diff = Date.now() - t
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'たった今'
+  if (min < 60) return `${min}分前`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}時間前`
+  const day = Math.floor(hr / 24)
+  if (day < 30) return `${day}日前`
+  return `${Math.floor(day / 30)}ヶ月前`
+}
+
+function NewsSection({ code, name }: { code: string; name: string }) {
+  const [articles, setArticles] = useState<NewsArticle[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [seenAt, setSeenAt] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setArticles(null); setErr(null)
+    // 「前回開いた時刻」を控えてからNEW判定に使う。控えた後、今回の閲覧時刻を保存する
+    const seen = ls<Record<string, number>>(NEWS_SEEN_KEY, {})
+    setSeenAt(seen[code] ?? 0)
+
+    fetch(`/api/news?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then((d: { articles?: NewsArticle[] }) => {
+        if (cancelled) return
+        setArticles(d.articles ?? [])
+        // 今回の閲覧時刻を記録（次回はこれより新しい記事だけNEWになる）
+        const cur = ls<Record<string, number>>(NEWS_SEEN_KEY, {})
+        cur[code] = Date.now()
+        lsSet(NEWS_SEEN_KEY, cur)
+      })
+      .catch(e => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)) })
+
+    return () => { cancelled = true }
+  }, [code, name])
+
+  if (err) return <div className={styles.newsEmpty}>ニュース取得に失敗しました（{err}）</div>
+  if (articles === null) return <div className={styles.newsEmpty}>読み込み中…</div>
+  if (articles.length === 0) return <div className={styles.newsEmpty}>直近のニュースは見つかりませんでした</div>
+
+  return (
+    <div className={styles.newsList}>
+      {articles.map((a, i) => {
+        const t = new Date(a.pubDate).getTime()
+        const isNew = !!t && !Number.isNaN(t) && t > seenAt
+        return (
+          <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
+            <div className={styles.newsItemHead}>
+              {isNew && <span className={styles.newsBadge}>NEW</span>}
+              <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
+              <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
+            </div>
+            <div className={styles.newsTitle}>{a.title}</div>
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
   row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
@@ -3600,6 +3671,7 @@ function DetailPanel({
           )
         })()}
       </Section>
+      <Section title="ニュース"><NewsSection code={r.code} name={r.name || ''} /></Section>
       <Section title="リンク">
         <div className={styles.detailLinks}>
           <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>

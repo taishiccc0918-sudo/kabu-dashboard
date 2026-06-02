@@ -552,6 +552,35 @@
 }
 .detailLinkBtn:hover { background: rgba(59,130,246,0.1); border-color: #3b82f6; }
 
+/* ── ニュース（詳細パネル） ───────────────────────── */
+.newsList { display: flex; flex-direction: column; gap: 8px; }
+.newsItem {
+  display: block; padding: 9px 11px; border-radius: 6px;
+  border: 1px solid #1f2d40; background: rgba(255,255,255,0.03);
+  transition: all .12s;
+}
+.newsItem:hover { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+.newsItemHead { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.newsBadge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  color: #fff; background: #ef4444; border-radius: 4px;
+  padding: 1px 5px; font-family: 'JetBrains Mono', monospace;
+}
+.newsSource {
+  font-size: 10px; color: #60a5fa; font-weight: 600;
+  font-family: 'Noto Sans JP', sans-serif;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
+}
+.newsTime {
+  font-size: 10px; color: #4e6280; margin-left: auto;
+  font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+}
+.newsTitle {
+  font-size: 12.5px; line-height: 1.45; color: #c4d4e4;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.newsEmpty { font-size: 12px; color: #4e6280; padding: 4px 0; }
+
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {
   position: fixed; bottom: 0; left: 0; right: 0;

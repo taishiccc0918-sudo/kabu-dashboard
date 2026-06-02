@@ -2254,35 +2254,35 @@
   font-size: 13px; color: #6b7280; font-weight: 400;
 }
 .rpDate {
-  font-size: 11px; color: #484f58; font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
+  font-size: 13px; color: #aebfd0; font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap; font-weight: 600;
 }
 .rpTable { display: flex; flex-direction: column; }
 .rpTHead {
   display: grid;
-  grid-template-columns: 28px 56px 1fr 72px 76px 76px 38px;
-  gap: 8px; padding: 5px 8px 5px 6px;
-  font-size: 10px; color: #484f58; letter-spacing: 0.04em;
-  border-bottom: 1px solid #21262d; user-select: none;
+  grid-template-columns: 30px 60px 1fr 92px 92px 96px 20px;
+  gap: 8px; padding: 7px 8px 7px 6px;
+  font-size: 12px; color: #9fb4c9; letter-spacing: 0.04em; font-weight: 600;
+  border-bottom: 1px solid #2a3a52; user-select: none;
 }
 .rpRow {
   display: grid;
-  grid-template-columns: 28px 56px 1fr 72px 76px 76px 38px;
-  gap: 8px; padding: 8px 8px 8px 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  grid-template-columns: 30px 60px 1fr 92px 92px 96px 20px;
+  gap: 8px; padding: 10px 8px 10px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   cursor: pointer; transition: background .1s; align-items: center;
 }
-.rpRow:hover { background: rgba(255,255,255,0.03); }
+.rpRow:hover { background: rgba(255,255,255,0.04); }
 .rpC0 {
-  font-size: 10px; color: #6b7280;
+  font-size: 12px; color: #8a9bb0;
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC1 {
-  font-size: 12px; font-weight: 700; color: #58a6ff;
+  font-size: 14px; font-weight: 700; color: #74b3ff;
   font-family: 'JetBrains Mono', monospace;
 }
 .rpC2 {
-  font-size: 12px; color: #c9d1d9;
+  font-size: 14px; color: #e2edf7; font-weight: 600;
   overflow: hidden; min-width: 0;
   display: flex; flex-direction: row; align-items: center; gap: 8px;
 }
@@ -2295,17 +2295,17 @@
   flex-shrink: 0;
 }
 .rpGenreBadge {
-  font-size: 10px; padding: 2px 7px; border-radius: 4px;
-  background: rgba(96,165,250,0.1); color: #60a5fa;
-  border: 1px solid rgba(96,165,250,0.2);
-  white-space: nowrap; font-weight: 500; flex-shrink: 0;
+  font-size: 12px; padding: 2px 8px; border-radius: 4px;
+  background: rgba(96,165,250,0.14); color: #8fc0ff;
+  border: 1px solid rgba(96,165,250,0.3);
+  white-space: nowrap; font-weight: 600; flex-shrink: 0;
 }
 .rpC3 {
-  font-size: 12px; color: #8b949e;
+  font-size: 14px; color: #c4d2e0; font-weight: 600;
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC4, .rpC5 {
-  font-size: 12px; font-weight: 600;
+  font-size: 14px; font-weight: 700;
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC6 { text-align: center; }
@@ -2315,11 +2315,11 @@
   font-weight: 700; letter-spacing: 0.02em;
 }
 .rpEmpty {
-  font-size: 12px; color: #484f58; padding: 20px 6px;
+  font-size: 13px; color: #93a8be; padding: 20px 6px;
 }
 .rpSubText {
-  display: block; font-size: 9px; color: #484f58;
-  font-weight: 400; margin-top: 1px;
+  display: block; font-size: 11.5px; color: #8a9bb0;
+  font-weight: 400; margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
 }
 .rpSection {
@@ -2334,10 +2334,10 @@
   border-bottom: 1px solid #21262d;
 }
 .rpSectionTitle {
-  font-size: 13px; font-weight: 700; color: #c9d1d9;
+  font-size: 16px; font-weight: 700; color: #e2edf7;
 }
 .rpSectionNote {
-  font-size: 11px; color: #4e6280; flex: 1;
+  font-size: 13px; color: #9fb4c9; flex: 1; line-height: 1.5;
 }
 /* セクション内のテーブル */
 .rpSection .rpTHead { padding-left: 12px; padding-right: 12px; }

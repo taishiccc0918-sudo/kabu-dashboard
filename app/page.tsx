@@ -4159,9 +4159,9 @@ function WeeklyReport({
                   <span className={styles.rpSubText}>{prevPER.toFixed(1)}倍→</span>
                 )}
               </span>
-              <span className={styles.rpC4} style={{color: isAnomaly ? '#484f58' : pctColor(r.perFChg1m)}}>
+              <span className={styles.rpC4} style={{color: isAnomaly ? '#9fb4c9' : pctColor(r.perFChg1m)}}>
                 {isAnomaly ? '※' : ''}{fmtPct(r.perFChg1m)}
-                {isAnomaly && <span className={styles.rpSubText} style={{color:'#484f58'}}>EPS基準変動</span>}
+                {isAnomaly && <span className={styles.rpSubText} style={{color:'#8a9bb0'}}>EPS基準変動</span>}
               </span>
               <span className={styles.rpC5} style={{color: pctColor(r.chg1m)}}>
                 {fmtPct(r.chg1m)}

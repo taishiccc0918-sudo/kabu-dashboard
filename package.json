@@ -8,7 +8,8 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "refresh": "tsx scripts/refresh.ts"
+    "refresh": "tsx scripts/refresh.ts",
+    "refresh:news": "tsx scripts/refresh-news.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

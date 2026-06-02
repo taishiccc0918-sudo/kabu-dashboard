@@ -1,0 +1,24 @@
+name: refresh-news
+
+# お気に入り銘柄のニュースを定期収集してSupabaseに蓄積（差分追記）。
+# 2時間ごと＋手動実行。新着・決算開示をどんどん溜めていく。
+on:
+  schedule:
+    - cron: '15 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22          # Node22+はネイティブWebSocketを持つ（supabase-jsの起動エラー回避）
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:news
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

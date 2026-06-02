@@ -3674,32 +3674,46 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
 
-  // scope に応じた対象銘柄（all = ★∪♥、hearts = ♥のみ）
+  // ♥（スコープ絞り込みは表示側で行う。読み込みは全お気に入りを一括で扱う）
   const heartSet = useMemo(() => new Set(heartCodes), [heartCodes])
-  const targetCodes = useMemo(() =>
-    scope === 'hearts' ? heartCodes : Array.from(new Set([...starCodes, ...heartCodes])),
-    [scope, heartCodes, starCodes])
-  const loadKey = scope + '|' + [...targetCodes].sort().join(',')
+  const allCodes = useMemo(() => Array.from(new Set([...starCodes, ...heartCodes])), [starCodes, heartCodes])
+  const loadKey = [...allCodes].sort().join(',')
+
+  // 蓄積DB(/api/news-stored)を読むだけの即表示。空ならライブ取得にフォールバック。
+  const liveFanout = useCallback(async (fresh: boolean) => {
+    const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
+    if (!fresh) setPhase(`お気に入り(♥${hearts.length})を取得中…`)
+    let all = await postNewsFeed(hearts, fresh)
+    setItems(all)
+    const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
+    if (rest.length > 0) {
+      if (!fresh) setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
+      all = mergeFeed(all, await postNewsFeed(rest, fresh))
+      setItems(all)
+    }
+    return all
+  }, [heartCodes, starCodes, heartSet, nameOf])
 
   const load = useCallback(async (fresh: boolean) => {
     if (!fresh && feedCache && feedCache.key === loadKey) {
       setItems(feedCache.items); setFetchedAt(feedLastFetched); return
     }
     setErr(null); setLoading(true)
-    if (fresh) setPhase('最新を取得中…')
     try {
-      // ♥を先に取得して即表示 → （allなら）残りの★を後追いでマージ
-      const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
-      if (!fresh) setPhase(`お気に入り(♥${hearts.length})を取得中…`)
-      let all = await postNewsFeed(hearts, fresh)
-      setItems(all)
-      if (scope === 'all') {
-        const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
-        if (rest.length > 0) {
-          if (!fresh) setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
-          const restItems = await postNewsFeed(rest, fresh)
-          all = mergeFeed(all, restItems)
+      let all: FeedItem[]
+      if (fresh) {
+        // 更新ボタン: 最新をライブ取得
+        setPhase('最新を取得中…')
+        all = await liveFanout(true)
+      } else {
+        // 初回: 蓄積DBを即表示。未蓄積ならライブ取得にフォールバック。
+        setPhase('読み込み中…')
+        const res = await fetch('/api/news-stored').then(r => r.json()).catch(() => null)
+        if (res?.ready && Array.isArray(res.items) && res.items.length > 0) {
+          all = res.items as FeedItem[]
           setItems(all)
+        } else {
+          all = await liveFanout(false)
         }
       }
       feedCache = { key: loadKey, items: all }
@@ -3710,7 +3724,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       setPhase(''); setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadKey])
+  }, [loadKey, liveFanout])
 
   useEffect(() => { load(false) }, [load])
 
@@ -3730,6 +3744,8 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const q = loosen(stockQuery.trim())
   const filtered = useMemo(() =>
     (items ?? []).filter(i => {
+      const okScope = scope === 'all' || heartSet.has(i.code)
+      if (!okScope) return false
       const okStock = !q || stockHaystack(i.name, i.code).includes(q)
       const okMedia = mediaSet.size === 0
         || mediaSet.has(i.source)
@@ -3737,7 +3753,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         || (mediaSet.has(DISC_FILTER) && i.disc)
       return okStock && okMedia
     }),
-    [items, q, mediaSet])
+    [items, q, mediaSet, scope, heartSet])
 
   return (
     <div className={styles.feedWrap}>

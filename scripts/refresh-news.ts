@@ -12,6 +12,7 @@
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import { fetchStockNews } from '../app/lib/news'
+import { fetchTdnet } from '../app/lib/tdnet'
 
 function normalizeUrl(raw: string): string {
   let u = (raw ?? '').trim().replace(/^["'`\s]+|["'`\s]+$/g, '').replace(/\s+/g, '').replace(/\/+$/, '')
@@ -79,14 +80,21 @@ async function main() {
   const [universe, nameMap] = await Promise.all([getUniverse(), getNameMap()])
   console.log(`対象 ${universe.length} 銘柄のニュースを収集します`)
 
+  const sinceMs = Date.now() - KEEP_DAYS * 86400000
   const collected: Row[] = []
   let done = 0
+  let googleCnt = 0
+  let tdnetCnt = 0
   for (let i = 0; i < universe.length; i += CONCURRENCY) {
     const batch = universe.slice(i, i + CONCURRENCY)
     await Promise.all(batch.map(async code => {
       const name = nameMap[code] || code
+      // ① GoogleニュースRSS（多クエリfan-out）／② TDnet適時開示（一次ソース）を両方収集
       try {
-        const arts = await fetchStockNews(name, code, true) // fresh=最新
+        const [arts, discs] = await Promise.all([
+          fetchStockNews(name, code, true),     // fresh=最新
+          fetchTdnet(name, code, sinceMs, 100), // 適時開示を一次ソースから全件
+        ])
         for (const a of arts) {
           let pub: string | null = null
           const t = new Date(a.pubDate).getTime()
@@ -95,6 +103,17 @@ async function main() {
             link: a.link, code, name, title: a.title,
             source: a.source, source_url: a.sourceUrl, pub_date: pub, ir: a.ir, disc: a.disc,
           })
+          googleCnt++
+        }
+        for (const a of discs) {
+          let pub: string | null = null
+          const t = new Date(a.pubDate).getTime()
+          if (t && !Number.isNaN(t)) pub = new Date(t).toISOString()
+          collected.push({
+            link: a.link, code, name, title: a.title,
+            source: a.source, source_url: a.sourceUrl, pub_date: pub, ir: a.ir, disc: a.disc,
+          })
+          tdnetCnt++
         }
       } catch (e) {
         console.warn(`  ${code} 取得失敗:`, (e as Error).message)
@@ -102,8 +121,9 @@ async function main() {
     }))
     done += batch.length
     if (done % 30 === 0 || done >= universe.length) console.log(`  ${Math.min(done, universe.length)}/${universe.length}`)
-    await sleep(300) // Googleへの一斉アクセスを少し緩める
+    await sleep(300) // Google/Yanoshinへの一斉アクセスを少し緩める
   }
+  console.log(`収集内訳: Google ${googleCnt}件 / TDnet適時開示 ${tdnetCnt}件`)
 
   // link重複を排除（同一記事が複数銘柄でヒットする場合は先勝ち）
   const byLink = new Map<string, Row>()

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchStockNews, Article } from '@/app/lib/news'
+import { fetchTdnet } from '@/app/lib/tdnet'
+
+const TDNET_SINCE_DAYS = 120
 
 // お気に入り銘柄のニュースをまとめて取得し、新着順にマージして返す（一覧フィード用）。
 // クライアントから {stocks:[{code,name}]} をPOST。サーバー側で同時実行数を絞って取得し、
@@ -44,10 +47,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const sinceMs = Date.now() - TDNET_SINCE_DAYS * 86400000
     const perStock = await pool(stocks, 8, async (s) => {
-      const arts = await fetchStockNews(s.name || '', s.code, fresh)
-      // 1銘柄あたりの上限（実質ほぼ全件＝GoogleニュースRSSが返す上限まで）
-      return arts.slice(0, 100).map((a): FeedItem => ({ ...a, code: s.code, name: s.name || s.code }))
+      // GoogleニュースRSS（多クエリ）＋ TDnet適時開示（一次ソース）を両方
+      const [arts, discs] = await Promise.all([
+        fetchStockNews(s.name || '', s.code, fresh),
+        fetchTdnet(s.name || '', s.code, sinceMs, 100),
+      ])
+      // 1銘柄あたりの上限（多クエリfan-outで増えるため引き上げ。実質ほぼ全件）
+      return [...arts.slice(0, 200), ...discs]
+        .map((a): FeedItem => ({ ...a, code: s.code, name: s.name || s.code }))
     })
 
     // マージ＋重複除去（同一リンク／同一タイトル先頭）＋新着順

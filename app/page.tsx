@@ -3679,7 +3679,7 @@ type FeedItem = { title: string; link: string; source: string; sourceUrl: string
 type FeedScope = 'all' | 'hearts'
 const IR_FILTER = '__IR__'     // 企業公式サイト発
 const DISC_FILTER = '__DISC__' // 決算・適時開示（媒体不問）
-const FEED_DISPLAY_MAX = 400 // 一度に描画する最大件数（DOM負荷対策。絞り込みは全件対象）
+const FEED_DISPLAY_STEP = 600 // 1度に描画する件数の増分（DOM負荷対策。絞り込みは全件対象）
 
 // タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
 let feedCache: { key: string; items: FeedItem[] } | null = null
@@ -3769,6 +3769,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [mediaSet, setMediaSet] = useState<Set<string>>(new Set()) // メディア絞り込み（複数選択）
   const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
+  const [visible, setVisible] = useState(FEED_DISPLAY_STEP) // 「もっと見る」で増やす表示件数
 
   // ♥（スコープ絞り込みは表示側で行う。読み込みは全お気に入りを一括で扱う）
   const heartSet = useMemo(() => new Set(heartCodes), [heartCodes])
@@ -3850,6 +3851,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       return okStock && okMedia
     }),
     [items, q, mediaSet, scope, heartSet])
+
+  // 絞り込み・スコープが変わったら表示件数をリセット（先頭から見せ直す）
+  useEffect(() => { setVisible(FEED_DISPLAY_STEP) }, [q, mediaSet, scope])
 
   return (
     <div className={styles.feedWrap}>
@@ -3955,11 +3959,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
       {items !== null && filtered.length === 0 && !phase && <div className={styles.newsEmpty}>該当するニュースはありません</div>}
-      {filtered.length > FEED_DISPLAY_MAX && (
-        <div className={styles.feedPhase}>表示は新着{FEED_DISPLAY_MAX}件まで（全{filtered.length}件）。銘柄・メディアで絞り込むと残りも見られます。</div>
+      {filtered.length > visible && (
+        <div className={styles.feedPhase}>新着{visible}件を表示中（全{filtered.length}件）。下の「もっと見る」か、銘柄・メディアでの絞り込みで残りも見られます。</div>
       )}
       <div className={styles.feedList}>
-        {filtered.slice(0, FEED_DISPLAY_MAX).map((a, i) => {
+        {filtered.slice(0, visible).map((a, i) => {
           const t = new Date(a.pubDate).getTime()
           const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
           const fav = faviconUrl(a.sourceUrl)
@@ -3979,6 +3983,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
           )
         })}
       </div>
+      {filtered.length > visible && (
+        <button className={styles.feedMoreBtn} onClick={() => setVisible(v => v + FEED_DISPLAY_STEP)}>
+          もっと見る（残り{filtered.length - visible}件）
+        </button>
+      )}
     </div>
   )
 }

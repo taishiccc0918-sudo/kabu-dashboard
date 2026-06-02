@@ -18,9 +18,11 @@ export async function GET(_req: NextRequest) {
   }
   try {
     const sb = createClient(url, anon, { auth: { persistSession: false } })
-    // Supabase(PostgREST)は1リクエスト最大1000行のため、range でページ分割して集める（最大6000件）。
+    // Supabase(PostgREST)は1リクエスト最大1000行のため、range でページ分割して集める。
+    // 旧仕様は6000件で頭打ち（古い記事が切り捨て）だった。蓄積DBを実質全件返すため上限を大幅引き上げ。
+    // ※20000は暴走防止の安全弁。通常はDB件数に達した時点で break する。
     const PAGE = 1000
-    const MAX_PAGES = 6
+    const MAX_PAGES = 20
     const rows: StoredRow[] = []
     for (let p = 0; p < MAX_PAGES; p++) {
       const { data, error } = await sb

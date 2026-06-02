@@ -675,7 +675,7 @@
 .feedMediaBackdrop { position: fixed; inset: 0; z-index: 50; }
 .feedMediaPanel {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 51;
-  width: 300px; max-height: 360px; display: flex; flex-direction: column;
+  width: 420px; max-width: 92vw; max-height: 420px; display: flex; flex-direction: column;
   background: #0f1925; border: 1px solid #2f4a6e; border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.5); overflow: hidden;
 }
@@ -691,12 +691,24 @@
 }
 .feedMediaOpt:hover { background: rgba(59,130,246,0.1); }
 .feedMediaOpt input { width: 15px; height: 15px; accent-color: #3b82f6; cursor: pointer; }
-.feedMediaOpt .feedMediaName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feedMediaOpt .feedMediaName { flex: 1; white-space: normal; word-break: break-word; line-height: 1.35; }
 .feedMediaOptIr { border-bottom: 1px solid #1f2d40; margin-bottom: 4px; padding-bottom: 9px; font-weight: 700; color: #ffd479; }
 .feedIrIcon { font-size: 15px; }
 /* フィードのスコープ切替内の色付きグリフ */
 .heartGlyph { color: #f43f5e; font-size: 14px; }
 .starGlyph { color: #fbbf24; font-size: 14px; }
+
+/* ── 一番上へ戻るボタン ───────────────────────────── */
+.scrollTopBtn {
+  position: fixed; right: 22px; bottom: 44px; z-index: 420;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 10px 14px; border-radius: 24px;
+  background: rgba(59,130,246,0.92); color: #fff;
+  border: 1px solid #60a5fa; font-size: 13px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  transition: background .12s, transform .12s; backdrop-filter: blur(4px);
+}
+.scrollTopBtn:hover { background: #3b82f6; transform: translateY(-2px); }
 
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {

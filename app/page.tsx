@@ -1611,6 +1611,7 @@ export default function Page() {
         serverHasKey={serverHasKey}
       />
 
+      <ScrollTopButton />
       <div className={`${styles.statusBar} ${(loading || bgFetching) ? styles.statusBarLoading : ''}`}>
         <div className={`${styles.statusDot} ${
           status === 'loading' ? styles.statusLoading :
@@ -3575,6 +3576,26 @@ function NewsSection({ code, name }: { code: string; name: string }) {
         })}
       </div>
     </>
+  )
+}
+
+// ─── ScrollTopButton（下までスクロールすると出る「一番上へ」） ──────────
+function ScrollTopButton() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 500)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  if (!show) return null
+  return (
+    <button
+      className={styles.scrollTopBtn}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      title="一番上へ戻る"
+      aria-label="一番上へ戻る"
+    >↑ TOP</button>
   )
 }
 

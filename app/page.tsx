@@ -403,7 +403,7 @@ export default function Page() {
     if (!sb) return
     const [{ data: favData }, { data: memoData }] = await Promise.all([
       sb.from('favorites').select('code, type').eq('user_id', userId),
-      sb.from('memos').select('code, memo, genres, updated_at').eq('user_id', userId),
+      sb.from('memos').select('*').eq('user_id', userId), // '*' なら genres 列が未追加でも400にならない
     ])
     if (favData) {
       const stars  = new Set(favData.filter(f => f.type === 'star').map(f => f.code as string))

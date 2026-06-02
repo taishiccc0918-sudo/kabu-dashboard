@@ -13,21 +13,23 @@ const FIN_KEYWORDS =
 // 同名の一般消費財ニュース（自動車レビュー等）を除外（例: 「IMV」がトヨタIMVを拾う問題対策）
 const EXCLUDE = '-試乗 -新車 -中古車 -ランクル -ランドクルーザー -ハイラックス -ピックアップ'
 
-// 「有名どころ・影響を与える」媒体の許可リスト（ソース名の部分一致・大小無視）。
-// このいずれかに該当しない記事は、銘柄コードを含むか企業公式でない限り除外する。
+// 金融・主要メディア（ソース名の部分一致・大小無視）。
+// 銘柄名が一般名詞（例:「カバー」）の場合に、化粧品PR等の非金融ソースを除外するための許可リスト。
+// ※PR TIMES/アットプレス/タワレコ等の汎用配信元はあえて含めない（商品PRの誤混入源のため）。
 const MAJOR_SOURCES = [
-  '株探', 'かぶたん', 'yahoo', 'ファイナンス', '日本経済新聞', '日経', 'ロイター', 'reuters',
+  '株探', 'かぶたん', 'yahoo', '日本経済新聞', '日経', 'ロイター', 'reuters',
   'bloomberg', 'ブルームバーグ', '東洋経済', '四季報', 'ダイヤモンド', 'ログミー', 'みんかぶ',
-  'トレーダーズ', 'フィスコ', 'ウエルスアドバイザー', 'アイフィス', '時事', '共同通信', 'nhk',
-  '産経', '朝日新聞', '読売', '毎日新聞', '日刊工業', 'itmedia', '日経bp', 'newspicks',
-  '株式新聞', '財経', 'モーニングスター', 'quick',
+  'トレーダーズ', 'フィスコ', 'ウエルスアドバイザー', 'モーニングスター', 'アイフィス', '時事',
+  '共同通信', 'nhk', '産経', '朝日新聞', '読売', '毎日新聞', '日刊工業', '株式新聞', 'quick',
 ]
 
-// 全角英数字を半角化して比較しやすくする
+// 全角英数字を半角化（例: ＩＭＶ → IMV）。Googleニュースの完全一致は全角だと0件になるため。
+function halfWidth(s: string): string {
+  return s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+}
+// 比較用に半角化＋小文字化＋空白除去
 function normalize(s: string): string {
-  return s
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
-    .toLowerCase()
+  return halfWidth(s).toLowerCase().replace(/\s+/g, '')
 }
 
 function decodeEntities(s: string): string {
@@ -55,9 +57,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'name or code required' }, { status: 400 })
   }
 
-  // 銘柄名（完全一致）＋（コード番号 または ファイナンス系キーワード）。直近90日。
+  // 銘柄名（完全一致・半角化）＋（コード番号 または ファイナンス系キーワード）。直近90日。
+  const qTerm = halfWidth(term)
   const codeClause = code ? `"${code}" OR ` : ''
-  const query = `"${term}" (${codeClause}${FIN_KEYWORDS}) ${EXCLUDE} when:90d`
+  const query = `"${qTerm}" (${codeClause}${FIN_KEYWORDS}) ${EXCLUDE} when:90d`
   const rssUrl =
     `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
     `&hl=ja&gl=JP&ceid=JP:ja`
@@ -89,15 +92,18 @@ export async function GET(req: NextRequest) {
         ? rawTitle.slice(0, -(source.length + 3))
         : rawTitle
 
-      // ── 関連性フィルタ ───────────────────────────────
-      // (a) コード番号を含む（株探/Yahoo/日経DIGITAL等の確実な銘柄ニュース）
-      const hasCode = !!code && (normalize(item).includes(code.toLowerCase()))
-      // (b) 有名どころの媒体
+      // ── 関連性フィルタ（タイトル基準で厳格に） ───────────────
+      // 別銘柄(REIT/ETF)や一般名詞の誤ヒットを防ぐ:
+      //  (a) タイトルにコード番号 → 採用（最も確実）
+      //  (b) タイトルに銘柄名 かつ 金融・主要メディア → 採用
+      //  (c) 企業公式（ソース名に銘柄名）→ 採用
+      const nTitle = normalize(title)
       const nSource = normalize(source)
+      const hasCodeTitle = !!code && nTitle.includes(code.toLowerCase())
+      const hasNameTitle = nName.length >= 2 && nTitle.includes(nName)
       const isMajor = MAJOR_SOURCES.some(m => nSource.includes(m))
-      // (c) 企業公式（ソース名に銘柄名が含まれる＝自社発表）
-      const isOfficial = !!nName && nName.length >= 2 && nSource.includes(nName)
-      if (!hasCode && !isMajor && !isOfficial) continue
+      const isOfficial = nName.length >= 2 && nSource.includes(nName)
+      if (!hasCodeTitle && !(hasNameTitle && isMajor) && !isOfficial) continue
 
       // 重複（同一タイトル）除去
       const key = title.slice(0, 40)

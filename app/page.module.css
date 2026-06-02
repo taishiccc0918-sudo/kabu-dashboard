@@ -531,8 +531,8 @@
 }
 .detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .detailItem { background: rgba(255,255,255,0.04); border-radius: 7px; padding: 10px 12px; border: 1px solid #243450; }
-.detailItemLabel { font-size: 11px; color: #93a8be; margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: #e2edf7; line-height: 1.2; }
+.detailItemLabel { font-size: 11px; color: #b4c6d8; margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.2; }
 .detailMemo {
   width: 100%; background: rgba(255,255,255,0.03);
   border: 1px solid #2a3a52;

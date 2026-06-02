@@ -903,100 +903,81 @@
 /* PC専用非表示クラス（SP時に表示） */
 .spOnly { display: none; }
 
-/* ── SP専用カードビュー（KaVIEW型・大きな数字＋色分け） ────────────── */
-.spMemoList { display: flex; flex-direction: column; gap: 10px; padding: 10px 10px 4px; }
-.spMemoCard {
-  background: var(--surface-0); border: 1px solid var(--line);
-  border-radius: var(--r-card); padding: 12px 13px;
-  box-shadow: var(--shadow-sm);
-  border-left: 4px solid var(--line-strong);   /* 当日の方向を左帯で表現 */
+/* ── SP専用 高密度リスト（楽天証券型・1行1銘柄／右カラム切替式） ──────── */
+/* 列見出し（sticky）: 銘柄名 | 現在値 | [切替指標 ▸] */
+.spListHeader {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px;
+  background: var(--surface-2); border-bottom: 1px solid var(--line-strong);
+  position: sticky; top: 116px; z-index: 18;
+  font-size: 12px; color: var(--text-2); font-weight: 600;
 }
-.spAccent_up   { border-left-color: var(--up); }
-.spAccent_down { border-left-color: var(--down); }
-.spAccent_flat { border-left-color: var(--flat); }
+.spListHeaderName { flex: 1; min-width: 0; }
+.spListHeaderCount { color: var(--text-3); font-weight: 500; margin-left: 4px; }
+.spListHeaderPrice { width: 84px; text-align: right; flex-shrink: 0; }
+.spListHeaderMetric {
+  width: 104px; flex-shrink: 0; text-align: right;
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  color: var(--accent); border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 700; padding: 4px 10px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.spListHeaderMetric:active { background: var(--accent); color: #fff; }
 
-/* 見出し: ★/♥ + 銘柄名 + 市場バッジ */
-.spCardRow1 { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.spFavBtn, .spSuperFavBtn {
+.spList { display: flex; flex-direction: column; }
+.spRow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 8px 0;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
+  border-left: 4px solid var(--flat);   /* 当日の方向を左帯で表現 */
+  cursor: pointer; min-height: 58px; box-sizing: border-box;
+}
+.spRow:active { background: var(--surface-hover); }
+.spBar_up   { border-left-color: var(--up); }
+.spBar_down { border-left-color: var(--down); }
+.spBar_flat { border-left-color: var(--flat); }
+
+/* ★/♥（縦並び・コンパクト） */
+.spRowFavCol { display: flex; flex-direction: column; flex-shrink: 0; }
+.spRowFav {
   background: none; border: none; cursor: pointer;
-  font-size: 20px; line-height: 1; padding: 2px; min-width: 34px; min-height: 34px;
+  font-size: 16px; line-height: 1; width: 30px; height: 26px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-3); border-radius: var(--r-btn); flex-shrink: 0;
+  color: var(--text-3); padding: 0;
 }
-.spFavBtn:active, .spSuperFavBtn:active { background: var(--surface-hover); }
-.spFavBtnActive { color: #f59e0b !important; }
-.spSuperFavBtnActive { color: #f43f5e !important; }
-.spCardName {
-  font-size: 17px; font-weight: 700; color: var(--text-1);
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.spRowFavStar  { color: #f59e0b; }
+.spRowFavHeart { color: #f43f5e; }
+
+/* 銘柄名 + コード/市場/ジャンル */
+.spRowMain { flex: 1; min-width: 0; }
+.spRowName {
+  font-size: 16px; font-weight: 700; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25;
+}
+.spRowSub { display: flex; align-items: center; gap: 6px; margin-top: 2px; min-width: 0; }
+.spRowCode { font-size: 12px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.spRowGenre {
+  font-size: 11px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* コード + ジャンル */
-.spCardCodeRow { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
-.spCardCode {
-  font-size: 13px; color: var(--text-2); font-weight: 600;
-  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.3px;
-}
-.spGenreBadge {
-  font-size: 11px; color: var(--text-2); background: var(--surface-2);
-  border: 1px solid var(--line); border-radius: var(--r-chip); padding: 2px 7px;
-}
-
-/* ヒーロー: 株価（大）+ 前日比（大・色付きピル） */
-.spHero {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; margin-bottom: 10px;
-}
-.spHeroPrice {
+/* 現在値（大・読める） */
+.spRowPrice {
+  width: 84px; flex-shrink: 0; text-align: right;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 30px; font-weight: 700; color: var(--text-1);
-  line-height: 1; letter-spacing: -0.5px;
+  font-size: 21px; font-weight: 700; color: var(--text-1);
+  line-height: 1.1; letter-spacing: -0.3px;
 }
-.spHeroYen { font-size: 17px; color: var(--text-2); margin-right: 2px; font-weight: 600; }
-.spHeroChg {
-  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+
+/* 切替カラム（2段） */
+.spRowMetric {
+  width: 104px; flex-shrink: 0; text-align: right;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px; font-weight: 700;
-  padding: 6px 12px; border-radius: var(--r-pill);
-  color: var(--flat); background: var(--surface-2);
+  display: flex; flex-direction: column; justify-content: center; gap: 1px;
 }
-.spHeroArrow { font-size: 13px; }
-.spChgBox_up   { color: var(--up);   background: var(--up-soft); }
-.spChgBox_down { color: var(--down); background: var(--down-soft); }
-.spChgBox_flat { color: var(--flat); background: var(--surface-2); }
-
-/* メトリクス帯（4分割・読める大きさ） */
-.spMetrics {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 1px; background: var(--line);
-  border: 1px solid var(--line); border-radius: var(--r-btn);
-  overflow: hidden; margin-bottom: 10px;
-}
-.spMetric { background: var(--surface-0); padding: 7px 4px; text-align: center; }
-.spMetricLabel { font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
-.spMetricValue {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 15px; font-weight: 700; color: var(--text-1); line-height: 1.1;
-}
-
-/* PER位置バー */
-.spBandWrap { margin-bottom: 10px; }
-
-/* メモエリア */
-.spMemoArea {
-  background: var(--surface-1); border: 1px solid var(--line);
-  border-radius: var(--r-btn); padding: 9px 11px;
-  cursor: pointer;
-}
-.spMemoAreaEmpty { opacity: 0.9; }
-.spMemoText { font-size: 14px; color: var(--text-1); line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
-.spMemoPlaceholder { color: var(--text-3); font-size: 13px; }
-.spMemoTextarea {
-  width: 100%; background: transparent; border: none; outline: none;
-  color: var(--text-1); font-size: 15px; line-height: 1.55; font-family: 'Noto Sans JP', sans-serif;
-  resize: none; min-height: 64px; box-sizing: border-box;
-}
-.spMemoDate { font-size: 11px; color: var(--text-3); margin-top: 5px; text-align: right; }
+.spRowMetricTop { font-size: 16px; font-weight: 700; color: var(--text-1); line-height: 1.15; }
+.spRowMetricBot { font-size: 13px; font-weight: 600; color: var(--text-2); line-height: 1.15; }
 
 /* ── BOTTOM NAV（SP専用・固定ボトムナビ）─────────────────── */
 .bottomNav { display: none; }   /* PCでは非表示。SP(≤768px)で表示 */
@@ -2388,22 +2369,23 @@
 .lightMode .userDropdownLogout { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
 
 /* ── WEEKLY REPORT ──────────────────────────────────── */
+/* ── レポートタブ：全面トークン化（2026-06-02・ライト/ダーク両対応） ── */
 .reportRoot {
   padding: 24px 28px; max-width: 900px; margin: 0 auto;
 }
 .rpHdr {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #21262d;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
 }
 .rpHdrLeft { display: flex; align-items: baseline; gap: 0; }
 .rpTitle {
-  font-size: 15px; font-weight: 700; color: #e6edf3;
+  font-size: 15px; font-weight: 700; color: var(--text-1);
 }
 .rpTitleSub {
-  font-size: 13px; color: #6b7280; font-weight: 400;
+  font-size: 13px; color: var(--text-3); font-weight: 400;
 }
 .rpDate {
-  font-size: 13px; color: #aebfd0; font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; color: var(--text-2); font-family: 'JetBrains Mono', monospace;
   white-space: nowrap; font-weight: 600;
 }
 .rpTable { display: flex; flex-direction: column; }
@@ -2411,27 +2393,27 @@
   display: grid;
   grid-template-columns: 30px 60px 1fr 92px 92px 96px 20px;
   gap: 8px; padding: 7px 8px 7px 6px;
-  font-size: 12px; color: #9fb4c9; letter-spacing: 0.04em; font-weight: 600;
-  border-bottom: 1px solid #2a3a52; user-select: none;
+  font-size: 12px; color: var(--text-2); letter-spacing: 0.04em; font-weight: 600;
+  border-bottom: 1px solid var(--line-strong); user-select: none;
 }
 .rpRow {
   display: grid;
   grid-template-columns: 30px 60px 1fr 92px 92px 96px 20px;
   gap: 8px; padding: 10px 8px 10px 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--line);
   cursor: pointer; transition: background .1s; align-items: center;
 }
-.rpRow:hover { background: rgba(255,255,255,0.04); }
+.rpRow:hover { background: var(--surface-hover); }
 .rpC0 {
-  font-size: 12px; color: #8a9bb0;
+  font-size: 12px; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC1 {
-  font-size: 14px; font-weight: 700; color: #74b3ff;
+  font-size: 14px; font-weight: 700; color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
 }
 .rpC2 {
-  font-size: 14px; color: #e2edf7; font-weight: 600;
+  font-size: 14px; color: var(--text-1); font-weight: 600;
   overflow: hidden; min-width: 0;
   display: flex; flex-direction: row; align-items: center; gap: 8px;
 }
@@ -2444,13 +2426,13 @@
   flex-shrink: 0;
 }
 .rpGenreBadge {
-  font-size: 12px; padding: 2px 8px; border-radius: 4px;
-  background: rgba(96,165,250,0.14); color: #8fc0ff;
-  border: 1px solid rgba(96,165,250,0.3);
+  font-size: 12px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-line);
   white-space: nowrap; font-weight: 600; flex-shrink: 0;
 }
 .rpC3 {
-  font-size: 14px; color: #c4d2e0; font-weight: 600;
+  font-size: 14px; color: var(--text-2); font-weight: 600;
   font-family: 'JetBrains Mono', monospace; text-align: right;
 }
 .rpC4, .rpC5 {
@@ -2460,54 +2442,54 @@
 .rpC6 { text-align: center; }
 .rpBuyTag {
   font-size: 9px; padding: 2px 5px; border-radius: 3px;
-  background: rgba(63,185,80,0.12); color: #3fb950;
+  background: var(--up-soft); color: var(--up);
   font-weight: 700; letter-spacing: 0.02em;
 }
 .rpEmpty {
-  font-size: 13px; color: #93a8be; padding: 20px 6px;
+  font-size: 13px; color: var(--text-2); padding: 20px 6px;
 }
 .rpSubText {
-  display: block; font-size: 11.5px; color: #8a9bb0;
+  display: block; font-size: 11.5px; color: var(--text-3);
   font-weight: 400; margin-top: 2px;
   font-family: 'JetBrains Mono', monospace;
 }
 .rpSection {
-  margin-bottom: 24px; border-radius: 8px;
-  border: 1px solid #21262d; overflow: hidden;
+  margin-bottom: 24px; border-radius: var(--r-card);
+  border: 1px solid var(--line); overflow: hidden;
 }
-.rpSectionDown { background: rgba(248,81,73,0.04); }   /* 低下 = 赤系の極薄ティント */
-.rpSectionUp   { background: rgba(63,185,80,0.04); }   /* 上昇 = 緑系の極薄ティント */
+.rpSectionDown { background: var(--down-soft); }   /* 低下 = 赤系の極薄ティント */
+.rpSectionUp   { background: var(--up-soft); }     /* 上昇 = 緑系の極薄ティント */
 .rpSectionHead {
   display: flex; align-items: baseline; gap: 10px;
   padding: 10px 12px 10px 12px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--line);
 }
 /* 週報サマリ */
 .rpSummary {
-  margin-bottom: 24px; padding: 16px 18px; border-radius: 10px;
-  background: rgba(59,130,246,0.06); border: 1px solid #2a3a52;
+  margin-bottom: 24px; padding: 16px 18px; border-radius: var(--r-card);
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
 }
 .rpSummaryHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.rpSummaryTitle { font-size: 17px; font-weight: 700; color: #e2edf7; }
+.rpSummaryTitle { font-size: 17px; font-weight: 700; color: var(--text-1); }
 .rpCopyBtn {
-  font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
-  background: rgba(59,130,246,0.18); border: 1px solid #3b82f6; color: #cfe0f2; font-weight: 600;
+  font-size: 13px; padding: 7px 14px; border-radius: var(--r-btn); cursor: pointer;
+  background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-weight: 600;
   transition: all .12s;
 }
-.rpCopyBtn:hover { background: #3b82f6; color: #fff; }
+.rpCopyBtn:hover { background: var(--accent); color: #fff; }
 .rpSummaryGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-.rpStat { background: rgba(255,255,255,0.04); border: 1px solid #243450; border-radius: 8px; padding: 10px 12px; }
-.rpStatLabel { font-size: 12px; color: #aebfd0; margin-bottom: 5px; }
-.rpStatVal { font-size: 20px; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono', monospace; }
-.rpStatSlash { color: #6a8096; }
-.rpSummaryNews { margin-top: 12px; font-size: 13px; color: #c4d2e0; line-height: 1.5; }
-.rpSummaryNote { margin-top: 10px; font-size: 12px; color: #8a9bb0; }
+.rpStat { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-chip); padding: 10px 12px; }
+.rpStatLabel { font-size: 12px; color: var(--text-2); margin-bottom: 5px; }
+.rpStatVal { font-size: 20px; font-weight: 700; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
+.rpStatSlash { color: var(--text-3); }
+.rpSummaryNews { margin-top: 12px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.rpSummaryNote { margin-top: 10px; font-size: 12px; color: var(--text-3); }
 
 .rpSectionTitle {
-  font-size: 16px; font-weight: 700; color: #e2edf7;
+  font-size: 16px; font-weight: 700; color: var(--text-1);
 }
 .rpSectionNote {
-  font-size: 13px; color: #9fb4c9; flex: 1; line-height: 1.5;
+  font-size: 13px; color: var(--text-2); flex: 1; line-height: 1.5;
 }
 /* セクション内のテーブル */
 .rpSection .rpTHead { padding-left: 12px; padding-right: 12px; }
@@ -2516,95 +2498,96 @@
 /* ── レポート再設計（俯瞰マップ＋銘柄カルテ）─────────────── */
 .repControls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
 .repToggle {
-  display: inline-flex; gap: 2px; background: rgba(255,255,255,0.04);
-  border: 1px solid #243450; border-radius: 9px; padding: 3px;
+  display: inline-flex; gap: 2px; background: var(--surface-1);
+  border: 1px solid var(--line); border-radius: var(--r-btn); padding: 3px;
 }
 .repTog, .repTogActive {
-  font-size: 13px; padding: 6px 13px; border-radius: 7px; cursor: pointer;
-  border: none; background: transparent; color: #9fb4c9; font-weight: 600;
+  font-size: 13px; padding: 6px 13px; border-radius: var(--r-chip); cursor: pointer;
+  border: none; background: transparent; color: var(--text-2); font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
 }
-.repTog:hover { color: #dce7f2; }
-.repTogActive { background: #3b82f6; color: #fff; }
+.repTog:hover { color: var(--text-1); }
+.repTogActive { background: var(--accent); color: #fff; }
 
 /* 俯瞰マップ */
 .repMapCard {
-  margin-bottom: 26px; padding: 16px 18px; border-radius: 12px;
-  background: rgba(59,130,246,0.05); border: 1px solid #2a3a52;
+  margin-bottom: 26px; padding: 16px 18px; border-radius: var(--r-card);
+  background: var(--surface-0); border: 1px solid var(--line); box-shadow: var(--shadow-sm);
 }
-.repMapTitle { font-size: 16px; font-weight: 700; color: #e2edf7; }
-.repMapDesc { font-size: 12.5px; color: #9fb4c9; line-height: 1.55; margin: 5px 0 12px; }
-.repMapNote { font-size: 12px; color: #8a9bb0; margin-top: 8px; }
+.repMapTitle { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.repMapDesc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin: 5px 0 12px; }
+.repMapNote { font-size: 12px; color: var(--text-3); margin-top: 8px; }
 .repMapWrap { width: 100%; }
 .repMapSvg { width: 100%; height: auto; display: block; touch-action: manipulation; }
 .repDot { cursor: pointer; }
-.repDot:hover circle { stroke: #fff; stroke-width: 2; }
+.repDot:hover circle { stroke: var(--text-1); stroke-width: 2; }
 .repMapXax {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 12px; font-weight: 600; color: #9fb4c9; margin-top: 5px; padding: 0 2px;
+  font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 5px; padding: 0 2px;
 }
-.repMapXax span:nth-child(2) { color: #7b8ea3; font-weight: 500; }
+.repMapXax span:nth-child(2) { color: var(--text-3); font-weight: 500; }
 
 /* 銘柄カルテ */
-.repCardsHead { font-size: 16px; font-weight: 700; color: #e2edf7; margin: 4px 0 12px; }
-.repCardsSub { font-size: 13px; color: #8a9bb0; font-weight: 400; margin-left: 6px; }
+.repCardsHead { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 4px 0 12px; }
+.repCardsSub { font-size: 13px; color: var(--text-3); font-weight: 400; margin-left: 6px; }
 .repCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
 .repCard {
-  background: #141a24; border: 1px solid #243450; border-radius: 12px;
-  padding: 14px 15px; cursor: pointer; transition: border-color .12s;
+  background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 14px 15px; cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: border-color .12s, box-shadow .12s, transform .12s;
 }
-.repCard:hover { border-color: #3b82f6; }
+.repCard:hover { border-color: var(--accent-line); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .repCardHead { display: flex; align-items: flex-start; gap: 11px; }
 .repLogo {
-  width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+  width: 38px; height: 38px; border-radius: var(--r-chip); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; font-weight: 800; color: #fff;
 }
 .repCardId { flex: 1; min-width: 0; }
 .repCardName {
-  font-size: 15.5px; font-weight: 700; color: #eef4fb; line-height: 1.3;
+  font-size: 15.5px; font-weight: 700; color: var(--text-1); line-height: 1.3;
   display: flex; align-items: center; gap: 5px;
 }
-.repHeart { color: #ef4444; font-size: 13px; }
+.repHeart { color: var(--down); font-size: 13px; }
 .repCardMeta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
-.repCardCode { font-size: 12.5px; color: #74b3ff; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.repCardCode { font-size: 12.5px; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
 .repGenre {
-  font-size: 11.5px; padding: 1px 7px; border-radius: 4px; font-weight: 600;
-  background: rgba(96,165,250,0.14); color: #8fc0ff; border: 1px solid rgba(96,165,250,0.3);
+  font-size: 11.5px; padding: 1px 8px; border-radius: var(--r-pill); font-weight: 600;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line);
 }
 .repCardPrice { text-align: right; flex-shrink: 0; }
-.repPrice { font-size: 18px; font-weight: 800; color: #fff; font-family: 'JetBrains Mono', monospace; }
-.repYen { font-size: 11px; color: #9fb4c9; font-weight: 600; margin-left: 1px; }
+.repPrice { font-size: 18px; font-weight: 800; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
+.repYen { font-size: 11px; color: var(--text-2); font-weight: 600; margin-left: 1px; }
 .repChg1d { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
 
 .repChips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
 .repChip {
-  background: rgba(255,255,255,0.03); border: 1px solid #1f2d40; border-radius: 7px;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-chip);
   padding: 5px 4px; text-align: center;
 }
-.repChipK { display: block; font-size: 10.5px; color: #8a9bb0; font-weight: 600; }
-.repChipV { display: block; font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+.repChipK { display: block; font-size: 10.5px; color: var(--text-3); font-weight: 600; }
+.repChipV { display: block; font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; color: var(--text-1); }
 
 .repBandRow { margin: 6px 0 12px; }
-.repBandLabel { font-size: 11.5px; color: #9fb4c9; font-weight: 600; margin-bottom: 5px; }
+.repBandLabel { font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }
 .repBandBar { width: 100%; }
 
 .repEps { margin: 10px 0 12px; }
-.repEpsLabel { font-size: 11.5px; color: #9fb4c9; font-weight: 600; margin-bottom: 6px; }
+.repEpsLabel { font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-bottom: 6px; }
 .repEpsBars { display: flex; align-items: flex-end; gap: 8px; height: 60px; }
 .repEpsCol { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; min-width: 0; }
 .repEpsBarTrack { width: 100%; height: 50px; display: flex; align-items: flex-end; justify-content: center; }
 .repEpsBar { width: 60%; max-width: 26px; border-radius: 3px 3px 0 0; transition: height .2s; }
-.repEpsYr { font-size: 10.5px; color: #8a9bb0; font-family: 'JetBrains Mono', monospace; }
-.repEpsEmpty { font-size: 12px; color: #8a9bb0; display: block; margin: 8px 0; }
+.repEpsYr { font-size: 10.5px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+.repEpsEmpty { font-size: 12px; color: var(--text-3); display: block; margin: 8px 0; }
 
 .repInsight {
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-  font-size: 12.5px; color: #c4d2e0; line-height: 1.5;
-  padding-top: 11px; border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 12.5px; color: var(--text-2); line-height: 1.5;
+  padding-top: 11px; border-top: 1px solid var(--line);
 }
 .repInsightDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.repNews { font-size: 11.5px; color: #fbbf24; font-weight: 600; margin-left: auto; }
+.repNews { font-size: 11.5px; color: var(--yellow, #d29922); font-weight: 600; margin-left: auto; }
 
 /* ── GLOBAL CHART MODE (toolbar) ──────────────────────── */
 .chartModeGroup {

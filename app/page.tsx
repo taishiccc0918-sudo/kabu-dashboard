@@ -233,6 +233,7 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('準備中...')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
+  const [spCol,      setSpCol]      = useState<number>(0)   // SP高密度リストの切替カラム（前日比/PER/…）
   const [mktFilter,  setMktFilter]  = useState<string>('all')
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
@@ -305,6 +306,7 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
+  useEffect(() => { lsSet('spCol', spCol) }, [spCol])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
 
@@ -546,6 +548,7 @@ export default function Page() {
       setTab('card')
     }
     setForcePc(ls('forcePc', false))
+    setSpCol(ls('spCol', 0))
     setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
 
     // ── 前回取得データをキャッシュから即時復元（UX高速化）────────────
@@ -1515,23 +1518,31 @@ export default function Page() {
       )}
 
       <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
-        {/* SP専用メモ重視ビュー（ウォッチリスト以外のタブで表示） */}
+        {/* SP専用 高密度リスト（楽天証券型・1画面に多数／右カラム切替式） */}
         {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
-            <div className={styles.spMemoList}>
+            <div className={styles.spListHeader}>
+              <span className={styles.spListHeaderName}>銘柄名 <span className={styles.spListHeaderCount}>{filteredRows.length}件</span></span>
+              <span className={styles.spListHeaderPrice}>現在値</span>
+              <button
+                className={styles.spListHeaderMetric}
+                onClick={() => setSpCol(c => (c + 1) % SP_COLS.length)}
+                title="タップで表示する指標を切替"
+              >{SP_COL_LABEL[SP_COLS[spCol]]} ▸</button>
+            </div>
+            <div className={styles.spList}>
               {filteredRows.length === 0
                 ? <div className={styles.emptyCell}>該当銘柄なし</div>
                 : filteredRows.map(r => (
-                  <SpMemoCard
+                  <SpStockRow
                     key={r.code}
                     row={r}
-                    memo={stockMeta[r.code]?.memo ?? ''}
-                    memoUpdatedAt={stockMeta[r.code]?.memoUpdatedAt}
-                    onSaveMemo={saveMemo}
+                    col={SP_COLS[spCol]}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
                     onToggleSuperFav={toggleSuperFavorite}
+                    onClick={() => setDetailCode(r.code)}
                   />
                 ))
               }
@@ -3059,103 +3070,67 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   )
 }
 
-// ─── SpMemoCard（SP専用メモ重視カード）────────────────────────────────
-function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav, onToggleFav, onToggleSuperFav }: {
-  row: StockRow; memo: string; memoUpdatedAt?: string
-  onSaveMemo: (code: string, text: string) => void
+// ─── SP高密度リスト: 切替カラム定義 ───────────────────────────────────
+const SP_COLS = ['day', 'per', 'mom', 'val', 'roe', 'mcap'] as const
+type SpCol = typeof SP_COLS[number]
+const SP_COL_LABEL: Record<SpCol, string> = {
+  day: '前日比', per: 'PER / PEG', mom: '1ヶ月 / 1週', val: '配当 / PBR', roe: 'ROE / 利益率', mcap: '時価総額',
+}
+// 行右側「切替カラム」の2段表示（上＝主・下＝副）を算出。色クラス付き。
+function spColCells(r: StockRow, col: SpCol): { top: string; topCls: string; bot: string; botCls: string } {
+  switch (col) {
+    case 'day': {
+      const yen = (r.close != null && r.chg1d != null) ? r.close - r.close / (1 + r.chg1d) : null
+      const cls = pctClass(r.chg1d)
+      return { top: yen != null ? (yen >= 0 ? '+' : '') + Math.round(yen).toLocaleString() : '—', topCls: cls, bot: fmtPct(r.chg1d), botCls: cls }
+    }
+    case 'per':
+      return { top: r.perF != null ? 'PER ' + fmtN(r.perF) : 'PER —', topCls: '', bot: r.peg != null ? 'PEG ' + fmtN(r.peg, 2) : 'PEG —', botCls: r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : '' }
+    case 'mom':
+      return { top: '1M ' + fmtPct(r.chg1m), topCls: pctClass(r.chg1m), bot: '1W ' + fmtPct(r.chg1w), botCls: pctClass(r.chg1w) }
+    case 'val':
+      return { top: r.divY != null ? '配当 ' + fmtPct(r.divY) : '配当 —', topCls: '', bot: r.pbr != null ? 'PBR ' + fmtN(r.pbr) : 'PBR —', botCls: '' }
+    case 'roe':
+      return { top: r.roe != null ? 'ROE ' + fmtPct(r.roe) : 'ROE —', topCls: r.roe != null && r.roe > 0.1 ? 'up' : '', bot: r.opMgn != null ? '利益率 ' + fmtPct(r.opMgn) : '利益率 —', botCls: r.opMgn != null && r.opMgn > 0.15 ? 'up' : '' }
+    case 'mcap':
+      return { top: r.mcap ? Math.round(r.mcap).toLocaleString() + '億' : '—', topCls: '', bot: '', botCls: '' }
+  }
+}
+
+// ─── SpStockRow（SP専用・1銘柄1行の高密度行）──────────────────────────
+function SpStockRow({ row: r, col, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow; col: SpCol
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
+  onClick: () => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(memo)
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
-
-  function handleBlur() {
-    setEditing(false)
-    if (draft !== memo) onSaveMemo(r.code, draft)
-  }
-
   const dayCls = pctClass(r.chg1d)
-  const arrow = r.chg1d == null ? '' : r.chg1d > 0 ? '▲' : r.chg1d < 0 ? '▼' : '—'
-  // メトリクス帯（読める大きさ・色分け）
-  const metrics: [string, string, string][] = [
-    ['1週',     fmtPct(r.chg1w), pctClass(r.chg1w)],
-    ['1ヶ月',   fmtPct(r.chg1m), pctClass(r.chg1m)],
-    ['PER今期', r.perF != null ? fmtN(r.perF) + '倍' : '—', ''],
-    ['PEG',     r.peg  != null ? fmtN(r.peg, 2) : '—', r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : ''],
-  ]
-
+  const c = spColCells(r, col)
   return (
-    <div className={`${styles.spMemoCard} ${styles['spAccent_' + dayCls]}`}>
-      {/* 見出し: ★/♥ + 銘柄名 + 市場バッジ */}
-      <div className={styles.spCardRow1}>
-        <button className={`${styles.spFavBtn} ${isFav ? styles.spFavBtnActive : ''}`}
+    <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
+      <div className={styles.spRowFavCol}>
+        <button className={`${styles.spRowFav} ${isFav ? styles.spRowFavStar : ''}`}
           onClick={e => { e.stopPropagation(); onToggleFav(r.code) }} aria-label="お気に入り（★）">
           {isFav ? '★' : '☆'}
         </button>
-        <button className={`${styles.spSuperFavBtn} ${isSuperFav ? styles.spSuperFavBtnActive : ''}`}
+        <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）">
           {isSuperFav ? '♥' : '♡'}
         </button>
-        <span className={styles.spCardName}>{r.name || '—'}</span>
-        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
       </div>
-      {/* コード + ジャンル */}
-      <div className={styles.spCardCodeRow}>
-        <span className={styles.spCardCode}>{r.code}</span>
-        {r.genres.slice(0, 3).map(g => <span key={g} className={styles.spGenreBadge}>{g}</span>)}
-      </div>
-
-      {/* ヒーロー: 株価（大）+ 前日比（大・色付きピル） */}
-      <div className={styles.spHero}>
-        <div className={styles.spHeroPrice}>
-          <span className={styles.spHeroYen}>¥</span>{r.close ? r.close.toLocaleString() : '—'}
-        </div>
-        <div className={`${styles.spHeroChg} ${styles['spChgBox_' + dayCls]}`}>
-          <span className={styles.spHeroArrow}>{arrow}</span>
-          <span>{fmtPct(r.chg1d)}</span>
+      <div className={styles.spRowMain}>
+        <div className={styles.spRowName}>{r.name || '—'}</div>
+        <div className={styles.spRowSub}>
+          <span className={styles.spRowCode}>{r.code}</span>
+          <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+          {r.genres[0] && <span className={styles.spRowGenre}>{r.genres[0]}</span>}
         </div>
       </div>
-
-      {/* メトリクス帯（4分割） */}
-      <div className={styles.spMetrics}>
-        {metrics.map(([l, v, c]) => (
-          <div key={l} className={styles.spMetric}>
-            <div className={styles.spMetricLabel}>{l}</div>
-            <div className={`${styles.spMetricValue} ${c ? styles[c] : ''}`}>{v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* PER位置バー */}
-      {r.perBand && (r.perBand.highPER != null || r.perBand.reason) && (
-        <div className={styles.spBandWrap}>
-          <PerBandBar band={r.perBand} likePer={r.likePer} big />
-        </div>
-      )}
-
-      {/* メモエリア: 空なら1行プレースホルダー */}
-      <div className={`${styles.spMemoArea} ${memo ? '' : styles.spMemoAreaEmpty}`}
-        onClick={() => !editing && setEditing(true)}>
-        {editing ? (
-          <textarea
-            className={styles.spMemoTextarea}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={handleBlur}
-            autoFocus
-            rows={3}
-            onClick={e => e.stopPropagation()}
-          />
-        ) : (
-          <>
-            {memo
-              ? <div className={styles.spMemoText}>{memo}</div>
-              : <div className={styles.spMemoPlaceholder}>📝 メモ（タップして入力）</div>
-            }
-            {memo && memoUpdatedAt && <div className={styles.spMemoDate}>{fmtJpDate(memoUpdatedAt)}</div>}
-          </>
-        )}
+      <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
+      <div className={styles.spRowMetric}>
+        <div className={`${styles.spRowMetricTop} ${c.topCls ? styles[c.topCls] : ''}`}>{c.top}</div>
+        {c.bot && <div className={`${styles.spRowMetricBot} ${c.botCls ? styles[c.botCls] : ''}`}>{c.bot}</div>}
       </div>
     </div>
   )
@@ -3810,15 +3785,26 @@ async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boo
   return (d.items ?? []) as FeedItem[]
 }
 
-function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
+// 1記事の重複排除キー。同一銘柄×同一見出し＝同じ記事（Googleが別リンクで返す重複・蓄積DBの旧重複を吸収）。
+// 別銘柄で同じ見出しは別チップで残す（codeを含める）。見出しが空ならリンクで代替。
+function feedKey(it: FeedItem): string {
+  const t = (it.title || '').replace(/\s+/g, '').toLowerCase().slice(0, 60)
+  return it.code + '|' + (t || it.link)
+}
+// 表示用の最終整形: 重複除去＋新着順ソート（pubDate無効は最後尾）。どの取得経路でも必ず通す。
+function cleanFeed(items: FeedItem[]): FeedItem[] {
   const seen = new Set<string>(); const out: FeedItem[] = []
-  for (const it of [...a, ...b]) {
-    const k = it.link || it.title.slice(0, 40)
+  for (const it of items) {
+    const k = feedKey(it)
     if (seen.has(k)) continue
     seen.add(k); out.push(it)
   }
-  out.sort((x, y) => new Date(y.pubDate).getTime() - new Date(x.pubDate).getTime())
+  out.sort((x, y) => (new Date(y.pubDate).getTime() || 0) - (new Date(x.pubDate).getTime() || 0))
   return out
+}
+
+function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
+  return cleanFeed([...a, ...b])
 }
 
 function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
@@ -3845,7 +3831,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const liveFanout = useCallback(async (fresh: boolean) => {
     const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
     if (!fresh) setPhase(`お気に入り(♥${hearts.length})を取得中…`)
-    let all = await postNewsFeed(hearts, fresh)
+    let all = cleanFeed(await postNewsFeed(hearts, fresh))
     setItems(all)
     const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
     if (rest.length > 0) {

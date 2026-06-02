@@ -3579,9 +3579,10 @@ function NewsSection({ code, name }: { code: string; name: string }) {
 }
 
 // ─── NewsFeed（お気に入り銘柄のニュース一覧タブ） ─────────────────────
-type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean }
+type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean; disc: boolean }
 type FeedScope = 'all' | 'hearts'
-const IR_FILTER = '__IR__' // メディア絞り込みの特別項目（公式・IR発表）
+const IR_FILTER = '__IR__'     // 企業公式サイト発
+const DISC_FILTER = '__DISC__' // 決算・適時開示（媒体不問）
 const FEED_DISPLAY_MAX = 400 // 一度に描画する最大件数（DOM負荷対策。絞り込みは全件対象）
 
 // タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
@@ -3725,6 +3726,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   }, [items])
 
   const irCount = useMemo(() => (items ?? []).filter(i => i.ir).length, [items])
+  const discCount = useMemo(() => (items ?? []).filter(i => i.disc).length, [items])
   const q = loosen(stockQuery.trim())
   const filtered = useMemo(() =>
     (items ?? []).filter(i => {
@@ -3732,6 +3734,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       const okMedia = mediaSet.size === 0
         || mediaSet.has(i.source)
         || (mediaSet.has(IR_FILTER) && i.ir)
+        || (mediaSet.has(DISC_FILTER) && i.disc)
       return okStock && okMedia
     }),
     [items, q, mediaSet])
@@ -3790,13 +3793,25 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
                   <label className={`${styles.feedMediaOpt} ${styles.feedMediaOptIr}`}>
                     <input
                       type="checkbox"
+                      checked={mediaSet.has(DISC_FILTER)}
+                      onChange={() => setMediaSet(prev => {
+                        const n = new Set(prev); n.has(DISC_FILTER) ? n.delete(DISC_FILTER) : n.add(DISC_FILTER); return n
+                      })}
+                    />
+                    <span className={styles.feedIrIcon}>📄</span>
+                    <span className={styles.feedMediaName}>決算・適時開示（全社・媒体不問）</span>
+                    <span className={styles.feedMediaCount}>{discCount}</span>
+                  </label>
+                  <label className={`${styles.feedMediaOpt} ${styles.feedMediaOptIr}`}>
+                    <input
+                      type="checkbox"
                       checked={mediaSet.has(IR_FILTER)}
                       onChange={() => setMediaSet(prev => {
                         const n = new Set(prev); n.has(IR_FILTER) ? n.delete(IR_FILTER) : n.add(IR_FILTER); return n
                       })}
                     />
                     <span className={styles.feedIrIcon}>🏢</span>
-                    <span className={styles.feedMediaName}>公式・IR発表（適時開示・新製品等）</span>
+                    <span className={styles.feedMediaName}>公式サイト発（新製品・IR等）</span>
                     <span className={styles.feedMediaCount}>{irCount}</span>
                   </label>
                   {mediaList.map(m => (

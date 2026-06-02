@@ -1,7 +1,10 @@
 // GoogleニュースRSSから銘柄別ニュースを取得・絞り込みする共通ロジック。
 // 無料・キー不要・サーバー経由（CORS回避）。/api/news と /api/news-feed で共用。
 
-export type Article = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; ir: boolean }
+export type Article = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; ir: boolean; disc: boolean }
+
+// 決算・適時開示の判定キーワード（媒体不問。日経会社情報DIGITAL/株探等が全社分を配信）
+const DISCLOSURE_RE = /適時開示|決算短信|決算説明|決算発表|決算速報|本決算|四半期|業績予想|配当予想|増配|減配|自己株式|株主総会|有価証券報告書|公開買付|ＴＯＢ|TOB|株式分割|新株予約権|月次|上方修正|下方修正|開示資料/i
 
 // 投資視点のキーワード（銘柄名と組み合わせて関連ニュースに寄せる）
 const FIN_KEYWORDS =
@@ -139,8 +142,9 @@ export async function fetchStockNews(name: string, code: string, fresh = false):
     // IR・公式発表の判定 = 企業公式サイト発のみ（ソース名に社名が含まれる）。
     // ※日経会社情報DIGITAL等の「適時開示の転載」はメディア発なのでIRに含めない（本人指摘）。
     const ir = isOfficial
+    const disc = DISCLOSURE_RE.test(title)
 
-    articles.push({ title, link, source, sourceUrl, pubDate, ir })
+    articles.push({ title, link, source, sourceUrl, pubDate, ir, disc })
   }
 
   articles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())

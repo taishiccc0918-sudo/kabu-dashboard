@@ -3475,9 +3475,9 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 
 // ─── NewsSection ─────────────────────────────────────────────────────
 // 銘柄別ニュース（GoogleニュースRSS / 無料・キー不要）。
-// 前回その銘柄の詳細を開いた時刻より新しい記事に「NEW」を付ける。
+// 公開から3日以内の記事に「NEW」を付ける（何度開いても表示される）。
 type NewsArticle = { title: string; link: string; source: string; pubDate: string }
-const NEWS_SEEN_KEY = 'news_seen_v1' // { [code]: epoch ms } 銘柄ごとの最終閲覧時刻
+const NEWS_NEW_WINDOW_MS = 3 * 24 * 60 * 60 * 1000 // 直近3日以内をNEW扱い
 
 function fmtRelTime(pubDate: string): string {
   const t = new Date(pubDate).getTime()
@@ -3496,24 +3496,16 @@ function fmtRelTime(pubDate: string): string {
 function NewsSection({ code, name }: { code: string; name: string }) {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [seenAt, setSeenAt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     setArticles(null); setErr(null)
-    // 「前回開いた時刻」を控えてからNEW判定に使う。控えた後、今回の閲覧時刻を保存する
-    const seen = ls<Record<string, number>>(NEWS_SEEN_KEY, {})
-    setSeenAt(seen[code] ?? 0)
 
     fetch(`/api/news?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then((d: { articles?: NewsArticle[] }) => {
         if (cancelled) return
         setArticles(d.articles ?? [])
-        // 今回の閲覧時刻を記録（次回はこれより新しい記事だけNEWになる）
-        const cur = ls<Record<string, number>>(NEWS_SEEN_KEY, {})
-        cur[code] = Date.now()
-        lsSet(NEWS_SEEN_KEY, cur)
       })
       .catch(e => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)) })
 
@@ -3528,7 +3520,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     <div className={styles.newsList}>
       {articles.map((a, i) => {
         const t = new Date(a.pubDate).getTime()
-        const isNew = !!t && !Number.isNaN(t) && t > seenAt
+        const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
         return (
           <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
             <div className={styles.newsItemHead}>

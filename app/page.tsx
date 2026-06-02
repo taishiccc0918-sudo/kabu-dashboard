@@ -306,7 +306,7 @@ export default function Page() {
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
-  useEffect(() => { if (tab === 'report' || tab === 'watchlist') setShowFilterBar(false) }, [tab])
+  useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
 
   // ── Ctrl+Z でタブ履歴を戻る ────────────────────────────────────────
   const [tabHistory, setTabHistory] = useState<TabKey[]>([])
@@ -1248,7 +1248,7 @@ export default function Page() {
       </header>
 
       <div className={styles.toolbar} data-toolbar="">
-        {tab !== 'watchlist' && tab !== 'report' && (
+        {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
           <div className={styles.searchWrap} ref={searchWrapRef}>
             <span className={styles.searchIcon}>🔍</span>
             <input
@@ -1274,7 +1274,7 @@ export default function Page() {
             />
           </div>
         )}
-        {tab !== 'watchlist' && tab !== 'report' && (
+        {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
           <>
             <button
               className={`${styles.filterToggleBtn} ${(showFilterBar || activeFilterCount > 0) ? styles.filterToggleBtnActive : ''}`}
@@ -1395,13 +1395,13 @@ export default function Page() {
         )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
-          {(['dashboard','card','report'] as TabKey[]).map(t => (
+          {(['dashboard','card','news','report'] as TabKey[]).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
               onClick={() => setTab(t)}
             >
-              {{ dashboard:'ダッシュボード', card:'カード', report:'レポート' }[t as 'dashboard'|'card'|'report']}
+              {{ dashboard:'ダッシュボード', card:'カード', news:'ニュース', report:'レポート' }[t as 'dashboard'|'card'|'news'|'report']}
             </button>
           ))}
         </div>
@@ -1469,7 +1469,7 @@ export default function Page() {
 
       <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
         {/* SP専用メモ重視ビュー（ウォッチリスト以外のタブで表示） */}
-        {tab !== 'watchlist' && (
+        {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spMemoList}>
               {filteredRows.length === 0
@@ -1528,6 +1528,15 @@ export default function Page() {
           <WeeklyReport
             allRows={allRows}
             favorites={favorites}
+            onClickCode={(code) => setDetailCode(code)}
+          />
+        )}
+
+        {tab === 'news' && (
+          <NewsFeed
+            heartCodes={Array.from(superFavorites)}
+            starCodes={Array.from(favorites)}
+            nameOf={(code) => allRows.find(r => r.code === code)?.name || masterDB[code]?.name || code}
             onClickCode={(code) => setDetailCode(code)}
           />
         )}
@@ -3566,6 +3575,123 @@ function NewsSection({ code, name }: { code: string; name: string }) {
         })}
       </div>
     </>
+  )
+}
+
+// ─── NewsFeed（お気に入り銘柄のニュース一覧タブ） ─────────────────────
+type FeedItem = { title: string; link: string; source: string; pubDate: string; code: string; name: string }
+type FeedSort = 'date' | 'stock' | 'source'
+
+async function postNewsFeed(stocks: { code: string; name: string }[]): Promise<FeedItem[]> {
+  if (stocks.length === 0) return []
+  const res = await fetch('/api/news-feed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stocks }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const d = await res.json()
+  return (d.items ?? []) as FeedItem[]
+}
+
+function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
+  heartCodes: string[]; starCodes: string[]
+  nameOf: (code: string) => string; onClickCode: (code: string) => void
+}) {
+  const [items, setItems] = useState<FeedItem[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [phase, setPhase] = useState('')
+  const [sort, setSort] = useState<FeedSort>('date')
+
+  const heartKey = heartCodes.join(',')
+  const starKey = starCodes.join(',')
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setErr(null); setItems(null)
+      try {
+        const heartSet = new Set(heartCodes)
+        const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
+        // ① ♥お気に入りを先に取得して即表示（受け身でも早く気づける）
+        setPhase(`お気に入り(♥${hearts.length})のニュースを取得中…`)
+        const heartItems = await postNewsFeed(hearts)
+        if (cancelled) return
+        setItems(heartItems)
+        // ② 残り（★のうち♥でないもの）を後追いで取得してマージ
+        const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
+        if (rest.length > 0) {
+          setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
+          const restItems = await postNewsFeed(rest)
+          if (cancelled) return
+          const seen = new Set<string>(); const merged: FeedItem[] = []
+          for (const it of [...heartItems, ...restItems]) {
+            const k = it.link || it.title.slice(0, 40)
+            if (seen.has(k)) continue
+            seen.add(k); merged.push(it)
+          }
+          setItems(merged)
+        }
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
+      } finally {
+        if (!cancelled) setPhase('')
+      }
+    }
+    load()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heartKey, starKey])
+
+  const sorted = useMemo(() => {
+    if (!items) return []
+    const byDate = (a: FeedItem, b: FeedItem) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+    if (sort === 'date') return [...items].sort(byDate)
+    if (sort === 'source') return [...items].sort((a, b) => {
+      const s = (a.source || '').localeCompare(b.source || '', 'ja'); return s !== 0 ? s : byDate(a, b)
+    })
+    return [...items].sort((a, b) => {
+      const s = (a.name || '').localeCompare(b.name || '', 'ja'); return s !== 0 ? s : byDate(a, b)
+    })
+  }, [items, sort])
+
+  return (
+    <div className={styles.feedWrap}>
+      <div className={styles.feedHead}>
+        <div>
+          <div className={styles.feedTitle}>お気に入り銘柄ニュース</div>
+          {items !== null && <div className={styles.newsCount}>{items.length}件・直近3ヶ月・新着順</div>}
+        </div>
+        <div className={styles.newsSortBtns}>
+          {([['date', '新しい順'], ['stock', '銘柄別'], ['source', 'メディア別']] as [FeedSort, string][]).map(([k, label]) => (
+            <button key={k} className={`${styles.newsSortBtn} ${sort === k ? styles.newsSortBtnActive : ''}`} onClick={() => setSort(k)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {phase && <div className={styles.feedPhase}>⏳ {phase}</div>}
+      {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
+      {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
+      {items !== null && items.length === 0 && !phase && <div className={styles.newsEmpty}>お気に入り銘柄の直近ニュースは見つかりませんでした</div>}
+      <div className={styles.feedList}>
+        {sorted.map((a, i) => {
+          const t = new Date(a.pubDate).getTime()
+          const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
+          return (
+            <div key={a.link || i} className={styles.feedItem}>
+              <div className={styles.feedItemHead}>
+                {isNew && <span className={styles.newsBadge}>NEW</span>}
+                <button className={styles.feedStockChip} onClick={() => onClickCode(a.code)} title="詳細を開く">
+                  {a.name}<span className={styles.feedStockCode}>{a.code}</span>
+                </button>
+                <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
+                <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
+              </div>
+              <a className={styles.feedItemTitle} href={a.link} target="_blank" rel="noopener noreferrer">{a.title}</a>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

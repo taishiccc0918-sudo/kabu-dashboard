@@ -591,6 +591,34 @@
 .newsSortBtn:hover { border-color: #3b82f6; color: #b4c6d8; }
 .newsSortBtnActive { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #cfe0f2; }
 
+/* ── お気に入り銘柄ニュース一覧（newsタブ） ───────────── */
+.feedWrap { max-width: 920px; margin: 0 auto; padding: 4px 4px 60px; }
+.feedHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.feedTitle { font-size: 18px; font-weight: 700; color: #e2edf7; font-family: 'Noto Sans JP', sans-serif; }
+.feedPhase { font-size: 12px; color: #93a8be; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; }
+.feedList { display: flex; flex-direction: column; gap: 8px; }
+.feedItem {
+  padding: 11px 13px; border-radius: 8px;
+  border: 1px solid #1f2d40; background: rgba(255,255,255,0.03);
+  transition: border-color .12s, background .12s;
+}
+.feedItem:hover { background: rgba(59,130,246,0.06); border-color: #2f4a6e; }
+.feedItemHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.feedStockChip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: 12px; font-weight: 700; color: #cfe0f2;
+  background: rgba(59,130,246,0.12); border: 1px solid #2a3a52;
+  border-radius: 5px; padding: 2px 8px; cursor: pointer; transition: all .12s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.feedStockChip:hover { background: rgba(59,130,246,0.25); border-color: #3b82f6; color: #fff; }
+.feedStockCode { font-size: 10px; color: #7a94b0; font-family: 'JetBrains Mono', monospace; }
+.feedItemTitle {
+  display: block; font-size: 14px; line-height: 1.5; color: #d4e2f0;
+  font-family: 'Noto Sans JP', sans-serif; text-decoration: none;
+}
+.feedItemTitle:hover { color: #fff; text-decoration: underline; }
+
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {
   position: fixed; bottom: 0; left: 0; right: 0;

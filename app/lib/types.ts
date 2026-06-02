@@ -197,7 +197,7 @@ export type JudgmentSettings = {
   logics: JudgmentLogic[]
   activeLogicId: string
 }
-export type TabKey = 'dashboard' | 'card' | 'watchlist' | 'report'
+export type TabKey = 'dashboard' | 'card' | 'watchlist' | 'report' | 'news'
 export type StatusType = 'idle' | 'loading' | 'ok' | 'error'
 
 export interface StockMeta {

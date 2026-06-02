@@ -529,10 +529,10 @@
   letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 1px solid #1f2d40; font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
-.detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.detailItem { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 9px 11px; border: 1px solid #1f2d40; }
-.detailItemLabel { font-size: 9px; color: #7a8fa6; margin-bottom: 4px; font-family: 'Noto Sans JP', sans-serif; }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px; font-weight: 600; color: #b4c6d8; }
+.detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.detailItem { background: rgba(255,255,255,0.04); border-radius: 7px; padding: 10px 12px; border: 1px solid #243450; }
+.detailItemLabel { font-size: 11px; color: #93a8be; margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: #e2edf7; line-height: 1.2; }
 .detailMemo {
   width: 100%; background: rgba(255,255,255,0.03);
   border: 1px solid #2a3a52;
@@ -580,6 +580,16 @@
   font-family: 'Noto Sans JP', sans-serif;
 }
 .newsEmpty { font-size: 12px; color: #4e6280; padding: 4px 0; }
+.newsSortRow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.newsCount { font-size: 10px; color: #6a8096; font-family: 'JetBrains Mono', monospace; }
+.newsSortBtns { display: flex; gap: 4px; }
+.newsSortBtn {
+  font-size: 11px; padding: 3px 9px; border-radius: 5px;
+  border: 1px solid #2a3a52; background: rgba(255,255,255,0.03);
+  color: #7a8fa6; cursor: pointer; transition: all .12s;
+}
+.newsSortBtn:hover { border-color: #3b82f6; color: #b4c6d8; }
+.newsSortBtnActive { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #cfe0f2; }
 
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {

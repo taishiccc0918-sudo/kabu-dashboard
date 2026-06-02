@@ -1518,7 +1518,7 @@ export default function Page() {
           <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
             <div className={styles.cardGrid}>
               {filteredRows.map(r => (
-                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} refreshKey={chartRefreshKey} chartMode={globalChartMode} onChartModeChange={setGlobalChartMode} />
+                <StockCard key={r.code} row={r} apiKey={apiKey} serverHasKey={serverHasKey} onClick={() => setDetailCode(r.code)} refreshKey={chartRefreshKey} chartMode={globalChartMode} onChartModeChange={setGlobalChartMode} />
               ))}
             </div>
           </div>
@@ -1583,6 +1583,7 @@ export default function Page() {
               memoUpdatedAt={stockMeta[detailCode]?.memoUpdatedAt}
               onSaveMemo={text => saveMemo(detailCode!, text)}
               apiKey={apiKey}
+              serverHasKey={serverHasKey}
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
               chartMode={globalChartMode}
@@ -2323,10 +2324,12 @@ function normalizeSeries(prices: number[]): number[] {
   return prices.map(v => v / base)
 }
 
-function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
-  code: string; apiKey: string; refreshKey?: number
+function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, onModeChange }: {
+  code: string; apiKey: string; serverHasKey?: boolean; refreshKey?: number
   mode: ChartMode; onModeChange: (m: ChartMode) => void
 }) {
+  // サーバーにJ-Quantsキーがあれば、クライアントキー未入力でもプロキシ経由で取得できる
+  const canFetch = !!apiKey || serverHasKey
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
@@ -2353,7 +2356,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
   }, [])
 
   useEffect(() => {
-    if (!visible || !apiKey || !code) return
+    if (!visible || !canFetch || !code) return
     const isForcedRefresh = refreshKey !== lastRefreshKeyRef.current
     lastRefreshKeyRef.current = refreshKey
 
@@ -2432,7 +2435,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
       if (!cancelled) setChartLoading(false)
     })
     return () => { cancelled = true }
-  }, [code, apiKey, mode, visible, refreshKey, retryCount])
+  }, [code, apiKey, canFetch, mode, visible, refreshKey, retryCount])
 
   useEffect(() => {
     const draw = () => {
@@ -3093,8 +3096,8 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, refreshKey = 0, chartMode, onChartModeChange }: {
-  row: StockRow; apiKey: string; onClick: () => void; refreshKey?: number
+function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey = 0, chartMode, onChartModeChange }: {
+  row: StockRow; apiKey: string; serverHasKey?: boolean; onClick: () => void; refreshKey?: number
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
@@ -3135,9 +3138,9 @@ function StockCard({ row: r, apiKey, onClick, refreshKey = 0, chartMode, onChart
           </div>
         ))}
       </div>
-      {apiKey && (
+      {(apiKey || serverHasKey) && (
         <div onClick={e => e.stopPropagation()}>
-          <MiniChart code={r.code} apiKey={apiKey} refreshKey={refreshKey} mode={chartMode} onModeChange={onChartModeChange} />
+          <MiniChart code={r.code} apiKey={apiKey} serverHasKey={serverHasKey} refreshKey={refreshKey} mode={chartMode} onModeChange={onChartModeChange} />
         </div>
       )}
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
@@ -3493,9 +3496,12 @@ function fmtRelTime(pubDate: string): string {
   return `${Math.floor(day / 30)}ヶ月前`
 }
 
+type NewsSort = 'date' | 'source'
+
 function NewsSection({ code, name }: { code: string; name: string }) {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [sort, setSort] = useState<NewsSort>('date')
 
   useEffect(() => {
     let cancelled = false
@@ -3512,37 +3518,64 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     return () => { cancelled = true }
   }, [code, name])
 
+  const sorted = useMemo(() => {
+    if (!articles) return []
+    const byDate = (a: NewsArticle, b: NewsArticle) =>
+      new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+    if (sort === 'date') return [...articles].sort(byDate)
+    // メディア別: ソース名でグループ化し、各グループ内は新しい順
+    return [...articles].sort((a, b) => {
+      const s = (a.source || '').localeCompare(b.source || '', 'ja')
+      return s !== 0 ? s : byDate(a, b)
+    })
+  }, [articles, sort])
+
   if (err) return <div className={styles.newsEmpty}>ニュース取得に失敗しました（{err}）</div>
   if (articles === null) return <div className={styles.newsEmpty}>読み込み中…</div>
   if (articles.length === 0) return <div className={styles.newsEmpty}>直近のニュースは見つかりませんでした</div>
 
   return (
-    <div className={styles.newsList}>
-      {articles.map((a, i) => {
-        const t = new Date(a.pubDate).getTime()
-        const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
-        return (
-          <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
-            <div className={styles.newsItemHead}>
-              {isNew && <span className={styles.newsBadge}>NEW</span>}
-              <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
-              <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
-            </div>
-            <div className={styles.newsTitle}>{a.title}</div>
-          </a>
-        )
-      })}
-    </div>
+    <>
+      <div className={styles.newsSortRow}>
+        <span className={styles.newsCount}>直近3ヶ月・{articles.length}件</span>
+        <div className={styles.newsSortBtns}>
+          <button
+            className={`${styles.newsSortBtn} ${sort === 'date' ? styles.newsSortBtnActive : ''}`}
+            onClick={() => setSort('date')}
+          >新しい順</button>
+          <button
+            className={`${styles.newsSortBtn} ${sort === 'source' ? styles.newsSortBtnActive : ''}`}
+            onClick={() => setSort('source')}
+          >メディア別</button>
+        </div>
+      </div>
+      <div className={styles.newsList}>
+        {sorted.map((a, i) => {
+          const t = new Date(a.pubDate).getTime()
+          const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
+          return (
+            <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
+              <div className={styles.newsItemHead}>
+                {isNew && <span className={styles.newsBadge}>NEW</span>}
+                <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
+                <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
+              </div>
+              <div className={styles.newsTitle}>{a.title}</div>
+            </a>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
+  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, serverHasKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; memoUpdatedAt?: string; onSaveMemo: (t: string) => void
-  apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
+  apiKey: string; serverHasKey?: boolean; earningsDate: string; onSaveEarningsDate: (date: string) => void
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
@@ -3568,7 +3601,7 @@ function DetailPanel({
       <div className={styles.detailSubPrice}>
         前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
       </div>
-      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} mode={chartMode} onModeChange={onChartModeChange} /></Section>
+      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} serverHasKey={serverHasKey} mode={chartMode} onModeChange={onChartModeChange} /></Section>
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],

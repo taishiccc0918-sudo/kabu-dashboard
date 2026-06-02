@@ -107,12 +107,12 @@ export async function fetchStockNews(name: string, code: string, fresh = false):
     const nSource = normalize(source)
     const nItem = normalize(item)
     const codeLc = code.toLowerCase()
-    const hasCodeTitle = !!code && nTitle.includes(codeLc)
     const hasNameTitle = nName.length >= 2 && nTitle.includes(nName)
     const isMajor = MAJOR_SOURCES.some(m => nSource.includes(m))
     const isOfficial = nName.length >= 2 && nSource.includes(nName)
-    // 本文（item全体）にコード番号が出る＝確実にこの銘柄の記事。主要メディアなら採用（タイトルに名前が無くても拾う）
-    const codeInBody = !!code && nItem.includes(codeLc)
+    // タイトルまたは本文にコード番号（ティッカー）が出る＝確実にこの銘柄の記事。
+    // 媒体不問で採用する（日経/PR TIMES/株探等、ティッカーが入っていれば漏れなく拾う）。
+    const hasCode = !!code && nItem.includes(codeLc)
 
     // ── 別銘柄のクオート/関連ページ除外 ──
     // タイトルに【別コード】が入り、対象銘柄の名前・コードが無いものは別銘柄の記事（REIT/ETF等）→除外
@@ -127,10 +127,10 @@ export async function fetchStockNews(name: string, code: string, fresh = false):
     const nameTitleOK = hasNameTitle && (distinctive || isMajor)
 
     // ── 関連性フィルタ ───────────────────────────────
-    //  採用: タイトルにコード / 固有名はタイトル一致・一般語は主要メディア＋タイトル一致 / 企業公式 / 主要メディア＋本文にコード
+    //  採用: 本文/タイトルにコード(ティッカー) / 固有名はタイトル一致・一般語は主要メディア＋タイトル一致 / 企業公式
     //  除外: 別銘柄のクオート/関連ページ
     if (hasOtherSecurityOnly) continue
-    if (!hasCodeTitle && !nameTitleOK && !isOfficial && !(isMajor && codeInBody)) continue
+    if (!hasCode && !nameTitleOK && !isOfficial) continue
 
     const key = title.slice(0, 40)
     if (seen.has(key)) continue

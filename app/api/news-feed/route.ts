@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
   try {
     const perStock = await pool(stocks, 8, async (s) => {
       const arts = await fetchStockNews(s.name || '', s.code, fresh)
-      // 1銘柄あたりの上限（多めに取り、フィード全体の網羅性を上げる）
-      return arts.slice(0, 30).map((a): FeedItem => ({ ...a, code: s.code, name: s.name || s.code }))
+      // 1銘柄あたりの上限（実質ほぼ全件＝GoogleニュースRSSが返す上限まで）
+      return arts.slice(0, 100).map((a): FeedItem => ({ ...a, code: s.code, name: s.name || s.code }))
     })
 
     // マージ＋重複除去（同一リンク／同一タイトル先頭）＋新着順
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
     merged.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
 
-    return NextResponse.json({ items: merged.slice(0, 1200), count: merged.length })
+    return NextResponse.json({ items: merged.slice(0, 8000), count: merged.length })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[news-feed] error:', msg)

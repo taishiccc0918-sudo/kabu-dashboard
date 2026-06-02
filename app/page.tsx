@@ -318,21 +318,31 @@ export default function Page() {
     }
     prevTabRef.current = tab
   }, [tab])
-  // Ctrl+Z キーハンドラー
+  // Ctrl+Z / Ctrl+Y キーハンドラー
+  //  ・銘柄管理タブ: Ctrl+Z=元に戻す / Ctrl+Y（or Ctrl+Shift+Z）=やり直し（★/♥操作）
+  //  ・それ以外: Ctrl+Z=直前のタブへ戻る（従来動作）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'z' || e.shiftKey) return
+      if (!(e.ctrlKey || e.metaKey)) return
       const target = e.target as HTMLElement
       // 入力欄内では標準のundoを邪魔しない
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
-      e.preventDefault()
-      setTabHistory(prev => {
-        if (prev.length === 0) return prev
-        const next = [...prev]
-        const backTo = next.pop()!
-        setTab(backTo)
-        return next
-      })
+      const k = e.key.toLowerCase()
+      if (tabRef.current === 'watchlist') {
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); handleUndoRef.current() }
+        else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); handleRedoRef.current() }
+        return
+      }
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        setTabHistory(prev => {
+          if (prev.length === 0) return prev
+          const next = [...prev]
+          const backTo = next.pop()!
+          setTab(backTo)
+          return next
+        })
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -895,6 +905,10 @@ export default function Page() {
     applyFavSnapshot(snapshot, favorites, superFavorites)
     setRedoStack(rd => rd.slice(0, -1))
   }
+  // キーボードショートカット(Ctrl+Z/Y)から最新の関数/タブを参照するためのref
+  const handleUndoRef = useRef(handleUndo); handleUndoRef.current = handleUndo
+  const handleRedoRef = useRef(handleRedo); handleRedoRef.current = handleRedo
+  const tabRef = useRef(tab); tabRef.current = tab
   function toggleFavorite(code: string) {
     pushUndo()
     setFavorites(prev => {
@@ -1083,7 +1097,18 @@ export default function Page() {
     setTimeout(() => setHighlightCode(code), 0)
   }
 
-  const allGenreOptions = [...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)), ...customGenreOptions]
+  // 候補 = 既定(除外済みを引く) ＋ カスタム ＋ 実際に銘柄で使われているジャンル。
+  // 「銘柄にはAI・半導体が付いてるのに候補に出ない」等の不連動を自己修復する。
+  const allGenreOptions = useMemo(() => {
+    const set = new Set<string>([
+      ...ALL_GENRE_OPTIONS.filter(g => !removedDefaultGenres.includes(g)),
+      ...customGenreOptions,
+    ])
+    for (const m of Object.values(stockMeta)) {
+      for (const g of (m.genres ?? [])) if (!removedDefaultGenres.includes(g)) set.add(g)
+    }
+    return Array.from(set)
+  }, [removedDefaultGenres, customGenreOptions, stockMeta])
 
   function addGenreOption(name: string) {
     const trimmed = name.trim()
@@ -1412,20 +1437,7 @@ export default function Page() {
                 ))}
               </div>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
-              <button
-                className={styles.btnSecondary}
-                onClick={handleUndo}
-                disabled={undoStack.length === 0}
-                title={undoStack.length > 0 ? `★/♥の操作を${undoStack.length}件まで元に戻せます` : '元に戻す操作がありません'}
-                style={{minWidth:52}}
-              >↩ 戻る</button>
-              <button
-                className={styles.btnSecondary}
-                onClick={handleRedo}
-                disabled={redoStack.length === 0}
-                title={redoStack.length > 0 ? `${redoStack.length}件やり直せます` : 'やり直す操作がありません'}
-                style={{minWidth:52}}
-              >↪ 進む</button>
+              <span className={styles.wlUndoHint} title="★/♥の操作を元に戻す/やり直す">↩ Ctrl+Z / Ctrl+Y ↪</span>
             </div>
           </>
         )}

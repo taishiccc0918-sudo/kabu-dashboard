@@ -1344,6 +1344,10 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; color: #4e6280; white-space: nowrap; flex-shrink: 0;
 }
+.wlUndoHint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #6a8096; white-space: nowrap; flex-shrink: 0;
+}
 .wlTitle {
   font-size: 15px; font-weight: 700; color: #e8eef8;
   font-family: 'JetBrains Mono', monospace;

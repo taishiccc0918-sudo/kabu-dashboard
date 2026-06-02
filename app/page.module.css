@@ -3407,7 +3407,7 @@
 
 /* 偶数行ホバー時もtdStarの背景を合わせる */
 .table tbody tr:nth-child(even):hover .tdStar {
-  background: #1a2235 !important;
+  background: var(--surface-hover) !important;
 }
 
 /* sticky列: 右側にソフトシャドウ */

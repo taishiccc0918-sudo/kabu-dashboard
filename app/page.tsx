@@ -2963,8 +2963,9 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
   highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void
   showDetail: boolean
 }) {
-  const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
-  const stickyNameBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#131825' : '#171d2e')
+  // 固定列(★/コード/銘柄名)の背景。テーマ対応のためトークン参照（旧:暗色ハードコードでライトモードは暗背景＋暗文字＝白飛びしていた）。行のゼブラ(surface-0/1)に一致させる。
+  const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? 'var(--surface-0)' : 'var(--surface-1)')
+  const stickyNameBg = stickyBg
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <tr data-code={r.code} className={highlighted ? styles.trHighlight : undefined} style={{ cursor: 'pointer' }} onClick={onClick}>
@@ -3059,7 +3060,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   if (editing) return (
     <span style={{display:'inline-flex', gap:2, alignItems:'center'}}>
       <input type="date" autoFocus value={val} min={new Date().toISOString().slice(0,10)} onChange={e => setVal(e.target.value)}
-        style={{fontSize:10, padding:'1px 2px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:3, width:110}}
+        style={{fontSize:10, padding:'1px 2px', background:'var(--surface-1)', border:'1px solid var(--accent)', color:'var(--text-1)', borderRadius:3, width:110}}
         onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
         onClick={e => { e.stopPropagation(); try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
         onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
@@ -4276,7 +4277,7 @@ function DetailPanel({
               {editingDate ? (
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
                   <input type="date" autoFocus value={dateVal} min={new Date().toISOString().slice(0,10)} onChange={e => setDateVal(e.target.value)}
-                    style={{padding:'4px 8px', background:'#1e2735', border:'1px solid #3b82f6', color:'#e2e8f0', borderRadius:4, fontSize:14}}
+                    style={{padding:'4px 8px', background:'var(--surface-1)', border:'1px solid var(--accent)', color:'var(--text-1)', borderRadius:4, fontSize:14}}
                     onFocus={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
                     onClick={e => { try { (e.target as HTMLInputElement & {showPicker?:()=>void}).showPicker?.() } catch {} }}
                     onKeyDown={e => {

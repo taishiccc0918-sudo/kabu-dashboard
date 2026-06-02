@@ -3,11 +3,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   DEFAULT_WATCHLIST, StockRow, FinRecord, PriceRecord, MasterRecord, StockMeta,
   TabKey, StatusType, ALL_GENRE_OPTIONS, DEFAULT_GENRES,
-  JudgmentSettings, JudgmentLogic, MetricRange,
 } from './lib/types'
-import { evaluateLogic, formatLogicDescription } from './lib/judgmentEngine'
-import { DEFAULT_LOGICS } from './lib/defaultLogics'
-import { METRIC_LABELS, AVAILABLE_METRICS } from './lib/metricLabels'
 import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars, fetchFyEpsForCode,
 } from './lib/api'
@@ -226,7 +222,6 @@ export default function Page() {
   const [favorites,  setFavorites]  = useState<Set<string>>(new Set())
   const favoritesRef = useRef<Set<string>>(new Set())
   const [superFavorites,    setSuperFavorites]    = useState<Set<string>>(new Set())
-  const [judgmentSettings,  setJudgmentSettings]  = useState<JudgmentSettings | null>(null)
   const [stockMeta,  setStockMeta]  = useState<Record<string, StockMeta>>({})
   const [priceDB,    setPriceDB]    = useState<Record<string, PriceRecord>>({})
   const [finDB,      setFinDB]      = useState<Record<string, FinRecord>>({})
@@ -238,9 +233,8 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('準備中...')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [filter,     setFilter]     = useState<'all'|'buy'>('all')
   const [mktFilter,  setMktFilter]  = useState<string>('all')
-  const [genreFilter, setGenreFilter] = useState<string>('all')
+  const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
@@ -301,7 +295,7 @@ export default function Page() {
   const wlScrollFnRef = useRef<((code: string) => void) | null>(null)
 
   // ── 認証ユーザー状態 ───────────────────────────────────────────────
-  type AuthUser = { id: string; email?: string; name?: string }
+  type AuthUser = { id: string; email?: string; name?: string; picture?: string }
   const [user, setUser] = useState<AuthUser | null>(null)
   const userRef = useRef<AuthUser | null>(null)
   useEffect(() => { userRef.current = user }, [user])
@@ -482,14 +476,14 @@ export default function Page() {
     if (!sb) return
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email }
+        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email, picture: session.user.user_metadata?.avatar_url ?? session.user.user_metadata?.picture }
         setUser(u)
         loadFromSupabase(session.user.id)
       }
     })
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email }
+        const u = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name ?? session.user.email, picture: session.user.user_metadata?.avatar_url ?? session.user.user_metadata?.picture }
         setUser(u)
         if (event === 'SIGNED_IN') loadFromSupabase(session.user.id)
       } else {
@@ -511,8 +505,6 @@ export default function Page() {
     setEarningsDates(ls('earningsDates', {}))
     setSuperFavorites(new Set(ls<string[]>('superFavorites', [])))
     setStockMeta(initStockMeta())
-    const savedJudgment = ls<JudgmentSettings | null>('judgmentSettings', null)
-    setJudgmentSettings(savedJudgment ?? DEFAULT_LOGICS)
     // 表示モード: 保存済み優先、なければ画面幅で自動判定
     const savedTab = ls<string>('preferredTab', '')
     if (savedTab === 'card' || savedTab === 'dashboard') {
@@ -917,34 +909,6 @@ export default function Page() {
     [favorites, priceDB, finDB, masterDB, stockMeta, perBandDB]
   )
 
-  // ── 判定エンジン ──────────────────────────────────────────────────
-  const activeLogic = useMemo(() => {
-    const s = judgmentSettings ?? DEFAULT_LOGICS
-    return s.logics.find(l => l.id === s.activeLogicId) ?? s.logics[0]
-  }, [judgmentSettings])
-
-  const judgmentResultsMap = useMemo(() => {
-    const map: Record<string, string | null> = {}
-    for (const row of allRows) {
-      map[row.code] = activeLogic ? evaluateLogic(row, activeLogic) : null
-    }
-    return map
-  }, [allRows, activeLogic])
-
-  const activeLogicDesc = useMemo(
-    () => activeLogic ? formatLogicDescription(activeLogic) : '',
-    [activeLogic]
-  )
-
-  const activeLogicTooltip = useMemo(() => {
-    if (!judgmentSettings || !activeLogic) return '判定ロジックが設定されていません'
-    const idx = judgmentSettings.logics.findIndex(l => l.id === judgmentSettings.activeLogicId)
-    const num = ['①','②','③','④','⑤'][idx] ?? `${idx + 1}`
-    const desc = formatLogicDescription(activeLogic)
-    const condLines = desc ? desc.split(', ').map(s => `  ・${s}`).join('\n') : '  （条件未設定）'
-    return `【判定設定 ${num} 「${activeLogic.name}」】\n条件（すべてAND）:\n${condLines}\n\nツールバーの ⚙ 判定設定 から条件・名前を変更できます`
-  }, [judgmentSettings, activeLogic])
-
   const maxDiscDate = useMemo(() => {
     const dates = Object.values(finDB).map(f => f.discDate).filter(Boolean)
     return dates.length > 0 ? [...dates].sort().at(-1)! : ''
@@ -958,11 +922,14 @@ export default function Page() {
         const memoNorm = normalizeSearchText(stockMeta[r.code]?.memo ?? '')
         if (!norm.includes(q) && !memoNorm.includes(q)) return false
       }
-      if (filter === 'buy' && judgmentResultsMap[r.code] == null) return false
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (filterFav   && !favorites.has(r.code))      return false
       if (mktFilter !== 'all' && marketShort(r.market).cls !== mktFilter) return false
-      if (genreFilter !== 'all' && !r.genres.includes(genreFilter)) return false
+      if (genreFilters.size > 0) {
+        const matchRegular = r.genres.some(g => genreFilters.has(g))
+        const matchUnset = genreFilters.has(GENRE_UNSET) && r.genres.length === 0
+        if (!matchRegular && !matchUnset) return false
+      }
       if (mcapMin !== '' && r.mcap < parseFloat(mcapMin)) return false
       if (perFMax !== '' && (r.perF == null || r.perF > parseFloat(perFMax))) return false
       return true
@@ -988,7 +955,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, stockMeta, filter, filterHeart, filterFav, superFavorites, favorites, judgmentResultsMap, mktFilter, genreFilter, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, stockMeta, filterHeart, filterFav, superFavorites, favorites, mktFilter, genreFilters, mcapMin, perFMax, sortKey, sortDir])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
@@ -1055,14 +1022,13 @@ export default function Page() {
 
   const activeFilterCount = useMemo(() => {
     let n = 0
-    if (filter === 'buy') n++
     if (filterHeart) n++
     if (filterFav) n++
     if (mktFilter !== 'all') n++
-    if (genreFilter !== 'all') n++
+    if (genreFilters.size > 0) n++
     if (mcapMin || perFMax) n++
     return n
-  }, [filter, filterHeart, filterFav, mktFilter, genreFilter, mcapMin, perFMax])
+  }, [filterHeart, filterFav, mktFilter, genreFilters, mcapMin, perFMax])
 
   function handleSort(key: SortKeyEx) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
@@ -1070,13 +1036,8 @@ export default function Page() {
     else { setSortKey(key); setSortDir(key === 'genre' ? 1 : -1) }
   }
 
-  function handleSettingsChange(newSettings: JudgmentSettings) {
-    setJudgmentSettings(newSettings)
-    lsSet('judgmentSettings', newSettings)
-  }
-
   function clearAllFilters() {
-    setFilter('all'); setMktFilter('all'); setGenreFilter('all')
+    setMktFilter('all'); setGenreFilters(new Set())
     setMcapMin(''); setPerFMax(''); setSortKey(null); setSortDir(-1)
   }
 
@@ -1097,7 +1058,7 @@ export default function Page() {
   }
 
   function removeGenreOption(name: string) {
-    if (genreFilter === name) setGenreFilter('all')
+    setGenreFilters(prev => { if (!prev.has(name)) return prev; const n = new Set(prev); n.delete(name); return n })
     setStockMeta(prev => {
       const next = { ...prev }
       // 明示的に設定されたジャンルから削除
@@ -1252,7 +1213,7 @@ export default function Page() {
                   <span className={styles.helpBadge}>?</span> ヘルプ
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
-                  <span>⚙️</span> 買い判定設定
+                  <span>⚙️</span> APIキー設定
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { toggleTheme(); setShowMoreMenu(false) }}>
                   <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}
@@ -1272,10 +1233,7 @@ export default function Page() {
           {/* ── ログイン/ログアウト（Supabase設定済みの場合のみ表示）── */}
           {getSb() && (
             user ? (
-              <div className={styles.userMenu}>
-                <span className={styles.userName} title={user.email}>{user.name?.split(' ')[0] ?? '👤'}</span>
-                <button className={styles.logoutBtn} onClick={() => getSb()?.auth.signOut()} title="ログアウト">⏻</button>
-              </div>
+              <UserMenu user={user} onLogout={() => getSb()?.auth.signOut()} />
             ) : (
               <button
                 className={styles.loginBtn}
@@ -1324,12 +1282,6 @@ export default function Page() {
             >
               {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
             </button>
-            <button
-              className={`${styles.filterToggleBtn} ${showSettings ? styles.filterToggleBtnActive : ''}`}
-              onClick={() => setShowSettings(s => !s)}
-              title="買い判定設定を開く"
-              style={{padding:'4px 10px'}}
-            >⚙ 判定設定</button>
             <button
               className={`${styles.filterToggleBtn} ${showDetail ? styles.filterToggleBtnActive : ''}`}
               onClick={() => setShowDetail(s => !s)}
@@ -1459,18 +1411,6 @@ export default function Page() {
         <div className={styles.filterBar}>
           <div className={styles.filterBarRow}>
             <div className={styles.filterGroup}>
-              {(['all','buy'] as ('all'|'buy')[]).map(f => (
-                <button
-                  key={f}
-                  className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
-                  onClick={() => setFilter(f as 'all'|'buy')}
-                  title={f === 'buy' ? activeLogicTooltip : undefined}
-                >
-                  {f === 'all' ? '全て' : filter === 'buy' && activeLogic?.name
-                    ? `買いシグナル (${activeLogic.name})`
-                    : '買いシグナル'}
-                </button>
-              ))}
               <button
                 className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
                 onClick={() => setFilterHeart(h => !h)}
@@ -1492,13 +1432,24 @@ export default function Page() {
               ))}
             </div>
             <div className={styles.filterDivider} />
-            <div className={styles.filterPanelChips}>
-              {['all', ...allGenreOptions].map(g => (
-                <button key={g}
-                  className={`${styles.filterChip} ${genreFilter===g ? styles.filterChipActive : ''}`}
-                  onClick={() => setGenreFilter(g)}
-                >{g==='all'?'全ジャンル':g}</button>
-              ))}
+            <div className={styles.filterGenreWrap}>
+              <span className={styles.filterPanelLabel}>ジャンル</span>
+              <GenreFilterDropdown
+                label="ジャンルを選ぶ"
+                genres={allGenreOptions}
+                activeFilters={genreFilters}
+                onApply={setGenreFilters}
+                onClear={() => setGenreFilters(new Set())}
+              />
+              {genreFilters.size > 0 && (
+                <div className={styles.filterGenreChips}>
+                  {Array.from(genreFilters).map(g => (
+                    <span key={g} className={styles.filterGenreActiveChip} onClick={() => setGenreFilters(prev => { const n = new Set(prev); n.delete(g); return n })}>
+                      {g === GENRE_UNSET ? '未設定' : g} <span className={styles.filterGenreChipX}>×</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className={styles.filterBarRow}>
@@ -1509,7 +1460,7 @@ export default function Page() {
             <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
               value={perFMax} onChange={e => setPerFMax(e.target.value)} />
             <button className={styles.filterPanelClear}
-              onClick={() => { setFilter('all'); setMktFilter('all'); setGenreFilter('all'); setMcapMin(''); setPerFMax(''); setFilterHeart(false); setFilterFav(false) }}>
+              onClick={() => { setMktFilter('all'); setGenreFilters(new Set()); setMcapMin(''); setPerFMax(''); setFilterHeart(false); setFilterFav(false) }}>
               全クリア
             </button>
           </div>
@@ -1534,8 +1485,6 @@ export default function Page() {
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
                     onToggleSuperFav={toggleSuperFavorite}
-                    judgment={judgmentResultsMap[r.code] ?? null}
-                    description={activeLogicDesc}
                   />
                 ))
               }
@@ -1559,9 +1508,6 @@ export default function Page() {
                 highlightCode={highlightCode}
                 superFavorites={superFavorites}
                 onToggleSuperFav={toggleSuperFavorite}
-                judgmentResultsMap={judgmentResultsMap}
-                activeLogicDesc={activeLogicDesc}
-                activeLogicTooltip={activeLogicTooltip}
                 showDetail={showDetail}
               />
             )}
@@ -1572,7 +1518,7 @@ export default function Page() {
           <div className={forcePc ? styles.forcePcOn : styles.pcOnly}>
             <div className={styles.cardGrid}>
               {filteredRows.map(r => (
-                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} refreshKey={chartRefreshKey} chartMode={globalChartMode} onChartModeChange={setGlobalChartMode} />
+                <StockCard key={r.code} row={r} apiKey={apiKey} onClick={() => setDetailCode(r.code)} refreshKey={chartRefreshKey} chartMode={globalChartMode} onChartModeChange={setGlobalChartMode} />
               ))}
             </div>
           </div>
@@ -1582,7 +1528,6 @@ export default function Page() {
           <WeeklyReport
             allRows={allRows}
             favorites={favorites}
-            judgmentResultsMap={judgmentResultsMap}
             onClickCode={(code) => setDetailCode(code)}
           />
         )}
@@ -1640,8 +1585,6 @@ export default function Page() {
               apiKey={apiKey}
               earningsDate={earningsDates[detailCode] ?? ''}
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
-              judgment={judgmentResultsMap[detailCode] ?? null}
-              description={activeLogicDesc}
               chartMode={globalChartMode}
               onChartModeChange={setGlobalChartMode}
             />
@@ -1653,8 +1596,6 @@ export default function Page() {
       <SettingsPanel
         visible={showSettings}
         onClose={() => setShowSettings(false)}
-        judgmentSettings={judgmentSettings}
-        onSettingsChange={handleSettingsChange}
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
         serverHasKey={serverHasKey}
@@ -2632,7 +2573,7 @@ function MiniChart({ code, apiKey, refreshKey = 0, mode, onModeChange }: {
 
 // ─── DashboardTable ──────────────────────────────────────────────────
 function DashboardTable({
-  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, judgmentResultsMap, activeLogicDesc, activeLogicTooltip, showDetail
+  filteredRows, finDB, earningsDates, onSaveEarningsDate, sortKey, sortDir, handleSort, onRowClick, highlightCode, superFavorites, onToggleSuperFav, showDetail
 }: {
   filteredRows: StockRow[]
   finDB: Record<string, import('./lib/types').FinRecord>
@@ -2645,9 +2586,6 @@ function DashboardTable({
   highlightCode: string | null
   superFavorites: Set<string>
   onToggleSuperFav: (code: string) => void
-  judgmentResultsMap: Record<string, string | null>
-  activeLogicDesc: string
-  activeLogicTooltip: string
   showDetail: boolean
 }) {
   const headRef = useRef<HTMLDivElement>(null)
@@ -2700,7 +2638,6 @@ function DashboardTable({
     { label: 'EPS今期\n成長率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'epsCurGr' as keyof StockRow, w: 64, group: 'other', detail: true, tooltip: '今期予想EPS÷直近実績EPS−1。\nFY確定後の銘柄は次期予想EPSを充当。\n業績V字回復や急減速の発見に使う。' },
     { label: '営業利益率', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'opMgn' as keyof StockRow, w: 88, group: 'other', detail: true, tooltip: '営業利益÷売上高。\n本業でどれだけ稼げるかの収益性指標。\n15%超で高収益、20%超は非常に優秀。' },
     { label: '配当利回り', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: 'divY' as keyof StockRow, w: 88, group: 'other', detail: true, tooltip: '年間配当÷株価。\nインカムゲインの目安。\n3%超で高配当株とされる。' },
-    { label: '判定', cls: `${styles.thRight} ${styles.thOtherGroup}`, key: null, w: 64, group: 'other', tooltip: activeLogicTooltip },
     { label: '外部\nリンク', cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, w: 64, group: 'info', tooltip: '外部リンク（四季報・Yahoo・かぶたん・公式HP）' },
     { label: '次決算',     cls: `${styles.thRight} ${styles.thInfoGroup}`, key: null, w: 80, group: 'info', tooltip: '次回決算予定日。クリックして入力/編集できます。\n2週間以内:黄色、1週間以内:赤で警告。' },
   ]
@@ -2739,7 +2676,7 @@ function DashboardTable({
             {filteredRows.length === 0 ? (
               <tr><td colSpan={cols.length} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : filteredRows.map((r, i) => (
-              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} judgment={judgmentResultsMap[r.code] ?? null} description={activeLogicDesc} showDetail={showDetail} />
+              <TableRow key={r.code} row={r} idx={i} fin={finDB?.[r.code]} earningsDates={earningsDates} onSaveEarningsDate={onSaveEarningsDate} onClick={() => onRowClick(r.code)} highlighted={highlightCode === r.code} isSuperFav={superFavorites.has(r.code)} onToggleSuperFav={() => onToggleSuperFav(r.code)} showDetail={showDetail} />
             ))}
           </tbody>
         </table>
@@ -2802,6 +2739,15 @@ function fmtYen0(v: number | null | undefined): string {
 function fmtOku(v: number | null | undefined): string {
   return v == null ? '—' : fmtN(v / 1e8, 1) + '億円'
 }
+// PEGは「黒字かつEPSがプラス成長」の銘柄でのみ意味を持つ。
+// 赤字・減益・成長率ゼロ近辺では巨大値/負値になりミスリードなので、数値表示せず理由を出す。
+function pegDisplay(r: StockRow, fin?: import('./lib/types').FinRecord): { text: string; muted: boolean; green: boolean } {
+  if (fin?.feps === null) return { text: '非開示', muted: true, green: false }
+  if (r.perF != null && r.perF <= 0) return { text: '赤字', muted: true, green: false }
+  if (r.epsCurGr != null && r.epsCurGr <= 0) return { text: '減益', muted: true, green: false }
+  if (r.peg != null && r.peg > 0) return { text: fmtN(r.peg, 2), muted: false, green: r.peg < 1 }
+  return { text: '—', muted: true, green: false }
+}
 function cellFormula(metric: string, r: StockRow, fin?: import('./lib/types').FinRecord): string | undefined {
   const close = r.close
   switch (metric) {
@@ -2825,9 +2771,13 @@ function cellFormula(metric: string, r: StockRow, fin?: import('./lib/types').Fi
       const note = fin.fepsShifted ? '\n※FY確定後のため次期予想EPSを充当' : ''
       return `PER今期 ＝ 株価 ÷ 予想EPS（会社予想）\n＝ ${fmtYen0(close)} ÷ ${fmtN(fin.feps, 1)}\n＝ ${fmtN(r.perF, 1)}倍${note}\n（四季報の独自予想とは異なる場合あり）`
     }
-    case 'peg':
+    case 'peg': {
+      if (fin?.feps === null) return '業績予想を開示していない銘柄です'
+      if (r.perF != null && r.perF <= 0) return 'PEGは今期が赤字予想の銘柄では意味を持ちません（PER今期がマイナスになるため）。\nPEGは「黒字かつEPSがプラス成長」の銘柄でのみ有効な指標です。'
+      if (r.epsCurGr != null && r.epsCurGr <= 0) return `PEGは今期がEPS減益予想（成長率 ${fmtPct(r.epsCurGr)}）の銘柄では意味を持ちません。\nPEG ＝ PER ÷ 成長率 なので、成長率がマイナス/ゼロ近辺だと巨大化・負値化してしまいます。\nPEGは「黒字かつEPSがプラス成長」の銘柄でのみ有効です。`
       if (r.peg == null || r.epsCurGr == null) return undefined
-      return `PEG ＝ PER今期 ÷ EPS今期成長率(%)\n＝ ${fmtN(r.perF, 1)} ÷ ${fmtN(r.epsCurGr * 100, 1)}\n＝ ${fmtN(r.peg, 2)}\n（0〜1で成長に対し割安の目安・負＝今期減益）`
+      return `PEG ＝ PER今期 ÷ EPS今期成長率(%)\n＝ ${fmtN(r.perF, 1)} ÷ ${fmtN(r.epsCurGr * 100, 1)}\n＝ ${fmtN(r.peg, 2)}\n（0〜1で成長に対し割安の目安）`
+    }
     case 'nySalesGr':
       if (r.nySalesGr == null || !fin?.sales || !fin?.nySales) return undefined
       return `来期売上成長 ＝ 来期予想売上 ÷ 今期売上 − 1\n＝ ${fmtOku(fin.nySales)} ÷ ${fmtOku(fin.sales)} − 1\n＝ ${fmtPct(r.nySalesGr)}`
@@ -2855,11 +2805,51 @@ function cellFormula(metric: string, r: StockRow, fin?: import('./lib/types').Fi
   return undefined
 }
 
+// ─── UserMenu（Gmail風アバター＋誤爆防止のログアウト）─────────────────
+// ⏻ ボタンの「押すと即ログアウト」を廃止。アバターをクリック→ドロップダウン内の
+// 「ログアウト」を明示的に押して初めてログアウトされる（うっかり押し防止）。
+function UserMenu({ user, onLogout }: { user: { email?: string; name?: string; picture?: string }; onLogout: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+  const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase()
+  /* eslint-disable-next-line @next/next/no-img-element */
+  const avatar = (cls: string) => user.picture
+    ? <img src={user.picture} alt="" className={cls} referrerPolicy="no-referrer" />
+    : <span className={cls}>{initial}</span>
+  return (
+    <div className={styles.userMenu} ref={ref}>
+      <button className={styles.avatarBtn} onClick={() => setOpen(o => !o)} title={user.email || user.name || 'アカウント'} aria-label="アカウントメニュー">
+        {avatar(styles.avatarImg)}
+      </button>
+      {open && (
+        <div className={styles.userDropdown}>
+          <div className={styles.userDropdownHead}>
+            {avatar(styles.avatarImgLg)}
+            <div className={styles.userDropdownInfo}>
+              <div className={styles.userDropdownName}>{user.name || '—'}</div>
+              {user.email && <div className={styles.userDropdownEmail} title={user.email}>{user.email}</div>}
+            </div>
+          </div>
+          <button className={styles.userDropdownLogout} onClick={() => { setOpen(false); onLogout() }}>
+            ログアウト
+          </button>
+          <div className={styles.userDropdownNote}>同期データはログアウトしても消えません</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── TableRow ────────────────────────────────────────────────────────
-function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, judgment, description, showDetail }: {
+function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, showDetail }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
   earningsDates: Record<string,string>; onSaveEarningsDate: (code: string, date: string) => void; onClick: () => void
-  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void; judgment: string | null; description?: string
+  highlighted: boolean; isSuperFav: boolean; onToggleSuperFav: () => void
   showDetail: boolean
 }) {
   const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? '#0d1219' : '#111825')
@@ -2906,7 +2896,9 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${styles.hasTooltip} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('peg', r, fin)} style={{color: r.peg != null && r.peg > 0 && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
+      {(() => { const peg = pegDisplay(r, fin); return (
+        <td className={`${styles.tdNum} ${styles.tdPerGroup} ${styles.hasTooltip} ${peg.muted ? styles.tdNonDisclosure : ''}`} title={cellFormula('peg', r, fin)} style={{color: peg.green ? '#10b981' : undefined}}>{peg.text}</td>
+      ) })()}
       <td className={styles.tdPerGroup} style={{padding:'4px 8px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('nySalesGr', r, fin)} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
       {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('pbr', r, fin)}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>}
@@ -2914,7 +2906,6 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       {showDetail && <td className={`${styles.tdPct} ${styles.hasTooltip} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('epsCurGr', r, fin)} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>}
       {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('opMgn', r, fin)} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>}
       {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('divY', r, fin)} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>}
-      <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
         <LinkDropdown code={r.code} name={r.name || r.code} />
       </td>
@@ -2987,12 +2978,11 @@ function EarningsDateCell({ code, date, onSave, fin }: {
 }
 
 // ─── SpMemoCard（SP専用メモ重視カード）────────────────────────────────
-function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav, onToggleFav, onToggleSuperFav, judgment, description }: {
+function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav, onToggleFav, onToggleSuperFav }: {
   row: StockRow; memo: string; memoUpdatedAt?: string
   onSaveMemo: (code: string, text: string) => void
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
-  judgment: string | null; description?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(memo)
@@ -3017,7 +3007,6 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
         </button>
         <span className={styles.spCardCode}>{r.code}</span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <JudgmentBadge result={judgment} description={description} />
       </div>
       {/* Row2: 銘柄名 (左) | 株価 (右) */}
       <div className={styles.spCardRow2}>
@@ -3074,7 +3063,7 @@ function SpMemoCard({ row: r, memo, memoUpdatedAt, onSaveMemo, isFav, isSuperFav
 }
 
 // ─── MobileRow ───────────────────────────────────────────────────────
-function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; onClick: () => void; judgment: string | null; description?: string }) {
+function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
     <div className={styles.mobileRow} onClick={onClick}>
@@ -3082,7 +3071,6 @@ function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; 
         <div className={styles.mobileRowTop}>
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          <JudgmentBadge result={judgment} description={description} />
         </div>
         <div className={styles.mobileName}>{r.name || '—'}</div>
         <div className={styles.mobileMetaRow}>
@@ -3105,9 +3093,8 @@ function MobileRow({ row: r, onClick, judgment, description }: { row: StockRow; 
 }
 
 // ─── StockCard ───────────────────────────────────────────────────────
-function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey = 0, chartMode, onChartModeChange }: {
-  row: StockRow; apiKey: string; onClick: () => void; judgment: string | null
-  description?: string; refreshKey?: number
+function StockCard({ row: r, apiKey, onClick, refreshKey = 0, chartMode, onChartModeChange }: {
+  row: StockRow; apiKey: string; onClick: () => void; refreshKey?: number
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
@@ -3121,7 +3108,6 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
           {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
         <div className={styles.cardRight}>
-          <JudgmentBadge result={judgment} description={description} />
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -3169,11 +3155,12 @@ function StockCard({ row: r, apiKey, onClick, judgment, description, refreshKey 
 }
 
 // ─── GenreFilterDropdown（列ヘッダーフィルター）────────────────────────
-function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
+function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }: {
   genres: string[]
   activeFilters: Set<string>
   onApply: (filters: Set<string>) => void
   onClear: () => void
+  label?: string
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -3222,7 +3209,7 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear }: {
         className={`${styles.genreFilterBtn} ${activeFilters.size > 0 ? styles.genreFilterBtnActive : ''}`}
         onClick={() => setOpen(o => !o)}
         title="ジャンルで絞り込み"
-      >▼</button>
+      >{label ? `${label} ▼` : '▼'}</button>
       {open && (
         <div className={styles.genreFilterPanel} ref={panelRef} style={panelStyle}>
           <input
@@ -3334,13 +3321,6 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
         onClick={() => { if (val.trim()) { onAdd(val); setVal('') } }}>+追加</button>
     </span>
   )
-}
-
-function JudgmentBadge({ result, description }: { result: string | null; description?: string }) {
-  if (result != null) {
-    return <span className={`${styles.jBadge} ${styles.jBuy}`} title={description || `該当: ${result}`}>買い</span>
-  }
-  return <span className={`${styles.jBadge} ${styles.jNone}`}>—</span>
 }
 
 // ─── VoiceMemoInput ──────────────────────────────────────────────────
@@ -3495,12 +3475,11 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, judgment, description, chartMode, onChartModeChange,
+  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; memoUpdatedAt?: string; onSaveMemo: (t: string) => void
   apiKey: string; earningsDate: string; onSaveEarningsDate: (date: string) => void
-  judgment: string | null; description?: string
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
@@ -3519,11 +3498,7 @@ function DetailPanel({
       <div className={styles.detailName}>{r.name || '—'}</div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <JudgmentBadge result={judgment} description={description} />
       </div>
-      {judgment != null && description && (
-        <div className={styles.judgmentGroups}>{description}</div>
-      )}
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}
       </div>
@@ -3665,11 +3640,10 @@ function Grid2({ items }: { items: [string, unknown, string, string][] }) {
 
 // ─── WeeklyReport ─────────────────────────────────────────────────────
 function WeeklyReport({
-  allRows, favorites, judgmentResultsMap, onClickCode,
+  allRows, favorites, onClickCode,
 }: {
   allRows: StockRow[]
   favorites: Set<string>
-  judgmentResultsMap: Record<string, string | null>
   onClickCode: (code: string) => void
 }) {
   const favRows = useMemo(() =>
@@ -3724,7 +3698,6 @@ function WeeklyReport({
           <span className={styles.rpC6}></span>
         </div>
         {rows.map((r, i) => {
-          const isBuy = judgmentResultsMap[r.code] === 'buy'
           // 1ヶ月前の推定値
           const prevPER   = (r.perF != null && r.perFChg1m != null && (1 + r.perFChg1m) !== 0)
             ? r.perF / (1 + r.perFChg1m) : null
@@ -3760,7 +3733,7 @@ function WeeklyReport({
                   <span className={styles.rpSubText}>{Math.round(prevPrice).toLocaleString()}→{r.close.toLocaleString()}</span>
                 )}
               </span>
-              <span className={styles.rpC6}>{isBuy && <span className={styles.rpBuyTag}>買い</span>}</span>
+              <span className={styles.rpC6}></span>
             </div>
           )
         })}
@@ -3878,102 +3851,16 @@ function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void
 }
 
 // ─── SettingsPanel ────────────────────────────────────────────────────
+// 設定パネル（個人APIキーのみ。判定機能は廃止）
 function SettingsPanel({
-  visible, onClose, judgmentSettings, onSettingsChange, apiKey, onApiKeyChange, serverHasKey,
+  visible, onClose, apiKey, onApiKeyChange, serverHasKey,
 }: {
   visible: boolean
   onClose: () => void
-  judgmentSettings: JudgmentSettings | null
-  onSettingsChange: (s: JudgmentSettings) => void
   apiKey: string
   onApiKeyChange: (key: string) => void
   serverHasKey?: boolean
 }) {
-  const [local, setLocal] = useState<JudgmentSettings | null>(null)
-  const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-
-  useEffect(() => {
-    if (visible && judgmentSettings) setLocal(judgmentSettings)
-  }, [visible])  // sync only on open
-
-  if (!local) return null
-  const s = local  // narrowed non-null reference for closures
-
-  const activeLogic = s.logics.find(l => l.id === s.activeLogicId) ?? s.logics[0]
-
-  function commit(next: JudgmentSettings) {
-    setLocal(next)
-    onSettingsChange(next)
-  }
-
-  function debounce(key: string, next: JudgmentSettings) {
-    setLocal(next)
-    if (debounceRef.current[key]) clearTimeout(debounceRef.current[key])
-    debounceRef.current[key] = setTimeout(() => onSettingsChange(next), 300)
-  }
-
-  function switchLogic(id: string) {
-    commit({ ...s, activeLogicId: id })
-  }
-
-  function addLogic() {
-    const id = 'logic_' + Date.now()
-    const newLogic: JudgmentLogic = { id, name: '新ロジック', ranges: [] }
-    commit({ ...s, logics: [...s.logics, newLogic], activeLogicId: id })
-  }
-
-  function duplicateLogic(id: string) {
-    const src = s.logics.find(l => l.id === id)
-    if (!src) return
-    const newId = 'logic_' + Date.now()
-    const copy: JudgmentLogic = { ...src, id: newId, name: src.name + ' (コピー)', ranges: src.ranges.map(r => ({ ...r })) }
-    commit({ ...s, logics: [...s.logics, copy], activeLogicId: newId })
-  }
-
-  function deleteLogic(id: string) {
-    if (s.logics.length <= 1) return
-    const logics = s.logics.filter(l => l.id !== id)
-    const activeId = id === s.activeLogicId ? logics[0].id : s.activeLogicId
-    commit({ ...s, logics, activeLogicId: activeId })
-  }
-
-  function renameLogic(id: string, name: string) {
-    const logics = s.logics.map(l => l.id === id ? { ...l, name } : l)
-    debounce('rename_' + id, { ...s, logics })
-  }
-
-  function patchActiveLogic(logic: JudgmentLogic, debounceKey?: string) {
-    const logics = s.logics.map(l => l.id === logic.id ? logic : l)
-    const next = { ...s, logics }
-    if (debounceKey) debounce(debounceKey, next)
-    else commit(next)
-  }
-
-  function addRange() {
-    patchActiveLogic({ ...activeLogic, ranges: [...activeLogic.ranges, { metric: AVAILABLE_METRICS[0], min: null, max: null }] })
-  }
-
-  function deleteRange(idx: number) {
-    patchActiveLogic({ ...activeLogic, ranges: activeLogic.ranges.filter((_, i) => i !== idx) })
-  }
-
-  function patchRange(idx: number, patch: Partial<MetricRange>, debounceKey?: string) {
-    const ranges = activeLogic.ranges.map((r, i) => i === idx ? { ...r, ...patch } : r)
-    patchActiveLogic({ ...activeLogic, ranges }, debounceKey)
-  }
-
-  function parseNum(val: string, isPercent: boolean): number | null {
-    const n = parseFloat(val)
-    if (isNaN(n)) return null
-    return isPercent ? n / 100 : n
-  }
-
-  function fmtNum(v: number | null, isPercent: boolean): string {
-    if (v == null) return ''
-    const n = isPercent ? v * 100 : v
-    return Number.isInteger(n) ? String(n) : n.toFixed(1)
-  }
-
   return (
     <>
       <div
@@ -3986,7 +3873,15 @@ function SettingsPanel({
           <button className={styles.judgmentClose} onClick={onClose}>×</button>
         </div>
 
-        {!serverHasKey && (
+        {serverHasKey ? (
+          <div className={styles.settingsApiSection}>
+            <label className={styles.apiLabel}>API Key</label>
+            <p style={{fontSize:12,color:'#9fb0c4',lineHeight:1.6,margin:'4px 0 0'}}>
+              サーバー側で設定済みのため、個人での設定は不要です。<br />
+              データは毎営業日16:30に自動更新されます。
+            </p>
+          </div>
+        ) : (
           <div className={styles.settingsApiSection}>
             <label className={styles.apiLabel}>
               個人 API Key（任意）
@@ -4000,86 +3895,11 @@ function SettingsPanel({
               placeholder="ID Token を貼り付け"
               style={{width:'100%',boxSizing:'border-box'}}
             />
+            <p style={{fontSize:11,color:'#64748b',lineHeight:1.6,margin:'8px 0 0'}}>
+              J-Quants の ID Token を入れると、最新データをライブ取得できます（任意）。
+            </p>
           </div>
         )}
-
-        <div className={styles.judgmentLogicRow}>
-          <select
-            className={styles.judgmentLogicSelect}
-            value={s.activeLogicId}
-            onChange={e => switchLogic(e.target.value)}
-          >
-            {s.logics.map((l, idx) => (
-              <option key={l.id} value={l.id}>{(['①','②','③','④','⑤'][idx] ?? `${idx+1}.`)} {l.name}</option>
-            ))}
-          </select>
-          <button className={styles.judgmentAddBtn} onClick={addLogic} title="ロジックを追加">＋</button>
-        </div>
-
-        <div className={styles.judgmentBody}>
-          <div className={styles.logicNameRow}>
-            <span className={styles.logicNumBadge}>
-              {['①','②','③','④','⑤'][s.logics.findIndex(l => l.id === activeLogic.id)] ?? ''}
-            </span>
-            <input
-              className={styles.logicNameInput}
-              value={activeLogic.name}
-              onChange={e => renameLogic(activeLogic.id, e.target.value)}
-              placeholder="ロジック名"
-            />
-            <button
-              className={styles.judgmentDupBtn}
-              onClick={() => duplicateLogic(activeLogic.id)}
-              title="このロジックを複製"
-            >複製</button>
-            {s.logics.length > 1 && (
-              <button
-                className={styles.judgmentDeleteBtn}
-                onClick={() => deleteLogic(activeLogic.id)}
-                title="このロジックを削除"
-              >削除</button>
-            )}
-          </div>
-
-          <div className={styles.rangesSection}>
-            <div className={styles.rangesSectionLabel}>条件（すべてAND）</div>
-            {activeLogic.ranges.map((range, idx) => {
-              const meta = METRIC_LABELS[range.metric]
-              const isPercent = meta?.isPercent ?? false
-              return (
-                <div key={idx} className={styles.rangeRow}>
-                  <select
-                    className={styles.metricSelect}
-                    value={range.metric}
-                    onChange={e => patchRange(idx, { metric: e.target.value })}
-                  >
-                    {AVAILABLE_METRICS.map(m => (
-                      <option key={m} value={m}>{METRIC_LABELS[m].label}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    className={styles.rangeInput}
-                    value={fmtNum(range.min, isPercent)}
-                    onChange={e => patchRange(idx, { min: parseNum(e.target.value, isPercent) }, 'min_' + idx)}
-                    placeholder="下限"
-                  />
-                  <span className={styles.rangeLabel}>〜</span>
-                  <input
-                    type="number"
-                    className={styles.rangeInput}
-                    value={fmtNum(range.max, isPercent)}
-                    onChange={e => patchRange(idx, { max: parseNum(e.target.value, isPercent) }, 'max_' + idx)}
-                    placeholder="上限"
-                  />
-                  <span className={styles.rangeUnit}>{meta?.unit ?? ''}</span>
-                  <button className={styles.rangeDeleteBtn} onClick={() => deleteRange(idx)}>×</button>
-                </div>
-              )
-            })}
-            <button className={styles.addRangeBtn} onClick={addRange}>＋ 条件を追加</button>
-          </div>
-        </div>
       </div>
     </>
   )

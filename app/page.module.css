@@ -110,7 +110,7 @@
   padding: 4px 12px; border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
-  color: #4e6280; font-size: 11px;
+  color: #aebccd; font-size: 12px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s;
 }
@@ -214,11 +214,12 @@
 
 /* thead: topはJS inline styleで渡す */
 .table thead th {
-  background: #1a2535;
+  background: #1f2c3f;
   padding: 7px 8px;
-  font-size: 11.5px; font-weight: 700;
+  font-size: 12.5px; font-weight: 800;
   font-family: 'Noto Sans JP', sans-serif;
-  color: #c2cdda;
+  color: #f1f5fb;
+  letter-spacing: 0.01em;
   white-space: pre-line;
   word-break: keep-all;
   line-height: 1.35;
@@ -1705,6 +1706,25 @@
 }
 .genreFilterBtn:hover { color: #8fa3be; border-color: #2a3a52; }
 .genreFilterBtnActive { color: #3b82f6 !important; border-color: #3b82f6 !important; }
+
+/* ── ダッシュボードのジャンル絞り込み（検索付きドロップダウン）─────── */
+.filterGenreWrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filterGenreWrap .genreFilterBtn {
+  font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;
+  border: 1px solid #2a3a52; color: #aebccd; margin-left: 0;
+}
+.filterGenreWrap .genreFilterBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.filterGenreChips { display: flex; gap: 5px; flex-wrap: wrap; }
+.filterGenreActiveChip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  background: rgba(59,130,246,0.14); border: 1px solid #3b82f6;
+  color: #93c5fd; font-size: 11px; font-weight: 600; transition: all .12s;
+}
+.filterGenreActiveChip:hover { background: rgba(248,113,113,0.18); border-color: #f87171; color: #fca5a5; }
+.filterGenreChipX { font-size: 12px; line-height: 1; opacity: 0.8; }
+.lightMode .filterGenreWrap .genreFilterBtn { color: #475569; border-color: #cbd5e1; }
+.lightMode .filterGenreActiveChip { background: rgba(37,99,235,0.1); border-color: #2563eb; color: #1d4ed8; }
 .genreFilterPanel {
   width: 200px; max-height: 380px;
   background: #111827; border: 1px solid #2a3a52;
@@ -2011,23 +2031,50 @@
 .loginBtn:hover { background: rgba(59,130,246,0.28); color: #bfdbfe; }
 
 .userMenu {
-  display: flex; align-items: center; gap: 4px;
+  position: relative;
+  display: flex; align-items: center;
 }
-.userName {
-  font-size: 11px; color: var(--text3);
-  max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.avatarBtn {
+  width: 32px; height: 32px; padding: 0;
+  border-radius: 50%; border: 1px solid #2a3a52;
+  background: transparent; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.logoutBtn {
-  padding: 4px 6px; border-radius: 6px;
-  border: 1px solid #374151; background: transparent;
-  color: #9ca3af; font-size: 12px; cursor: pointer; transition: all .15s;
+.avatarBtn:hover { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.avatarImg, .avatarImgLg {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg,#3b82f6,#6366f1);
+  color: #fff; font-weight: 700;
 }
-.logoutBtn:hover { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
+.avatarImg { font-size: 14px; }
+.avatarImgLg { width: 40px; height: 40px; font-size: 18px; flex-shrink: 0; }
+.userDropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px; z-index: 60;
+  background: #141c2b; border: 1px solid #2a3a52; border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.userDropdownHead { display: flex; align-items: center; gap: 10px; }
+.userDropdownInfo { min-width: 0; }
+.userDropdownName { font-size: 13px; font-weight: 700; color: #eef3fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.userDropdownEmail { font-size: 11px; color: #8fa3be; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.userDropdownLogout {
+  width: 100%; padding: 8px; border-radius: 8px;
+  border: 1px solid #3a4a63; background: rgba(255,255,255,0.03);
+  color: #d4dde9; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.userDropdownLogout:hover { background: rgba(248,113,113,0.15); border-color: #f87171; color: #fca5a5; }
+.userDropdownNote { font-size: 10px; color: #64748b; text-align: center; }
 
 .lightMode .loginBtn { border-color: #2563eb; background: rgba(37,99,235,0.1); color: #1d4ed8; }
 .lightMode .loginBtn:hover { background: rgba(37,99,235,0.2); }
-.lightMode .userName { color: #64748b; }
-.lightMode .logoutBtn { border-color: #cbd5e1; color: #64748b; }
+.lightMode .avatarBtn { border-color: #cbd5e1; }
+.lightMode .userDropdown { background: #fff; border-color: #cbd5e1; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+.lightMode .userDropdownName { color: #0f172a; }
+.lightMode .userDropdownEmail { color: #64748b; }
+.lightMode .userDropdownLogout { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
 
 /* ── WEEKLY REPORT ──────────────────────────────────── */
 .reportRoot {

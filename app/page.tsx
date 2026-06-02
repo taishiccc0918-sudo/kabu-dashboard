@@ -3582,6 +3582,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
 type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean }
 type FeedScope = 'all' | 'hearts'
 const IR_FILTER = '__IR__' // メディア絞り込みの特別項目（公式・IR発表）
+const FEED_DISPLAY_MAX = 400 // 一度に描画する最大件数（DOM負荷対策。絞り込みは全件対象）
 
 // タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
 let feedCache: { key: string; items: FeedItem[] } | null = null
@@ -3827,8 +3828,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
       {items !== null && filtered.length === 0 && !phase && <div className={styles.newsEmpty}>該当するニュースはありません</div>}
+      {filtered.length > FEED_DISPLAY_MAX && (
+        <div className={styles.feedPhase}>表示は新着{FEED_DISPLAY_MAX}件まで（全{filtered.length}件）。銘柄・メディアで絞り込むと残りも見られます。</div>
+      )}
       <div className={styles.feedList}>
-        {filtered.map((a, i) => {
+        {filtered.slice(0, FEED_DISPLAY_MAX).map((a, i) => {
           const t = new Date(a.pubDate).getTime()
           const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
           const fav = faviconUrl(a.sourceUrl)

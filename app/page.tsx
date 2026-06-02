@@ -16,6 +16,10 @@ import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
+// ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
+// （StockRow は genres:string[] のため、見出しクリックは「主ジャンル genres[0]」で並び替える）
+type SortKeyEx = keyof StockRow | 'genre'
+
 interface DropdownResult {
   code: string
   name: string
@@ -252,7 +256,7 @@ export default function Page() {
   const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
   const [dropdownActive,   setDropdownActive]   = useState(-1)
   const [highlightCode,    setHighlightCode]    = useState<string | null>(null)
-  const [sortKey,    setSortKey]    = useState<keyof StockRow | null>(null)
+  const [sortKey,    setSortKey]    = useState<SortKeyEx | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
   const [loading,    setLoading]    = useState(false)
@@ -965,6 +969,16 @@ export default function Page() {
     })
     if (sortKey) {
       rows = [...rows].sort((a, b) => {
+        // ジャンル列: 各銘柄の「主ジャンル（1つ目のタグ）」でグルーピング。未設定は常に末尾、同ジャンル内はコード順
+        if (sortKey === 'genre') {
+          const ag = a.genres[0] ?? ''
+          const bg = b.genres[0] ?? ''
+          if (!ag && !bg) return a.code.localeCompare(b.code)
+          if (!ag) return 1
+          if (!bg) return -1
+          const c = ag.localeCompare(bg, 'ja') * sortDir
+          return c !== 0 ? c : a.code.localeCompare(b.code)
+        }
         const av = a[sortKey]
         const bv = b[sortKey]
         if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv) * sortDir
@@ -1050,9 +1064,10 @@ export default function Page() {
     return n
   }, [filter, filterHeart, filterFav, mktFilter, genreFilter, mcapMin, perFMax])
 
-  function handleSort(key: keyof StockRow) {
+  function handleSort(key: SortKeyEx) {
     if (sortKey === key) setSortDir(d => d === 1 ? -1 : 1)
-    else { setSortKey(key); setSortDir(-1) }
+    // ジャンルは昇順(あ→ん)でグルーピングするのが自然なので初期方向を +1 に
+    else { setSortKey(key); setSortDir(key === 'genre' ? 1 : -1) }
   }
 
   function handleSettingsChange(newSettings: JudgmentSettings) {
@@ -2623,9 +2638,9 @@ function DashboardTable({
   finDB: Record<string, import('./lib/types').FinRecord>
   earningsDates: Record<string, string>
   onSaveEarningsDate: (code: string, date: string) => void
-  sortKey: keyof StockRow | null
+  sortKey: SortKeyEx | null
   sortDir: 1 | -1
-  handleSort: (k: keyof StockRow) => void
+  handleSort: (k: SortKeyEx) => void
   onRowClick: (code: string) => void
   highlightCode: string | null
   superFavorites: Set<string>
@@ -2657,16 +2672,16 @@ function DashboardTable({
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [showDetail, filteredRows.length])
-  const SortArrow = ({ k }: { k: keyof StockRow }) => (
+  const SortArrow = ({ k }: { k: SortKeyEx }) => (
     <span className={`${styles.sortArrow} ${sortKey===k ? styles.sorted : ''}`}>↕</span>
   )
   // detail:true の列は「詳細」トグルON時のみ表示（脱Excle・PER/PEG/売上成長に注力）
-  type Col = { label: string; cls: string; key: keyof StockRow | null; group: string; w: number; tooltip?: string; detail?: boolean }
+  type Col = { label: string; cls: string; key: SortKeyEx | null; group: string; w: number; tooltip?: string; detail?: boolean }
   const allCols: Col[] = [
     { label: '', cls: styles.thLeft, key: null, w: 48, group: '' },
     { label: 'コード', cls: `${styles.thLeft} ${styles.stickyCol0}`, key: 'code' as keyof StockRow, w: 60, group: '' },
     { label: '銘柄名 ⓘ', cls: `${styles.thLeft} ${styles.stickyCol1}`, key: 'name' as keyof StockRow, w: 150, group: '', tooltip: '⚠ マークの意味:\n直近の財務開示から90日以上経過した銘柄を示します。\n上場企業は通常3か月ごとに決算開示しますが、開示が遅れている場合や3Q/4Q決算をまたぐ期間中に表示されます。\nこのマークが付いている銘柄は財務指標が古いデータに基づく可能性があります。' },
-    { label: 'ジャンル', cls: styles.thLeft, key: 'genre' as keyof StockRow, w: 112, group: '' },
+    { label: 'ジャンル', cls: styles.thLeft, key: 'genre', w: 112, group: '', tooltip: 'クリックでジャンルごとにまとめて並び替え。\n複数ジャンルを持つ銘柄は「1つ目のジャンル」を基準にグルーピングします。\n（未設定の銘柄は末尾／同ジャンル内はコード順）' },
     { label: '市場', cls: styles.thLeft, key: 'market' as keyof StockRow, w: 72, group: '' },
     { label: '時価総額(億)', cls: styles.thRight, key: 'mcap' as keyof StockRow, w: 108, group: '', detail: true, tooltip: '会社の市場での評価額（株価×発行株式数）。\n100億未満=小型株、1000億超=大型株。' },
     { label: '株価',    cls: `${styles.thRight} ${styles.thPriceGroup}`, key: 'close' as keyof StockRow, w: 80, group: 'price' },
@@ -2778,6 +2793,68 @@ function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; lik
   )
 }
 
+// ─── セルの具体計算式ツールチップ（実数を当てはめて表示）─────────────
+// 「この数字どうやって出てる？」「この数字イレギュラーかも？」を深掘りできるよう、
+// 各セルにホバーすると実際の数値を当てはめた計算式を表示する。
+function fmtYen0(v: number | null | undefined): string {
+  return v == null ? '—' : Math.round(v).toLocaleString('ja-JP')
+}
+function fmtOku(v: number | null | undefined): string {
+  return v == null ? '—' : fmtN(v / 1e8, 1) + '億円'
+}
+function cellFormula(metric: string, r: StockRow, fin?: import('./lib/types').FinRecord): string | undefined {
+  const close = r.close
+  switch (metric) {
+    case 'close':
+      return close ? '株価 ＝ 直近営業日の終値（J-Quants生値・スプリット調整なし）' : undefined
+    case 'chg1d': case 'chg1w': case 'chg3m': case 'chg1y': {
+      const map: Record<string, [number | null, string]> = {
+        chg1d: [r.chg1d, '前営業日'], chg1w: [r.chg1w, '約5営業日前'],
+        chg3m: [r.chg3m, '約65営業日前'], chg1y: [r.chg1y, '約250営業日前'],
+      }
+      const [chg, base] = map[metric]
+      if (chg == null || !close) return undefined
+      const prev = close / (1 + chg)
+      return `騰落率 ＝ (株価 ÷ ${base}終値) − 1\n＝ (${fmtYen0(close)} ÷ ${fmtYen0(prev)}) − 1\n＝ ${fmtPct(chg)}`
+    }
+    case 'perA':
+      if (r.perA == null || !fin?.eps) return undefined
+      return `PER実績 ＝ 株価 ÷ 実績EPS\n＝ ${fmtYen0(close)} ÷ ${fmtN(fin.eps, 1)}\n＝ ${fmtN(r.perA, 1)}倍`
+    case 'perF': {
+      if (r.perF == null || !fin?.feps) return undefined
+      const note = fin.fepsShifted ? '\n※FY確定後のため次期予想EPSを充当' : ''
+      return `PER今期 ＝ 株価 ÷ 予想EPS（会社予想）\n＝ ${fmtYen0(close)} ÷ ${fmtN(fin.feps, 1)}\n＝ ${fmtN(r.perF, 1)}倍${note}\n（四季報の独自予想とは異なる場合あり）`
+    }
+    case 'peg':
+      if (r.peg == null || r.epsCurGr == null) return undefined
+      return `PEG ＝ PER今期 ÷ EPS今期成長率(%)\n＝ ${fmtN(r.perF, 1)} ÷ ${fmtN(r.epsCurGr * 100, 1)}\n＝ ${fmtN(r.peg, 2)}\n（0〜1で成長に対し割安の目安・負＝今期減益）`
+    case 'nySalesGr':
+      if (r.nySalesGr == null || !fin?.sales || !fin?.nySales) return undefined
+      return `来期売上成長 ＝ 来期予想売上 ÷ 今期売上 − 1\n＝ ${fmtOku(fin.nySales)} ÷ ${fmtOku(fin.sales)} − 1\n＝ ${fmtPct(r.nySalesGr)}`
+    case 'pbr':
+      if (r.pbr == null || !fin?.bps) return undefined
+      return `PBR ＝ 株価 ÷ BPS(1株純資産)\n＝ ${fmtYen0(close)} ÷ ${fmtN(fin.bps, 1)}\n＝ ${fmtN(r.pbr, 2)}倍`
+    case 'roe':
+      if (r.roe == null || !fin?.np || !fin?.equity) return undefined
+      return `ROE ＝ 純利益 ÷ 自己資本\n＝ ${fmtOku(fin.np)} ÷ ${fmtOku(fin.equity)}\n＝ ${fmtPct(r.roe)}`
+    case 'epsCurGr':
+      if (r.epsCurGr == null || !fin?.eps || fin?.feps == null) return undefined
+      return `EPS今期成長率 ＝ 予想EPS ÷ 実績EPS − 1\n＝ ${fmtN(fin.feps, 1)} ÷ ${fmtN(fin.eps, 1)} − 1\n＝ ${fmtPct(r.epsCurGr)}`
+    case 'opMgn':
+      if (r.opMgn == null || !fin?.sales || !fin?.op) return undefined
+      return `営業利益率 ＝ 営業利益 ÷ 売上高\n＝ ${fmtOku(fin.op)} ÷ ${fmtOku(fin.sales)}\n＝ ${fmtPct(r.opMgn)}`
+    case 'divY': {
+      const fdiv = fin?.fdiv || fin?.divAnn
+      if (r.divY == null || !fdiv) return undefined
+      return `配当利回り ＝ 予想1株配当 ÷ 株価\n＝ ${fmtN(fdiv, 1)} ÷ ${fmtYen0(close)}\n＝ ${fmtPct(r.divY)}`
+    }
+    case 'mcap':
+      if (!r.mcap || !close || !fin?.shOut) return undefined
+      return `時価総額 ＝ 株価 × 発行済株式数 ÷ 1億\n＝ ${fmtYen0(close)} × ${fmtYen0(fin.shOut)}株 ÷ 1億\n＝ ${fmtN(r.mcap, 0)}億円`
+  }
+  return undefined
+}
+
 // ─── TableRow ────────────────────────────────────────────────────────
 function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick, highlighted, isSuperFav, onToggleSuperFav, judgment, description, showDetail }: {
   row: StockRow; idx: number; fin?: import('./lib/types').FinRecord
@@ -2813,30 +2890,30 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       </td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
-      {showDetail && <td className={styles.tdNum}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>}
-      <td className={styles.tdNum}>{r.close ? r.close.toLocaleString() : '—'}</td>
-      <td className={styles.tdPct} style={{ background: pctBg(r.chg1d), color: pctCellColor(r.chg1d) }}>{fmtPct(r.chg1d)}</td>
-      {[r.chg1w, r.chg3m, r.chg1y].map((v, i) => (
-        <td key={i} className={styles.tdPct} style={{ background: pctBg(v), color: pctCellColor(v) }}>{fmtPct(v)}</td>
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('mcap', r, fin)}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>}
+      <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('close', r, fin)}>{r.close ? r.close.toLocaleString() : '—'}</td>
+      <td className={`${styles.tdPct} ${styles.hasTooltip}`} style={{ background: pctBg(r.chg1d), color: pctCellColor(r.chg1d) }} title={cellFormula('chg1d', r, fin)}>{fmtPct(r.chg1d)}</td>
+      {([['chg1w', r.chg1w], ['chg3m', r.chg3m], ['chg1y', r.chg1y]] as const).map(([k, v]) => (
+        <td key={k} className={`${styles.tdPct} ${styles.hasTooltip}`} style={{ background: pctBg(v), color: pctCellColor(v) }} title={cellFormula(k, r, fin)}>{fmtPct(v)}</td>
       ))}
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.discDate ? styles.hasTooltip : ''}`}
-        title={fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined}
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${styles.hasTooltip}`}
+        title={cellFormula('perA', r, fin) ?? (fin?.discDate ? `実績EPS基準 / 直近決算: ${fin.discDate}` : undefined)}
       >{r.perA ? fmtN(r.perA) : '—'}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${(fin?.perType || fin?.fepsShifted) ? styles.hasTooltip : ''} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
-        title={fin?.fepsShifted ? `会社予想EPS基準 ※FY確定後のため次期予想EPSを充当 / 開示: ${fin.discDate}（四季報の独自予想とは異なる場合あり）` : fin?.perType ? `会社予想EPS基準 (${fin.perType === 'FY' ? '通期' : fin.perType + '四半期'}) / 開示: ${fin.discDate}（四季報の独自予想とは異なる場合あり）` : fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined}
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${styles.hasTooltip} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`}
+        title={cellFormula('perF', r, fin) ?? (fin?.feps === null ? '業績予想を開示していない銘柄です' : undefined)}
       >{r.perF != null ? fmtN(r.perF) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={`${styles.tdPct} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : styles.hasTooltip}`}
         style={fin?.feps !== null ? {background: pctBg(r.perFChg1m), color: pctCellColor(r.perFChg1m)} : undefined}
         title={fin?.feps === null ? '業績予想を開示していない銘柄です' : (r.perFChg1mPrev && r.perF && fin?.feps1m) ? `1M前: PER ${fmtN(r.perFChg1mPrev)}倍 (FEPS ${fmtN(fin.feps1m, 0)}円) → 現在: PER ${fmtN(r.perF)}倍 (FEPS ${fmtN(fin.feps ?? null, 0)}円) ／ PER変化: ${fmtPct(r.perFChg1m)}` : undefined}
       >{fin?.feps === null ? '非開示' : fmtPct(r.perFChg1m)}</td>
-      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.peg != null && r.peg > 0 && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
+      <td className={`${styles.tdNum} ${styles.tdPerGroup} ${styles.hasTooltip} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('peg', r, fin)} style={{color: r.peg != null && r.peg > 0 && r.peg < 1 ? '#10b981' : undefined}}>{r.peg != null ? fmtN(r.peg, 2) : fin?.feps === null ? '非開示' : '—'}</td>
       <td className={styles.tdPerGroup} style={{padding:'4px 8px'}}><PerBandBar band={r.perBand} likePer={r.likePer} /></td>
-      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
-      {showDetail && <td className={styles.tdNum}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>}
-      {showDetail && <td className={styles.tdNum} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>}
-      {showDetail && <td className={`${styles.tdPct} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>}
-      {showDetail && <td className={styles.tdNum} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>}
-      {showDetail && <td className={styles.tdNum} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>}
+      <td className={`${styles.tdPct} ${styles.tdPerGroup} ${styles.hasTooltip} ${r.nySalesGr === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('nySalesGr', r, fin)} style={r.nySalesGr !== null ? {color: pctCellColor(r.nySalesGr)} : undefined}>{r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '非開示'}</td>
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('pbr', r, fin)}>{r.pbr  ? fmtN(r.pbr)  : '—'}</td>}
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('roe', r, fin)} style={{color: r.roe && r.roe > 0.1 ? '#10b981' : undefined}}>{r.roe ? fmtPct(r.roe) : '—'}</td>}
+      {showDetail && <td className={`${styles.tdPct} ${styles.hasTooltip} ${fin?.feps === null ? styles.tdNonDisclosure : ''}`} title={cellFormula('epsCurGr', r, fin)} style={{color: r.epsCurGr !== null ? pctCellColor(r.epsCurGr) : undefined}}>{r.epsCurGr !== null ? fmtPct(r.epsCurGr) : fin?.feps === null ? '非開示' : '—'}</td>}
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('opMgn', r, fin)} style={{color: r.opMgn && r.opMgn > 0.15 ? '#10b981' : undefined}}>{r.opMgn ? fmtPct(r.opMgn) : '—'}</td>}
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('divY', r, fin)} style={{color: r.divY && r.divY > 0.03 ? '#10b981' : undefined}}>{r.divY ? fmtPct(r.divY) : '—'}</td>}
       <td className={styles.hasTooltip} title={judgment != null ? (description || `該当: ${judgment}`) : '買い条件に非該当'}><JudgmentBadge result={judgment} description={description} /></td>
       <td className={styles.tdInfoLink} onClick={e => e.stopPropagation()} style={{textAlign:'center', padding:'0 4px'}}>
         <LinkDropdown code={r.code} name={r.name || r.code} />

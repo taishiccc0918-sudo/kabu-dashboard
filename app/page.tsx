@@ -2207,6 +2207,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
   const [localDate, setLocalDate] = useState(earningsDate)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [editingGenreInRow, setEditingGenreInRow] = useState<string | null>(null)
+  const [genreQuery, setGenreQuery] = useState('')
   const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
 
   const genres = meta.genres
@@ -2298,31 +2299,47 @@ const StockManagerRow = React.memo(function StockManagerRow({
       {editing && (
         <tr className={styles.wlEditRow}>
           <td colSpan={8} className={styles.wlEditTd}>
+            <div className={styles.wlGenreSearchRow}>
+              <input
+                className={styles.wlGenreSearch}
+                placeholder="ジャンルを検索（入力で絞り込み）"
+                value={genreQuery}
+                onChange={e => setGenreQuery(e.target.value)}
+                autoFocus
+              />
+              {genreQuery && <button className={styles.wlGenreSearchClear} onClick={() => setGenreQuery('')}>×</button>}
+              <InlineGenreAdd onAdd={(name) => { onAddGenre(name); toggleGenre(name); setGenreQuery('') }} />
+            </div>
             <div className={styles.wlGenreEditPanel}>
-              {allGenreOptions.map(g => (
-                <span key={g} className={styles.genreChipWrap}>
-                  {editingGenreInRow === g ? (
-                    <GenreRenameInput
-                      defaultValue={g}
-                      onConfirm={newName => { onRenameGenre?.(g, newName); setEditingGenreInRow(null) }}
-                      onCancel={() => setEditingGenreInRow(null)}
-                    />
-                  ) : (
-                    <>
-                      <button
-                        className={`${styles.genreTag} ${genres.includes(g) ? styles.genreTagOn : ''}`}
-                        onClick={() => toggleGenre(g)}
-                      >{g}</button>
-                      <button
-                        className={styles.genreChipRenameBtn}
-                        onClick={() => setEditingGenreInRow(g)}
-                        title="リネーム"
-                      >✏️</button>
-                    </>
-                  )}
-                </span>
-              ))}
-              <InlineGenreAdd onAdd={(name) => { onAddGenre(name); toggleGenre(name) }} />
+              {(() => {
+                const q = normJa(genreQuery.trim())
+                // 選択中は常に表示、それ以外は検索で絞り込み
+                const list = allGenreOptions.filter(g => genres.includes(g) || !q || normJa(g).includes(q))
+                if (list.length === 0) return <span className={styles.wlGenreNoHit}>該当なし（「＋新規」で追加できます）</span>
+                return list.map(g => (
+                  <span key={g} className={styles.genreChipWrap}>
+                    {editingGenreInRow === g ? (
+                      <GenreRenameInput
+                        defaultValue={g}
+                        onConfirm={newName => { onRenameGenre?.(g, newName); setEditingGenreInRow(null) }}
+                        onCancel={() => setEditingGenreInRow(null)}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          className={`${styles.genreTag} ${genres.includes(g) ? styles.genreTagOn : ''}`}
+                          onClick={() => toggleGenre(g)}
+                        >{g}</button>
+                        <button
+                          className={styles.genreChipRenameBtn}
+                          onClick={() => setEditingGenreInRow(g)}
+                          title="リネーム"
+                        >✏️</button>
+                      </>
+                    )}
+                  </span>
+                ))
+              })()}
             </div>
           </td>
         </tr>

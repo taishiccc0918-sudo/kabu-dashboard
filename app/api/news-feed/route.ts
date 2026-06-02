@@ -25,9 +25,11 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 
 export async function POST(req: NextRequest) {
   let stocks: Stock[]
+  let fresh = false
   try {
     const body = await req.json()
     stocks = Array.isArray(body?.stocks) ? body.stocks : []
+    fresh = body?.fresh === true
   } catch {
     return NextResponse.json({ error: 'invalid body' }, { status: 400 })
   }
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const perStock = await pool(stocks, 8, async (s) => {
-      const arts = await fetchStockNews(s.name || '', s.code)
+      const arts = await fetchStockNews(s.name || '', s.code, fresh)
       // 1銘柄あたり上限を設けてフィードが特定銘柄で埋まらないようにする
       return arts.slice(0, 8).map((a): FeedItem => ({ ...a, code: s.code, name: s.name || s.code }))
     })

@@ -7,11 +7,12 @@ export const revalidate = 1800 // 30分キャッシュ
 export async function GET(req: NextRequest) {
   const name = req.nextUrl.searchParams.get('name')?.trim() || ''
   const code = req.nextUrl.searchParams.get('code')?.trim() || ''
+  const fresh = req.nextUrl.searchParams.get('fresh') === '1'
   if (!name && !code) {
     return NextResponse.json({ error: 'name or code required' }, { status: 400 })
   }
   try {
-    const articles = await fetchStockNews(name, code)
+    const articles = await fetchStockNews(name, code, fresh)
     return NextResponse.json({ articles: articles.slice(0, 30), query: name || code })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)

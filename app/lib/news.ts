@@ -1,7 +1,7 @@
 // GoogleニュースRSSから銘柄別ニュースを取得・絞り込みする共通ロジック。
 // 無料・キー不要・サーバー経由（CORS回避）。/api/news と /api/news-feed で共用。
 
-export type Article = { title: string; link: string; source: string; pubDate: string }
+export type Article = { title: string; link: string; source: string; sourceUrl: string; pubDate: string }
 
 // 投資視点のキーワード（銘柄名と組み合わせて関連ニュースに寄せる）
 const FIN_KEYWORDS =
@@ -45,9 +45,15 @@ function pick(block: string, tag: string): string {
   return m ? decodeEntities(m[1]) : ''
 }
 
+// <source url="https://www.nikkei.com">日本経済新聞</source> の url 属性を取り出す（favicon用）
+function pickSourceUrl(block: string): string {
+  const m = block.match(/<source[^>]*\burl=["']([^"']+)["']/i)
+  return m ? m[1] : ''
+}
+
 // 1銘柄分のニュースを取得し、関連性フィルタ済み・新しい順で返す。
-// 取得失敗時は空配列（呼び出し側は止めない）。
-export async function fetchStockNews(name: string, code: string): Promise<Article[]> {
+// 取得失敗時は空配列（呼び出し側は止めない）。fresh=true で30分キャッシュを無視して最新を取る。
+export async function fetchStockNews(name: string, code: string, fresh = false): Promise<Article[]> {
   const term = name || code
   if (!term) return []
 
@@ -61,7 +67,8 @@ export async function fetchStockNews(name: string, code: string): Promise<Articl
   try {
     const res = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; kabu-dashboard/1.0)' },
-      next: { revalidate: 1800 }, // 30分キャッシュ（同一銘柄の再取得コストを抑える）
+      // fresh時はキャッシュ無視（更新ボタン用）。通常は30分キャッシュで再取得コストを抑える。
+      ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: 1800 } }),
     })
     if (!res.ok) return []
     xml = await res.text()
@@ -79,6 +86,7 @@ export async function fetchStockNews(name: string, code: string): Promise<Articl
     const link = pick(item, 'link')
     const pubDate = pick(item, 'pubDate')
     const source = pick(item, 'source')
+    const sourceUrl = pickSourceUrl(item)
     if (!rawTitle || !link) continue
 
     // Googleニュースのtitleは「記事タイトル - メディア名」形式。末尾のメディア名を落とす
@@ -102,7 +110,7 @@ export async function fetchStockNews(name: string, code: string): Promise<Articl
     if (seen.has(key)) continue
     seen.add(key)
 
-    articles.push({ title, link, source, pubDate })
+    articles.push({ title, link, source, sourceUrl, pubDate })
   }
 
   articles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())

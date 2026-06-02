@@ -3579,103 +3579,178 @@ function NewsSection({ code, name }: { code: string; name: string }) {
 }
 
 // ─── NewsFeed（お気に入り銘柄のニュース一覧タブ） ─────────────────────
-type FeedItem = { title: string; link: string; source: string; pubDate: string; code: string; name: string }
-type FeedSort = 'date' | 'stock' | 'source'
+type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string }
+type FeedScope = 'all' | 'hearts'
 
-async function postNewsFeed(stocks: { code: string; name: string }[]): Promise<FeedItem[]> {
+// タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
+let feedCache: { key: string; items: FeedItem[] } | null = null
+let feedLastFetched: number | null = null
+
+function faviconUrl(sourceUrl: string): string {
+  try { return `https://www.google.com/s2/favicons?domain=${new URL(sourceUrl).hostname}&sz=64` }
+  catch { return '' }
+}
+
+async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean): Promise<FeedItem[]> {
   if (stocks.length === 0) return []
   const res = await fetch('/api/news-feed', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stocks }),
+    body: JSON.stringify({ stocks, fresh }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const d = await res.json()
   return (d.items ?? []) as FeedItem[]
 }
 
+function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
+  const seen = new Set<string>(); const out: FeedItem[] = []
+  for (const it of [...a, ...b]) {
+    const k = it.link || it.title.slice(0, 40)
+    if (seen.has(k)) continue
+    seen.add(k); out.push(it)
+  }
+  out.sort((x, y) => new Date(y.pubDate).getTime() - new Date(x.pubDate).getTime())
+  return out
+}
+
 function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   heartCodes: string[]; starCodes: string[]
   nameOf: (code: string) => string; onClickCode: (code: string) => void
 }) {
-  const [items, setItems] = useState<FeedItem[] | null>(null)
+  const [scope, setScope] = useState<FeedScope>('all')
+  const [items, setItems] = useState<FeedItem[] | null>(feedCache?.items ?? null)
   const [err, setErr] = useState<string | null>(null)
   const [phase, setPhase] = useState('')
-  const [sort, setSort] = useState<FeedSort>('date')
+  const [loading, setLoading] = useState(false)
+  const [stockF, setStockF] = useState('')   // 絞り込み: 銘柄コード（''=すべて）
+  const [mediaF, setMediaF] = useState('')    // 絞り込み: メディア名（''=すべて）
+  const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
 
-  const heartKey = heartCodes.join(',')
-  const starKey = starCodes.join(',')
+  // scope に応じた対象銘柄（all = ★∪♥、hearts = ♥のみ）
+  const heartSet = useMemo(() => new Set(heartCodes), [heartCodes])
+  const targetCodes = useMemo(() =>
+    scope === 'hearts' ? heartCodes : Array.from(new Set([...starCodes, ...heartCodes])),
+    [scope, heartCodes, starCodes])
+  const loadKey = scope + '|' + [...targetCodes].sort().join(',')
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setErr(null); setItems(null)
-      try {
-        const heartSet = new Set(heartCodes)
-        const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
-        // ① ♥お気に入りを先に取得して即表示（受け身でも早く気づける）
-        setPhase(`お気に入り(♥${hearts.length})のニュースを取得中…`)
-        const heartItems = await postNewsFeed(hearts)
-        if (cancelled) return
-        setItems(heartItems)
-        // ② 残り（★のうち♥でないもの）を後追いで取得してマージ
+  const load = useCallback(async (fresh: boolean) => {
+    if (!fresh && feedCache && feedCache.key === loadKey) {
+      setItems(feedCache.items); setFetchedAt(feedLastFetched); return
+    }
+    setErr(null); setLoading(true)
+    if (fresh) setPhase('最新を取得中…')
+    try {
+      // ♥を先に取得して即表示 → （allなら）残りの★を後追いでマージ
+      const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
+      if (!fresh) setPhase(`お気に入り(♥${hearts.length})を取得中…`)
+      let all = await postNewsFeed(hearts, fresh)
+      setItems(all)
+      if (scope === 'all') {
         const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
         if (rest.length > 0) {
-          setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
-          const restItems = await postNewsFeed(rest)
-          if (cancelled) return
-          const seen = new Set<string>(); const merged: FeedItem[] = []
-          for (const it of [...heartItems, ...restItems]) {
-            const k = it.link || it.title.slice(0, 40)
-            if (seen.has(k)) continue
-            seen.add(k); merged.push(it)
-          }
-          setItems(merged)
+          if (!fresh) setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
+          const restItems = await postNewsFeed(rest, fresh)
+          all = mergeFeed(all, restItems)
+          setItems(all)
         }
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (!cancelled) setPhase('')
       }
+      feedCache = { key: loadKey, items: all }
+      feedLastFetched = Date.now(); setFetchedAt(feedLastFetched)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPhase(''); setLoading(false)
     }
-    load()
-    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heartKey, starKey])
+  }, [loadKey])
 
-  const sorted = useMemo(() => {
-    if (!items) return []
-    const byDate = (a: FeedItem, b: FeedItem) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-    if (sort === 'date') return [...items].sort(byDate)
-    if (sort === 'source') return [...items].sort((a, b) => {
-      const s = (a.source || '').localeCompare(b.source || '', 'ja'); return s !== 0 ? s : byDate(a, b)
-    })
-    return [...items].sort((a, b) => {
-      const s = (a.name || '').localeCompare(b.name || '', 'ja'); return s !== 0 ? s : byDate(a, b)
-    })
-  }, [items, sort])
+  useEffect(() => { load(false) }, [load])
+
+  // 絞り込み用の一覧（メディア・銘柄）と、適用後のリスト
+  const mediaList = useMemo(() => {
+    const m = new Map<string, { source: string; sourceUrl: string; n: number }>()
+    for (const it of items ?? []) {
+      const cur = m.get(it.source) || { source: it.source, sourceUrl: it.sourceUrl, n: 0 }
+      cur.n++; if (!cur.sourceUrl && it.sourceUrl) cur.sourceUrl = it.sourceUrl
+      m.set(it.source, cur)
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n)
+  }, [items])
+
+  const stockList = useMemo(() => {
+    const m = new Map<string, { code: string; name: string; n: number }>()
+    for (const it of items ?? []) {
+      const cur = m.get(it.code) || { code: it.code, name: it.name, n: 0 }
+      cur.n++; m.set(it.code, cur)
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n)
+  }, [items])
+
+  const filtered = useMemo(() =>
+    (items ?? []).filter(i => (!stockF || i.code === stockF) && (!mediaF || i.source === mediaF)),
+    [items, stockF, mediaF])
 
   return (
     <div className={styles.feedWrap}>
       <div className={styles.feedHead}>
         <div>
           <div className={styles.feedTitle}>お気に入り銘柄ニュース</div>
-          {items !== null && <div className={styles.newsCount}>{items.length}件・直近3ヶ月・新着順</div>}
+          <div className={styles.newsCount}>
+            {items !== null ? `${filtered.length} / ${items.length}件・直近3ヶ月・新着順` : '—'}
+            {fetchedAt && <span> ・ 取得 {fmtRelTime(new Date(fetchedAt).toISOString())}</span>}
+          </div>
         </div>
-        <div className={styles.newsSortBtns}>
-          {([['date', '新しい順'], ['stock', '銘柄別'], ['source', 'メディア別']] as [FeedSort, string][]).map(([k, label]) => (
-            <button key={k} className={`${styles.newsSortBtn} ${sort === k ? styles.newsSortBtnActive : ''}`} onClick={() => setSort(k)}>{label}</button>
-          ))}
+        <div className={styles.feedActions}>
+          <div className={styles.newsSortBtns}>
+            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')}>すべて(♥+★)</button>
+            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')}>♥のみ</button>
+          </div>
+          <button className={styles.feedRefreshBtn} disabled={loading} onClick={() => load(true)} title="キャッシュを無視して最新ニュースを取得">
+            {loading ? '⏳' : '⟳'} 更新
+          </button>
         </div>
       </div>
+
+      {/* 絞り込み: 銘柄 */}
+      <div className={styles.feedFilterRow}>
+        <select className={styles.feedSelect} value={stockF} onChange={e => setStockF(e.target.value)}>
+          <option value="">すべての銘柄（{stockList.length}）</option>
+          {stockList.map(s => <option key={s.code} value={s.code}>{s.name}（{s.code}）・{s.n}</option>)}
+        </select>
+        {(stockF || mediaF) && (
+          <button className={styles.feedClearBtn} onClick={() => { setStockF(''); setMediaF('') }}>絞り込み解除</button>
+        )}
+      </div>
+
+      {/* 絞り込み: メディア（ロゴ） */}
+      {mediaList.length > 0 && (
+        <div className={styles.feedMediaRow}>
+          <button className={`${styles.feedMediaChip} ${!mediaF ? styles.feedMediaChipActive : ''}`} onClick={() => setMediaF('')}>すべて</button>
+          {mediaList.map(m => (
+            <button
+              key={m.source}
+              className={`${styles.feedMediaChip} ${mediaF === m.source ? styles.feedMediaChipActive : ''}`}
+              onClick={() => setMediaF(mediaF === m.source ? '' : m.source)}
+              title={m.source}
+            >
+              {faviconUrl(m.sourceUrl) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl)} alt="" loading="lazy" />}
+              <span className={styles.feedMediaName}>{m.source}</span>
+              <span className={styles.feedMediaCount}>{m.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {phase && <div className={styles.feedPhase}>⏳ {phase}</div>}
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
-      {items !== null && items.length === 0 && !phase && <div className={styles.newsEmpty}>お気に入り銘柄の直近ニュースは見つかりませんでした</div>}
+      {items !== null && filtered.length === 0 && !phase && <div className={styles.newsEmpty}>該当するニュースはありません</div>}
       <div className={styles.feedList}>
-        {sorted.map((a, i) => {
+        {filtered.map((a, i) => {
           const t = new Date(a.pubDate).getTime()
           const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
+          const fav = faviconUrl(a.sourceUrl)
           return (
             <div key={a.link || i} className={styles.feedItem}>
               <div className={styles.feedItemHead}>
@@ -3683,6 +3758,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
                 <button className={styles.feedStockChip} onClick={() => onClickCode(a.code)} title="詳細を開く">
                   {a.name}<span className={styles.feedStockCode}>{a.code}</span>
                 </button>
+                {fav && <img className={styles.feedFavicon} src={fav} alt="" loading="lazy" />}
                 <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
                 <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
               </div>

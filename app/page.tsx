@@ -4052,6 +4052,106 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   )
 }
 
+// ─── 企業ファクトシート ───────────────────────────────────────────────
+// 数値（売上/利益/利益率）= J-Quants（既存・会社開示の機械値）。
+// 会社概要（事業内容/代表者/設立/従業員数/セグメント）= EDINET 有価証券報告書。
+// 【捏造ゼロの原則】値は一次情報の機械抽出のみ。AIに事実を生成させない。
+//   取得できない項目は「データなし」と明示し、推測で埋めない。各項目に出典を付ける。
+type FactSheetData = {
+  code: string
+  bizDesc: string | null
+  ceo: string | null
+  founded: string | null
+  employees: number | null
+  employeesAsOf: string | null
+  segments: { name: string; sales: number | null }[] | null
+  docUrl: string | null
+  docDate: string | null
+}
+
+function FactSheet({ code, fin: f }: { code: string; fin: FinRecord | null | undefined }) {
+  const [edinet, setEdinet] = useState<FactSheetData | null>(null)
+  // loading=取得中 / ready=EDINETデータあり / pending=EDINET連携が未有効（取得待ち）
+  const [state, setState] = useState<'loading' | 'ready' | 'pending'>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    setEdinet(null); setState('loading')
+    fetch(`/api/factsheet-stored?code=${encodeURIComponent(code)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then((d: { ready?: boolean; item?: FactSheetData | null }) => {
+        if (cancelled) return
+        if (d.ready && d.item) { setEdinet(d.item); setState('ready') }
+        else setState('pending')
+      })
+      .catch(() => { if (!cancelled) setState('pending') })
+    return () => { cancelled = true }
+  }, [code])
+
+  // 億円表記（J-Quantsの値は円。捏造ではなく単位変換のみ）。0/欠損は「—」
+  const oku = (v: number | null | undefined): string =>
+    (v == null || !isFinite(v) || v === 0) ? '—' : Math.round(v / 1e8).toLocaleString() + '億'
+
+  // EDINET項目の表示: ready→値（なければ「データなし」）／loading→読み込み中／pending→取得待ち
+  const edi = (v: React.ReactNode): React.ReactNode => {
+    if (state === 'ready') return v ?? <span className={styles.factNa}>データなし</span>
+    if (state === 'loading') return <span className={styles.factNa}>読み込み中…</span>
+    return <span className={styles.factNa}>取得待ち（EDINET連携の有効化後に表示）</span>
+  }
+
+  const docUrl = edinet?.docUrl || 'https://disclosure2.edinet-fsa.go.jp/WEEK0010.aspx'
+
+  return (
+    <div className={styles.factSheet}>
+      {/* 業績ブロック: J-Quants（会社開示の機械値・即時表示） */}
+      <div className={styles.factGroup}>
+        <div className={styles.factGroupHead}>業績（会社開示）</div>
+        <Grid2 items={[
+          ['売上高(実績)',     null, oku(f?.sales),  ''],
+          ['売上高(今期予想)', null, oku(f?.fsales), ''],
+          ['営業利益',         null, oku(f?.op),     ''],
+          ['純利益',           null, oku(f?.np),     ''],
+          ['営業利益率',       null, f?.opMgn != null ? fmtPct(f.opMgn) : '—', f?.opMgn != null && f.opMgn > 0 ? 'up' : ''],
+          ['売上成長率(今期)', null, f?.salesGr ? fmtPct(f.salesGr) : '—', pctClass(f?.salesGr ?? null)],
+        ]} />
+        <div className={styles.factSrc}>出典: 各社決算（J-Quants配信）{f?.discDate ? ` ／ 開示 ${f.discDate}` : ''}</div>
+      </div>
+
+      {/* 会社概要ブロック: EDINET 有価証券報告書 */}
+      <div className={styles.factGroup}>
+        <div className={styles.factGroupHead}>会社概要（EDINET 有価証券報告書）</div>
+        <div className={styles.factRows}>
+          <div className={styles.factRow}><span className={styles.factLabel}>事業内容</span><span className={styles.factVal}>{edi(edinet?.bizDesc)}</span></div>
+          <div className={styles.factRow}><span className={styles.factLabel}>代表者</span><span className={styles.factVal}>{edi(edinet?.ceo)}</span></div>
+          <div className={styles.factRow}><span className={styles.factLabel}>設立／創業</span><span className={styles.factVal}>{edi(edinet?.founded)}</span></div>
+          <div className={styles.factRow}>
+            <span className={styles.factLabel}>従業員数(連結)</span>
+            <span className={styles.factVal}>{edi(edinet?.employees != null
+              ? `${edinet.employees.toLocaleString()}人${edinet.employeesAsOf ? `（${edinet.employeesAsOf}現在）` : ''}`
+              : null)}</span>
+          </div>
+        </div>
+        <div className={styles.factSegHead}>売上構成（セグメント別）</div>
+        {state === 'ready' && edinet?.segments && edinet.segments.length > 0 ? (
+          <div className={styles.factRows}>
+            {edinet.segments.map((s, i) => (
+              <div key={i} className={styles.factRow}>
+                <span className={styles.factLabel}>{s.name}</span>
+                <span className={styles.factVal}>{oku(s.sales)}</span>
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.factRow}><span className={styles.factVal}>{edi(null)}</span></div>}
+        <div className={styles.factSrc}>
+          出典: <a href={docUrl} target="_blank" rel="noopener noreferrer" className={styles.factLink}>
+            EDINET 有価証券報告書{edinet?.docDate ? `（${edinet.docDate}提出）` : ''}
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
   row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, serverHasKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
@@ -4118,6 +4218,7 @@ function DetailPanel({
           ]} />
         </Section>
       )}
+      <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>
       <Section title="メモ">
         <textarea className={styles.detailMemo} value={localMemo}
           onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />
@@ -4190,6 +4291,7 @@ function DetailPanel({
           <a className={styles.detailLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
           <a className={styles.detailLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">Buffett Code</a>
           <a className={styles.detailLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TradingView</a>
+          <a className={styles.detailLinkBtn} href={`https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code + ' 決算 IR')}`} target="_blank" rel="noopener noreferrer">YouTube検索</a>
         </div>
       </Section>
     </>

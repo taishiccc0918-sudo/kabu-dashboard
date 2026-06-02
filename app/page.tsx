@@ -234,6 +234,7 @@ export default function Page() {
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
   const [spCol,      setSpCol]      = useState<number>(0)   // SP高密度リストの切替カラム（前日比/PER/…）
+  const [spSearchOpen, setSpSearchOpen] = useState(false)  // SP: 検索窓はアイコンから開く（キーボード暴発防止）
   const [mktFilter,  setMktFilter]  = useState<string>('all')
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
@@ -1313,7 +1314,12 @@ export default function Page() {
 
       <div className={styles.toolbar} data-toolbar="">
         {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
-          <div className={styles.searchWrap} ref={searchWrapRef}>
+          <button className={`${styles.spSearchToggle} ${styles.spOnly}`} onClick={() => setSpSearchOpen(o => !o)} title="銘柄を検索">
+            🔍 {spSearchOpen ? '閉じる' : '検索'}
+          </button>
+        )}
+        {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
+          <div className={`${styles.searchWrap} ${spSearchOpen ? '' : styles.spSearchHidden}`} ref={searchWrapRef}>
             <span className={styles.searchIcon}>🔍</span>
             <input
               className={styles.searchInput}
@@ -1355,7 +1361,7 @@ export default function Page() {
           </>
         )}
         {tab === 'card' && (
-          <div className={styles.chartModeGroup}>
+          <div className={`${styles.chartModeGroup} ${styles.spHide}`}>
             {(['3months','1year','3years'] as ChartMode[]).map(m => (
               <button key={m}
                 className={`${styles.chartModePill} ${globalChartMode === m ? styles.chartModePillActive : ''}`}
@@ -1522,13 +1528,25 @@ export default function Page() {
         {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
-              <span className={styles.spListHeaderName}>銘柄名 <span className={styles.spListHeaderCount}>{filteredRows.length}件</span></span>
-              <span className={styles.spListHeaderPrice}>現在値</span>
-              <button
-                className={styles.spListHeaderMetric}
-                onClick={() => setSpCol(c => (c + 1) % SP_COLS.length)}
-                title="タップで表示する指標を切替"
-              >{SP_COL_LABEL[SP_COLS[spCol]]} ▸</button>
+              <button className={styles.spListHeaderName} onClick={() => handleSort('code')} title="銘柄コードで並べ替え">
+                銘柄名{sortKey === 'code' ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}
+                <span className={styles.spListHeaderCount}>{filteredRows.length}</span>
+              </button>
+              <button className={styles.spListHeaderPrice} onClick={() => handleSort('close')} title="株価で並べ替え">
+                現在値{sortKey === 'close' ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}
+              </button>
+              <div className={styles.spListHeaderMetricWrap}>
+                <button
+                  className={styles.spListHeaderMetric}
+                  onClick={() => setSpCol(c => (c + 1) % SP_COLS.length)}
+                  title="タップで表示する指標を切替"
+                >{SP_COL_LABEL[SP_COLS[spCol]]} ▸</button>
+                <button
+                  className={`${styles.spListHeaderSort} ${sortKey === SP_COL_SORTKEY[SP_COLS[spCol]] ? styles.spListHeaderSortActive : ''}`}
+                  onClick={() => handleSort(SP_COL_SORTKEY[SP_COLS[spCol]])}
+                  title="この指標で大きい順／小さい順に並べ替え"
+                >{sortKey === SP_COL_SORTKEY[SP_COLS[spCol]] ? (sortDir > 0 ? '↑' : '↓') : '⇅'}</button>
+              </div>
             </div>
             <div className={styles.spList}>
               {filteredRows.length === 0
@@ -3076,6 +3094,10 @@ type SpCol = typeof SP_COLS[number]
 const SP_COL_LABEL: Record<SpCol, string> = {
   day: '前日比', per: 'PER / PEG', mom: '1ヶ月 / 1週', val: '配当 / PBR', roe: 'ROE / 利益率', mcap: '時価総額',
 }
+// 切替カラム→並べ替えキー（大きい順/小さい順を切替カラムの主指標で）
+const SP_COL_SORTKEY: Record<SpCol, keyof StockRow> = {
+  day: 'chg1d', per: 'perF', mom: 'chg1m', val: 'divY', roe: 'roe', mcap: 'mcap',
+}
 // 行右側「切替カラム」の2段表示（上＝主・下＝副）を算出。色クラス付き。
 function spColCells(r: StockRow, col: SpCol): { top: string; topCls: string; bot: string; botCls: string } {
   switch (col) {
@@ -3154,12 +3176,6 @@ function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => vo
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/>
         <line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>
-      </svg>
-    ) },
-    { key: 'report', label: 'レポート', icon: (
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="4" y1="20" x2="20" y2="20"/><rect x="5" y="11" width="3.5" height="7" rx="0.8"/>
-        <rect x="10.2" y="6" width="3.5" height="12" rx="0.8"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.8"/>
       </svg>
     ) },
   ]
@@ -4029,16 +4045,20 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
           const fav = faviconUrl(a.sourceUrl)
           return (
             <div key={a.link || i} className={styles.feedItem}>
-              <div className={styles.feedItemHead}>
+              <a className={styles.feedItemTitle} href={a.link} target="_blank" rel="noopener noreferrer">
                 {isNew && <span className={styles.newsBadge}>NEW</span>}
-                <button className={styles.feedStockChip} onClick={() => onClickCode(a.code)} title="詳細を開く">
-                  {a.name}<span className={styles.feedStockCode}>{a.code}</span>
+                {a.title}
+              </a>
+              <div className={styles.feedItemMeta}>
+                <span className={styles.feedMetaLeft}>
+                  {fav && <img className={styles.feedFavicon} src={fav} alt="" loading="lazy" />}
+                  <span className={styles.feedMetaSource}>{a.source || 'ニュース'}</span>
+                  <span className={styles.feedMetaTime}>・{fmtRelTime(a.pubDate)}</span>
+                </span>
+                <button className={styles.feedStockLink} onClick={() => onClickCode(a.code)} title="銘柄の詳細を開く">
+                  {a.name}<span className={styles.feedStockLinkCode}>{a.code}</span>
                 </button>
-                {fav && <img className={styles.feedFavicon} src={fav} alt="" loading="lazy" />}
-                <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
-                <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
               </div>
-              <a className={styles.feedItemTitle} href={a.link} target="_blank" rel="noopener noreferrer">{a.title}</a>
             </div>
           )
         })}

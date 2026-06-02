@@ -136,9 +136,9 @@ export async function fetchStockNews(name: string, code: string, fresh = false):
     if (seen.has(key)) continue
     seen.add(key)
 
-    // IR・公式発表の判定（適時開示/プレスリリース/決算短信 等）→ 絞り込み用フラグ。
-    // ※「ir」単独の部分一致は英単語(their等)に誤反応するため使わない。
-    const ir = isOfficial || /適時開示|開示資料|プレスリリース|press release|決算短信|有価証券報告書|ＩＲ情報|IR情報|自己株式|株主総会|配当予想の修正|業績予想の修正/i.test(title)
+    // IR・公式発表の判定 = 企業公式サイト発のみ（ソース名に社名が含まれる）。
+    // ※日経会社情報DIGITAL等の「適時開示の転載」はメディア発なのでIRに含めない（本人指摘）。
+    const ir = isOfficial
 
     articles.push({ title, link, source, sourceUrl, pubDate, ir })
   }

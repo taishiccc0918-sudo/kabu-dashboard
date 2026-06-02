@@ -3597,6 +3597,44 @@ function normJa(s: string): string {
   return s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).toLowerCase()
 }
 
+// カナ→ローマ字（簡易ヘボン式）。「ファナック」→"fanakku" 等。検索でローマ字/英語入力に対応するため。
+const ROMAJI_2: Record<string, string> = {
+  'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho','チャ':'cha','チュ':'chu','チョ':'cho',
+  'ニャ':'nya','ニュ':'nyu','ニョ':'nyo','ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo','ミャ':'mya','ミュ':'myu','ミョ':'myo',
+  'リャ':'rya','リュ':'ryu','リョ':'ryo','ギャ':'gya','ギュ':'gyu','ギョ':'gyo','ジャ':'ja','ジュ':'ju','ジョ':'jo',
+  'ビャ':'bya','ビュ':'byu','ビョ':'byo','ピャ':'pya','ピュ':'pyu','ピョ':'pyo',
+  'ファ':'fa','フィ':'fi','フェ':'fe','フォ':'fo','ウィ':'wi','ウェ':'we','ウォ':'wo','ヴァ':'va','ヴィ':'vi','ヴェ':'ve','ヴォ':'vo',
+  'ティ':'ti','ディ':'di','トゥ':'tu','ドゥ':'du','チェ':'che','シェ':'she','ジェ':'je',
+}
+const ROMAJI_1: Record<string, string> = {
+  'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o','カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko','ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+  'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so','ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo','タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+  'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do','ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no','ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+  'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo','パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po','マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+  'ヤ':'ya','ユ':'yu','ヨ':'yo','ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro','ワ':'wa','ヲ':'wo','ン':'n','ヴ':'vu','ー':'','ッ':'','・':' ',
+}
+function toRomaji(s: string): string {
+  // ひらがな→カタカナに寄せる
+  const kata = s.replace(/[ぁ-ん]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
+  let out = ''
+  for (let i = 0; i < kata.length;) {
+    const two = kata.slice(i, i + 2)
+    if (ROMAJI_2[two]) { out += ROMAJI_2[two]; i += 2; continue }
+    const one = kata[i]
+    out += ROMAJI_1[one] ?? one
+    i++
+  }
+  return out
+}
+// あいまい一致用にゆるく正規化（c→k統一・連続文字を1つに・長音記号除去）
+function loosen(s: string): string {
+  return normJa(s).replace(/[ー\s・,，、。]/g, '').replace(/c/g, 'k').replace(/l/g, 'r').replace(/(.)\1+/g, '$1')
+}
+// 銘柄1件の検索用テキスト（日本語名＋ローマ字＋コード）
+function stockHaystack(name: string, code: string): string {
+  return loosen(name) + ' ' + loosen(toRomaji(name)) + ' ' + code.toLowerCase()
+}
+
 async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean): Promise<FeedItem[]> {
   if (stocks.length === 0) return []
   const res = await fetch('/api/news-feed', {
@@ -3686,10 +3724,10 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   }, [items])
 
   const irCount = useMemo(() => (items ?? []).filter(i => i.ir).length, [items])
-  const q = normJa(stockQuery.trim())
+  const q = loosen(stockQuery.trim())
   const filtered = useMemo(() =>
     (items ?? []).filter(i => {
-      const okStock = !q || normJa(i.name).includes(q) || i.code.toLowerCase().includes(q)
+      const okStock = !q || stockHaystack(i.name, i.code).includes(q)
       const okMedia = mediaSet.size === 0
         || mediaSet.has(i.source)
         || (mediaSet.has(IR_FILTER) && i.ir)

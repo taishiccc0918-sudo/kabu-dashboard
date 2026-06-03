@@ -1248,10 +1248,10 @@ export default function Page() {
             </svg>
             株式<span>ウォッチ</span>
           </div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate}</span>}{stats.total > 0 && <span style={{marginLeft:10,fontSize:12,fontWeight:600,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
-            <span style={{color:'#ef4444'}}>❤{superFavorites.size}</span>
-            <span style={{color:'rgba(200,200,220,0.4)',margin:'0 4px'}}>·</span>
-            <span style={{color:'#fbbf24'}}>★{favorites.size}</span>
+          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate.replace(/^\d{4}[-/]/, '')}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
+            <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
+            <span style={{color:'var(--text-3)',margin:'0 4px'}}>·</span>
+            <span style={{color:'#f59e0b'}}>★{favorites.size}</span>
           </span>}</div>
         </div>
         <div className={styles.headerRight}>
@@ -1261,7 +1261,7 @@ export default function Page() {
             </button>
           )}
           {loading && <span className={styles.btnSecondary} style={{cursor:'default'}}>更新中…</span>}
-          <button className={`${styles.btnSecondary} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          <button className={`${styles.btnSecondary} ${styles.spHide} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
           {/* ⋯ More Menu */}
           <div ref={moreMenuRef} style={{position:'relative'}}>
             <button
@@ -1508,13 +1508,16 @@ export default function Page() {
                 </div>
               )}
             </div>
-            <div className={styles.filterDivider} />
-            <label className={styles.filterPanelLabel}>時価総額(億)以上</label>
-            <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
-              value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
-            <label className={styles.filterPanelLabel}>PER今期以下</label>
-            <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
-              value={perFMax} onChange={e => setPerFMax(e.target.value)} />
+            {/* 時価総額・PER の数値絞り込みはSPでは非表示（複雑さ低減・本人要望） */}
+            <span className={`${styles.filterNumGroup} ${styles.spHide}`}>
+              <span className={styles.filterDivider} />
+              <label className={styles.filterPanelLabel}>時価総額(億)以上</label>
+              <input type="number" className={styles.filterPanelInput} placeholder="例: 500"
+                value={mcapMin} onChange={e => setMcapMin(e.target.value)} />
+              <label className={styles.filterPanelLabel}>PER今期以下</label>
+              <input type="number" className={styles.filterPanelInput} placeholder="例: 30"
+                value={perFMax} onChange={e => setPerFMax(e.target.value)} />
+            </span>
             <button className={styles.filterPanelClear}
               onClick={() => { setMktFilter('all'); setGenreFilters(new Set()); setMcapMin(''); setPerFMax(''); setFilterHeart(false); setFilterFav(false) }}>
               全クリア
@@ -3089,34 +3092,33 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   )
 }
 
-// ─── SP高密度リスト: 切替カラム定義 ───────────────────────────────────
-const SP_COLS = ['day', 'per', 'mom', 'val', 'roe', 'mcap'] as const
+// ─── SP高密度リスト: 切替カラム定義（1カラム=1指標で見やすく） ─────────────
+const SP_COLS = ['day', 'mcap', 'per', 'peg', 'div', 'pbr', 'roe', 'mom'] as const
 type SpCol = typeof SP_COLS[number]
 const SP_COL_LABEL: Record<SpCol, string> = {
-  day: '前日比', per: 'PER / PEG', mom: '1ヶ月 / 1週', val: '配当 / PBR', roe: 'ROE / 利益率', mcap: '時価総額',
+  day: '前日比', mcap: '時価総額', per: 'PER今期', peg: 'PEG', div: '配当', pbr: 'PBR', roe: 'ROE', mom: '1ヶ月',
 }
-// 切替カラム→並べ替えキー（大きい順/小さい順を切替カラムの主指標で）
+// 切替カラム→並べ替えキー（大きい順/小さい順）
 const SP_COL_SORTKEY: Record<SpCol, keyof StockRow> = {
-  day: 'chg1d', per: 'perF', mom: 'chg1m', val: 'divY', roe: 'roe', mcap: 'mcap',
+  day: 'chg1d', mcap: 'mcap', per: 'perF', peg: 'peg', div: 'divY', pbr: 'pbr', roe: 'roe', mom: 'chg1m',
 }
-// 行右側「切替カラム」の2段表示（上＝主・下＝副）を算出。色クラス付き。
-function spColCells(r: StockRow, col: SpCol): { top: string; topCls: string; bot: string; botCls: string } {
+// 時価総額を短く（1兆円以上は「○.○兆」表記）
+function mcapShort(v: number): string {
+  if (!v) return '—'
+  if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
+  return Math.round(v).toLocaleString() + '億'
+}
+// 行右側「切替カラム」の単一値を算出。色クラス付き。
+function spColCell(r: StockRow, col: SpCol): { value: string; cls: string } {
   switch (col) {
-    case 'day': {
-      const yen = (r.close != null && r.chg1d != null) ? r.close - r.close / (1 + r.chg1d) : null
-      const cls = pctClass(r.chg1d)
-      return { top: yen != null ? (yen >= 0 ? '+' : '') + Math.round(yen).toLocaleString() : '—', topCls: cls, bot: fmtPct(r.chg1d), botCls: cls }
-    }
-    case 'per':
-      return { top: r.perF != null ? 'PER ' + fmtN(r.perF) : 'PER —', topCls: '', bot: r.peg != null ? 'PEG ' + fmtN(r.peg, 2) : 'PEG —', botCls: r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : '' }
-    case 'mom':
-      return { top: '1M ' + fmtPct(r.chg1m), topCls: pctClass(r.chg1m), bot: '1W ' + fmtPct(r.chg1w), botCls: pctClass(r.chg1w) }
-    case 'val':
-      return { top: r.divY != null ? '配当 ' + fmtPct(r.divY) : '配当 —', topCls: '', bot: r.pbr != null ? 'PBR ' + fmtN(r.pbr) : 'PBR —', botCls: '' }
-    case 'roe':
-      return { top: r.roe != null ? 'ROE ' + fmtPct(r.roe) : 'ROE —', topCls: r.roe != null && r.roe > 0.1 ? 'up' : '', bot: r.opMgn != null ? '利益率 ' + fmtPct(r.opMgn) : '利益率 —', botCls: r.opMgn != null && r.opMgn > 0.15 ? 'up' : '' }
-    case 'mcap':
-      return { top: r.mcap ? Math.round(r.mcap).toLocaleString() + '億' : '—', topCls: '', bot: '', botCls: '' }
+    case 'day':  return { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
+    case 'mcap': return { value: mcapShort(r.mcap), cls: '' }
+    case 'per':  return { value: r.perF != null ? fmtN(r.perF) + '倍' : '—', cls: '' }
+    case 'peg':  return { value: r.peg != null ? fmtN(r.peg, 2) : '—', cls: r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : '' }
+    case 'div':  return { value: fmtPct(r.divY), cls: '' }
+    case 'pbr':  return { value: r.pbr != null ? fmtN(r.pbr) : '—', cls: '' }
+    case 'roe':  return { value: fmtPct(r.roe), cls: r.roe != null && r.roe > 0.1 ? 'up' : '' }
+    case 'mom':  return { value: fmtPct(r.chg1m), cls: pctClass(r.chg1m) }
   }
 }
 
@@ -3129,7 +3131,7 @@ function SpStockRow({ row: r, col, isFav, isSuperFav, onToggleFav, onToggleSuper
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   const dayCls = pctClass(r.chg1d)
-  const c = spColCells(r, col)
+  const c = spColCell(r, col)
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowFavCol}>
@@ -3152,8 +3154,7 @@ function SpStockRow({ row: r, col, isFav, isSuperFav, onToggleFav, onToggleSuper
       </div>
       <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
       <div className={styles.spRowMetric}>
-        <div className={`${styles.spRowMetricTop} ${c.topCls ? styles[c.topCls] : ''}`}>{c.top}</div>
-        {c.bot && <div className={`${styles.spRowMetricBot} ${c.botCls ? styles[c.botCls] : ''}`}>{c.bot}</div>}
+        <div className={`${styles.spRowMetricTop} ${c.cls ? styles[c.cls] : ''}`}>{c.value}</div>
       </div>
     </div>
   )
@@ -3168,15 +3169,15 @@ function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => vo
         <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
       </svg>
     ) },
-    { key: 'watchlist', label: 'ウォッチ', icon: (
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
-      </svg>
-    ) },
     { key: 'news', label: 'ニュース', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/>
         <line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>
+      </svg>
+    ) },
+    { key: 'watchlist', label: 'ウォッチ', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
       </svg>
     ) },
   ]
@@ -3944,11 +3945,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         </div>
         <div className={styles.feedActions}>
           <div className={styles.newsSortBtns}>
-            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')}>
-              すべて(<span className={styles.heartGlyph}>♥</span>+<span className={styles.starGlyph}>★</span>)
+            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')} title="♥お気に入りのニュースだけ">
+              <span className={styles.heartGlyph}>♥</span>
             </button>
-            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')}>
-              <span className={styles.heartGlyph}>♥</span>のみ
+            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')} title="★お気に入り全体（♥を含む）のニュース">
+              <span className={styles.starGlyph}>★</span>
             </button>
           </div>
           <button className={styles.feedRefreshBtn} disabled={loading} onClick={() => load(true)} title="キャッシュを無視して最新ニュースを取得">
@@ -3972,7 +3973,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
 
         <div className={styles.feedMediaWrap}>
           <button className={styles.feedSelect} onClick={() => setMediaOpen(o => !o)}>
-            メディア: {mediaSet.size === 0 ? 'すべて' : `${mediaSet.size}社`} ▼
+            メディア{mediaSet.size > 0 ? ` (${mediaSet.size})` : ''} ▼
           </button>
           {mediaOpen && (
             <>

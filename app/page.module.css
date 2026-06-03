@@ -1008,13 +1008,14 @@
 .spRowFavStar  { color: #f59e0b; }
 .spRowFavHeart { color: #f43f5e; }
 
-/* 銘柄名 + コード/市場/ジャンル */
+/* 銘柄名 + コード/市場/ジャンル（長い名前は2行まで＝途中で切らない） */
 .spRowMain { flex: 1; min-width: 0; }
 .spRowName {
-  font-size: 16px; font-weight: 700; color: var(--text-1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25;
+  font-size: 16px; font-weight: 700; color: var(--text-1); line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-word;
 }
-.spRowSub { display: flex; align-items: center; gap: 6px; margin-top: 2px; min-width: 0; }
+.spRowSub { display: flex; align-items: center; gap: 6px; margin-top: 3px; min-width: 0; }
 .spRowCode { font-size: 12px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
 .spRowGenre {
   font-size: 11px; color: var(--text-3);
@@ -1023,20 +1024,19 @@
 
 /* 現在値（大・読める） */
 .spRowPrice {
-  width: 84px; flex-shrink: 0; text-align: right;
+  width: 78px; flex-shrink: 0; text-align: right;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 21px; font-weight: 700; color: var(--text-1);
+  font-size: 20px; font-weight: 700; color: var(--text-1);
   line-height: 1.1; letter-spacing: -0.3px;
 }
 
-/* 切替カラム（2段） */
+/* 切替カラム（1指標＝大きく見やすく） */
 .spRowMetric {
-  width: 104px; flex-shrink: 0; text-align: right;
+  width: 90px; flex-shrink: 0; text-align: right;
   font-family: 'JetBrains Mono', monospace;
-  display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  display: flex; align-items: center; justify-content: flex-end;
 }
-.spRowMetricTop { font-size: 16px; font-weight: 700; color: var(--text-1); line-height: 1.15; }
-.spRowMetricBot { font-size: 13px; font-weight: 600; color: var(--text-2); line-height: 1.15; }
+.spRowMetricTop { font-size: 17px; font-weight: 700; color: var(--text-1); line-height: 1.15; }
 
 /* SP検索トグル（アイコン→タップで検索窓を開く。キーボード暴発防止） */
 .spSearchToggle {
@@ -1148,20 +1148,21 @@
   .lastUpdate strong { font-size: 11px; }
   .discDateLabel { margin-left: 6px; font-size: 10px; }
 
-  /* ツールバーを最上部に固定。検索はアイコンから開く */
-  .toolbar { top: 0; }
+  /* 固定の整理: ツールバー/フィルターはスクロールで退避し、
+     リスト列見出し(.spListHeader)だけを最上部に固定＝固定崩れ・行の挟まりを解消 */
+  .toolbar { position: static; }
+  .filterBar { position: static; }
+  .spListHeader { top: 0; }
   .spSearchToggle { display: inline-flex !important; }
   .spSearchHidden { display: none !important; }
-
-  /* SPリスト見出しはツールバー直下に固定 */
-  .spListHeader { top: 48px; }
 
   /* フィルターバーをギュッと（開いても画面を占有しすぎない） */
   .filterBar { padding: 7px 8px; }
   .filterBarRow { gap: 5px 6px; }
   .filterPanelLabel { font-size: 11px; }
-  .filterPanelInput { width: 66px; padding: 4px 6px; font-size: 14px; }
   .filterGenreWrap { gap: 4px; }
+  /* ジャンルは検索入力を出さず「プルダウンで選ぶだけ」にする（本人要望） */
+  .genreFilterSearch { display: none !important; }
 
   /* ニュース: メディア絞り込みを下からのシート化（画面外はみ出し解消） */
   .feedMediaPanel {

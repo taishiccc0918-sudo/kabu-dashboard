@@ -4480,6 +4480,7 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
+  const logos = useLogoMap()
   const pts = rows.filter(r => r.perBand?.position != null && r.chg1m != null)
   const W = 360, H = 240, L = 14, R = 14, T = 14, B = 24
   const pw = W - L - R, ph = H - T - B
@@ -4497,18 +4498,35 @@ function PositionMap({ rows, hearts, onClickCode }: {
         {/* 株価0%ライン */}
         <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
         <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-        {/* ♥以外を先に、♥を後に描いて前面へ */}
+        {/* ♥以外を先に、♥を後に描いて前面へ。ロゴがあればアイコン、無ければ色ドット。外周リング＝1ヶ月の上下 */}
         {[...pts].sort((a, b) => Number(hearts.has(a.code)) - Number(hearts.has(b.code))).map(r => {
           const px = x(r.perBand!.position!), py = y(r.chg1m!)
           const heart = hearts.has(r.code)
-          // 色＝株価1ヶ月の上下（緑=上昇/赤=下落）。軸の意味と一致させ、ランダムなジャンル色を廃止
+          // 色＝株価1ヶ月の上下（緑=上昇/赤=下落）
           const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
+          const logo = logos?.[r.code]
+          const rad = heart ? 9 : 7
+          const ring = heart ? '#f43f5e' : c
+          const title = `${r.name}（${r.code}）${heart ? ' ♥' : ''}\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
+          if (logo) {
+            const cid = `lgm-${r.code}`
+            return (
+              <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
+                <clipPath id={cid}><circle cx={px} cy={py} r={rad} /></clipPath>
+                <circle cx={px} cy={py} r={rad} fill="#fff" />
+                <image href={logo} x={px - rad} y={py - rad} width={rad * 2} height={rad * 2}
+                  clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid slice" />
+                <circle cx={px} cy={py} r={rad} fill="none" stroke={ring} strokeWidth={heart ? 2 : 1.4} />
+                <title>{title}</title>
+              </g>
+            )
+          }
           return (
             <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
               <circle cx={px} cy={py} r={heart ? 6.5 : 4.5}
                 fill={c} fillOpacity={heart ? 0.95 : 0.6}
                 stroke={heart ? '#f43f5e' : 'var(--surface-0)'} strokeWidth={heart ? 2.2 : 0.8} />
-              <title>{`${r.name}（${r.code}）${heart ? ' ♥' : ''}\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`}</title>
+              <title>{title}</title>
             </g>
           )
         })}

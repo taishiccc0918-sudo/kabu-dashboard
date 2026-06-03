@@ -3718,6 +3718,7 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 // 公開から3日以内の記事に「NEW」を付ける（何度開いても表示される）。
 type NewsArticle = { title: string; link: string; source: string; pubDate: string }
 const NEWS_NEW_WINDOW_MS = 3 * 24 * 60 * 60 * 1000 // 直近3日以内をNEW扱い
+const NEWS_MAX_AGE_MS = 95 * 24 * 60 * 60 * 1000 // 直近約3ヶ月のみ表示（Yahoo常設ページ等の古い記事を除外）
 
 function fmtRelTime(pubDate: string): string {
   const t = new Date(pubDate).getTime()
@@ -3755,26 +3756,35 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     return () => { cancelled = true }
   }, [code, name])
 
-  const sorted = useMemo(() => {
+  // 直近約3ヶ月のみ採用（日付不明・3ヶ月超の常設ページは除外）
+  const recent = useMemo(() => {
     if (!articles) return []
+    const cutoff = Date.now() - NEWS_MAX_AGE_MS
+    return articles.filter(a => {
+      const t = new Date(a.pubDate).getTime()
+      return !!t && !Number.isNaN(t) && t >= cutoff
+    })
+  }, [articles])
+
+  const sorted = useMemo(() => {
     const byDate = (a: NewsArticle, b: NewsArticle) =>
       new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-    if (sort === 'date') return [...articles].sort(byDate)
+    if (sort === 'date') return [...recent].sort(byDate)
     // メディア別: ソース名でグループ化し、各グループ内は新しい順
-    return [...articles].sort((a, b) => {
+    return [...recent].sort((a, b) => {
       const s = (a.source || '').localeCompare(b.source || '', 'ja')
       return s !== 0 ? s : byDate(a, b)
     })
-  }, [articles, sort])
+  }, [recent, sort])
 
   if (err) return <div className={styles.newsEmpty}>ニュース取得に失敗しました（{err}）</div>
   if (articles === null) return <div className={styles.newsEmpty}>読み込み中…</div>
-  if (articles.length === 0) return <div className={styles.newsEmpty}>直近のニュースは見つかりませんでした</div>
+  if (recent.length === 0) return <div className={styles.newsEmpty}>直近3ヶ月のニュースは見つかりませんでした</div>
 
   return (
     <>
       <div className={styles.newsSortRow}>
-        <span className={styles.newsCount}>直近3ヶ月・{articles.length}件</span>
+        <span className={styles.newsCount}>直近3ヶ月・{recent.length}件</span>
         <div className={styles.newsSortBtns}>
           <button
             className={`${styles.newsSortBtn} ${sort === 'date' ? styles.newsSortBtnActive : ''}`}
@@ -4254,7 +4264,6 @@ function FactSheet({ code, fin: f }: { code: string; fin: FinRecord | null | und
         <div className={styles.factRows}>
           <div className={styles.factRow}><span className={styles.factLabel}>事業内容</span><span className={styles.factVal}>{edi(edinet?.bizDesc)}</span></div>
           <div className={styles.factRow}><span className={styles.factLabel}>代表者</span><span className={styles.factVal}>{edi(edinet?.ceo)}</span></div>
-          <div className={styles.factRow}><span className={styles.factLabel}>設立／創業</span><span className={styles.factVal}>{edi(edinet?.founded)}</span></div>
           <div className={styles.factRow}>
             <span className={styles.factLabel}>従業員数(連結)</span>
             <span className={styles.factVal}>{edi(edinet?.employees != null
@@ -4419,15 +4428,22 @@ function DetailPanel({
       <Section title="ニュース"><NewsSection code={r.code} name={r.name || ''} /></Section>
       <Section title="リンク">
         <div className={styles.detailLinks}>
-          <a className={styles.detailLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
-          <a className={styles.detailLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-          <a className={styles.detailLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
-          <a className={styles.detailLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo Finance</a>
-          <a className={styles.detailLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
-          <a className={styles.detailLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
-          <a className={styles.detailLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">Buffett Code</a>
-          <a className={styles.detailLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TradingView</a>
-          <a className={styles.detailLinkBtn} href={`https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code + ' 決算 IR')}`} target="_blank" rel="noopener noreferrer">YouTube検索</a>
+          {[
+            { label: '四季報',     domain: 'shikiho.toyokeizai.net', href: `https://shikiho.toyokeizai.net/stocks/${r.code}` },
+            { label: 'かぶたん',   domain: 'kabutan.jp',             href: `https://kabutan.jp/stock/?code=${r.code}` },
+            { label: 'X検索',      domain: 'x.com',                  href: `https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live` },
+            { label: 'Yahoo',      domain: 'finance.yahoo.co.jp',    href: `https://finance.yahoo.co.jp/quote/${r.code}.T` },
+            { label: 'IRBank',     domain: 'irbank.net',            href: `https://irbank.net/${r.code}` },
+            { label: 'みんかぶ',   domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${r.code}` },
+            { label: 'Buffett',    domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${r.code}` },
+            { label: 'TradingView',domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${r.code}` },
+            { label: 'YouTube',    domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code + ' 決算 IR')}` },
+          ].map(l => (
+            <a key={l.label} className={styles.detailLinkBtn} href={l.href} target="_blank" rel="noopener noreferrer">
+              <img className={styles.detailLinkIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={18} height={18} loading="lazy" />
+              <span className={styles.detailLinkLabel}>{l.label}</span>
+            </a>
+          ))}
         </div>
       </Section>
     </>
@@ -4502,34 +4518,28 @@ function PositionMap({ rows, hearts, onClickCode }: {
         {/* 株価0%ライン */}
         <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
         <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-        {/* ♥以外を先に、♥を後に描いて前面へ。ロゴがあればアイコン、無ければ色ドット。外周リング＝1ヶ月の上下 */}
-        {[...pts].sort((a, b) => Number(hearts.has(a.code)) - Number(hearts.has(b.code))).map(r => {
+        {/* ロゴがあれば丸に収めたアイコン（枠なし）、無ければ1ヶ月の上下色の小ドット。太枠リングは廃止 */}
+        {pts.map(r => {
           const px = x(r.perBand!.position!), py = y(r.chg1m!)
-          const heart = hearts.has(r.code)
-          // 色＝株価1ヶ月の上下（緑=上昇/赤=下落）
           const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
           const logo = logos?.[r.code]
-          const rad = heart ? 9 : 7
-          const ring = heart ? '#f43f5e' : c
-          const title = `${r.name}（${r.code}）${heart ? ' ♥' : ''}\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
+          const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
           if (logo) {
-            const cid = `lgm-${r.code}`
+            const rad = 8.5, cid = `lgm-${r.code}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
                 <clipPath id={cid}><circle cx={px} cy={py} r={rad} /></clipPath>
-                <circle cx={px} cy={py} r={rad} fill="#fff" />
-                <image href={logo} x={px - rad} y={py - rad} width={rad * 2} height={rad * 2}
-                  clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid slice" />
-                <circle cx={px} cy={py} r={rad} fill="none" stroke={ring} strokeWidth={heart ? 2 : 1.4} />
+                <circle cx={px} cy={py} r={rad} fill="#fff" stroke="var(--line)" strokeWidth="0.6" />
+                {/* meet＝ロゴ全体が丸の中に収まる（切り取らない） */}
+                <image href={logo} x={px - rad + 1} y={py - rad + 1} width={(rad - 1) * 2} height={(rad - 1) * 2}
+                  clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid meet" />
                 <title>{title}</title>
               </g>
             )
           }
           return (
             <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-              <circle cx={px} cy={py} r={heart ? 6.5 : 4.5}
-                fill={c} fillOpacity={heart ? 0.95 : 0.6}
-                stroke={heart ? '#f43f5e' : 'var(--surface-0)'} strokeWidth={heart ? 2.2 : 0.8} />
+              <circle cx={px} cy={py} r={4.5} fill={c} fillOpacity={0.7} stroke="var(--surface-0)" strokeWidth={0.6} />
               <title>{title}</title>
             </g>
           )
@@ -4543,7 +4553,6 @@ function PositionMap({ rows, hearts, onClickCode }: {
       <div className={styles.repMapLegend}>
         <span><span className={styles.repLegendDot} style={{ background: 'var(--up)' }} />1ヶ月 上昇</span>
         <span><span className={styles.repLegendDot} style={{ background: 'var(--down)' }} />1ヶ月 下落</span>
-        <span><span className={styles.repLegendDot} style={{ background: 'var(--up)', outline: '2px solid #f43f5e', outlineOffset: '1px' }} />♥超お気に入り</span>
       </div>
     </div>
   )
@@ -4692,16 +4701,11 @@ function WeeklyReport({
         <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{baseRows.length}銘柄</span>
       </div>
 
-      {/* スコープ＆並び替え */}
+      {/* スコープ（マップ＆カルテ共通） */}
       <div className={styles.repControls}>
         <div className={styles.repToggle}>
           <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
           <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
-        </div>
-        <div className={styles.repToggle}>
-          {(([['move', '動き順'], ['cheap', '割安順'], ['growth', '成長順'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
-            <button key={k} className={sort === k ? styles.repTogActive : styles.repTog} onClick={() => setSort(k)}>{l}</button>
-          ))}
         </div>
       </div>
 
@@ -4719,8 +4723,15 @@ function WeeklyReport({
         )}
       </div>
 
-      {/* 銘柄カルテ */}
-      <div className={styles.repCardsHead}>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></div>
+      {/* 銘柄カルテ（並べ替えはカルテ用なのでここに配置） */}
+      <div className={styles.repCardsHead}>
+        <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
+        <div className={styles.repToggle}>
+          {(([['move', '動き順'], ['cheap', '割安順'], ['growth', '成長順'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
+            <button key={k} className={sort === k ? styles.repTogActive : styles.repTog} onClick={() => setSort(k)}>{l}</button>
+          ))}
+        </div>
+      </div>
       {sorted.length === 0
         ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>
         : (

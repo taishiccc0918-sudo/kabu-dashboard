@@ -641,14 +641,17 @@
   font-family: 'Noto Sans JP', sans-serif;
 }
 .detailMemo:focus { outline: none; border-color: var(--accent); }
-.detailLinks { display: flex; gap: 6px; }
+.detailLinks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .detailLinkBtn {
-  flex: 1; padding: 9px; border-radius: var(--r-chip);
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 9px 4px; border-radius: var(--r-chip);
   border: 1px solid var(--line); background: var(--surface-1);
-  color: var(--accent); text-align: center; font-size: 11px;
-  transition: all .12s; display: block;
+  color: var(--text-2); text-align: center; font-size: 11px;
+  transition: all .12s;
 }
-.detailLinkBtn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+.detailLinkBtn:hover { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.detailLinkIcon { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; display: block; object-fit: contain; }
+.detailLinkLabel { line-height: 1.2; white-space: nowrap; }
 
 /* ── 企業ファクトシート（詳細パネル） ─────────────────────────
    2026-06-02: 数値=J-Quants（機械値）／会社概要=EDINET有報。捏造ゼロ＝出典付き・取得不可は明示。 */
@@ -2738,7 +2741,10 @@
 .repLegendDot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
 /* 銘柄カルテ */
-.repCardsHead { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 4px 0 12px; }
+.repCardsHead {
+  font-size: 16px; font-weight: 700; color: var(--text-1); margin: 16px 0 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
 .repCardsSub { font-size: 13px; color: var(--text-3); font-weight: 400; margin-left: 6px; }
 .repCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
 .repCard {

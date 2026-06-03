@@ -4441,17 +4441,20 @@ function PositionMap({ rows, hearts, onClickCode }: {
         <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.05)" />
         <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.07)" />
         {/* 株価0%ライン */}
-        <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="#3a4a5e" strokeWidth="1" strokeDasharray="4 4" />
-        <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="#2a3a52" strokeWidth="1" />
-        {pts.map(r => {
+        <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
+        <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
+        {/* ♥以外を先に、♥を後に描いて前面へ */}
+        {[...pts].sort((a, b) => Number(hearts.has(a.code)) - Number(hearts.has(b.code))).map(r => {
           const px = x(r.perBand!.position!), py = y(r.chg1m!)
           const heart = hearts.has(r.code)
+          // 色＝株価1ヶ月の上下（緑=上昇/赤=下落）。軸の意味と一致させ、ランダムなジャンル色を廃止
+          const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
           return (
             <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-              <circle cx={px} cy={py} r={heart ? 6.5 : 5}
-                fill={genreColor(r.genres[0] || '')}
-                stroke={heart ? '#fbbf24' : '#0d1219'} strokeWidth={heart ? 2 : 1} />
-              <title>{`${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`}</title>
+              <circle cx={px} cy={py} r={heart ? 6.5 : 4.5}
+                fill={c} fillOpacity={heart ? 0.95 : 0.6}
+                stroke={heart ? '#f43f5e' : 'var(--surface-0)'} strokeWidth={heart ? 2.2 : 0.8} />
+              <title>{`${r.name}（${r.code}）${heart ? ' ♥' : ''}\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`}</title>
             </g>
           )
         })}
@@ -4460,6 +4463,11 @@ function PositionMap({ rows, hearts, onClickCode }: {
         <span>← 安値圏</span>
         <span>PER位置（自分の過去1年レンジ）</span>
         <span>高値圏 →</span>
+      </div>
+      <div className={styles.repMapLegend}>
+        <span><span className={styles.repLegendDot} style={{ background: 'var(--up)' }} />1ヶ月 上昇</span>
+        <span><span className={styles.repLegendDot} style={{ background: 'var(--down)' }} />1ヶ月 下落</span>
+        <span><span className={styles.repLegendDot} style={{ background: 'var(--up)', outline: '2px solid #f43f5e', outlineOffset: '1px' }} />♥超お気に入り</span>
       </div>
     </div>
   )

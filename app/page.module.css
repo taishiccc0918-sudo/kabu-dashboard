@@ -2715,6 +2715,12 @@
   font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 5px; padding: 0 2px;
 }
 .repMapXax span:nth-child(2) { color: var(--text-3); font-weight: 500; }
+.repMapLegend {
+  display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  margin-top: 8px; font-size: 12px; color: var(--text-2); font-weight: 600;
+}
+.repMapLegend span { display: inline-flex; align-items: center; gap: 5px; }
+.repLegendDot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
 /* 銘柄カルテ */
 .repCardsHead { font-size: 16px; font-weight: 700; color: var(--text-1); margin: 4px 0 12px; }

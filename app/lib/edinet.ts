@@ -223,16 +223,34 @@ function segmentNameFromCtx(ctx: string): string {
 
 // type=5 CSV の行群から会社概要を抽出。検証済みの要素ID・コンテキストに厳密一致させる。
 export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
-  // 事業内容（原文テキストブロック・抜粋）
+  // 事業内容（原文テキストブロックの抜粋）。途中で切らず、必ず句点「。」で文を完結させる（約5行・最大約180字）。
   let bizDesc = val(rows, r => r.elementId === 'jpcrp_cor:DescriptionOfBusinessTextBlock')
   if (bizDesc) {
-    bizDesc = stripHtml(bizDesc).replace(/^[\s　]*[0-9０-９]+\s*【事業の内容】/, '').trim()
-    if (bizDesc.length > 160) bizDesc = bizDesc.slice(0, 160) + '…'
+    const t = stripHtml(bizDesc)
+      .replace(/^[\s　]*[0-9０-９]+\s*【事業の内容】/, '')
+      .replace(/[\s　]+/g, ' ')
+      .trim()
+    const MAX = 180
+    let out = ''
+    for (const s of t.split('。')) {
+      const seg = s.trim()
+      if (!seg) continue
+      const cand = out + seg + '。'
+      if (out && cand.length > MAX) break // 1文目は長くても必ず入れる（完結優先）
+      out = cand
+    }
+    bizDesc = out || (t.length > MAX ? t.slice(0, MAX) + '…' : t)
   }
 
-  // 代表者（表紙の役職氏名）。空白を全て詰める（例「取締役社長  佐 藤」→「取締役社長佐藤」）
+  // 代表者（表紙の役職氏名）。日本語の字間スペースのみ除去し、英単語間の空白は保持
+  // （例「取締役社長  佐 藤 恒 治」→「取締役社長佐藤恒治」／「兼 Chief Executive Officer 出木場」は維持）。
   let ceo = val(rows, r => r.elementId === 'jpcrp_cor:TitleAndNameOfRepresentativeCoverPage')
-  if (ceo) ceo = ceo.replace(/[\s　]+/g, '').trim()
+  if (ceo) {
+    ceo = ceo
+      .replace(/([^\x00-\x7F\s])[ 　]+(?=[^\x00-\x7F\s])/g, '$1') // 非ASCII同士の間の空白を除去
+      .replace(/[ 　]{2,}/g, ' ')
+      .trim()
+  }
 
   // 創業/設立: 沿革を「年月＋概要」エントリに分割し、創立/設立を含むエントリの年月だけを採用。
   //   ※年と離れた位置の「創立」を誤接続しない（別の年の出来事に紐づける捏造を防ぐ）。

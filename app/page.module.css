@@ -2165,10 +2165,10 @@
 .filterGenreWrap .genreFilterBtn:hover { color: #e8eef8; border-color: #3b82f6; }
 .filterGenreChips { display: flex; gap: 5px; flex-wrap: wrap; }
 .filterGenreActiveChip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer;
   background: rgba(59,130,246,0.14); border: 1px solid #3b82f6;
-  color: #93c5fd; font-size: 11px; font-weight: 600; transition: all .12s;
+  color: #93c5fd; font-size: 12.5px; font-weight: 600; transition: all .12s;
 }
 .filterGenreActiveChip:hover { background: rgba(248,113,113,0.18); border-color: #f87171; color: #fca5a5; }
 .filterGenreChipX { font-size: 12px; line-height: 1; opacity: 0.8; }

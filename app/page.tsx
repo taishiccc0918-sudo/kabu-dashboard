@@ -1511,15 +1511,6 @@ export default function Page() {
                 onApply={setGenreFilters}
                 onClear={() => setGenreFilters(new Set())}
               />
-              {genreFilters.size > 0 && (
-                <div className={styles.filterGenreChips}>
-                  {Array.from(genreFilters).map(g => (
-                    <span key={g} className={styles.filterGenreActiveChip} onClick={() => setGenreFilters(prev => { const n = new Set(prev); n.delete(g); return n })}>
-                      {g === GENRE_UNSET ? '未設定' : g} <span className={styles.filterGenreChipX}>×</span>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
             {/* 時価総額・PER の数値絞り込みはSPでは非表示（複雑さ低減・本人要望） */}
             <span className={`${styles.filterNumGroup} ${styles.spHide}`}>
@@ -1536,6 +1527,16 @@ export default function Page() {
               全クリア
             </button>
           </div>
+          {/* 選択中ジャンルのチップは全幅で横に並べる（縦積みで高さが伸びるのを防ぐ） */}
+          {genreFilters.size > 0 && (
+            <div className={styles.filterGenreChips}>
+              {Array.from(genreFilters).map(g => (
+                <span key={g} className={styles.filterGenreActiveChip} onClick={() => setGenreFilters(prev => { const n = new Set(prev); n.delete(g); return n })}>
+                  {g === GENRE_UNSET ? '未設定' : g} <span className={styles.filterGenreChipX}>×</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

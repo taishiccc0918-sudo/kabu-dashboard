@@ -1724,39 +1724,39 @@
 }
 .wlTh {
   padding: 8px 12px; text-align: left;
-  font-size: 10px; font-weight: 600; color: #4e6280;
+  font-size: 10px; font-weight: 600; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.5px; text-transform: uppercase;
-  background: #0d1219;
-  border-bottom: 1px solid #1f2d40;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 .wlTr {
-  border-bottom: 1px solid #111827;
+  border-bottom: 1px solid var(--line);
   transition: background .1s;
 }
-.wlTr:hover { background: rgba(255,255,255,0.03); }
-.wlTr:hover .wlTd { background: #121c2e; }
+.wlTr:hover { background: var(--surface-hover); }
+.wlTr:hover .wlTd { background: var(--surface-hover); }
 .wlTd {
   padding: 5px 12px; vertical-align: middle;
-  background: #0d1219;
+  background: var(--surface-0);
 }
 .wlTdName {
-  font-size: 13px; color: #c8d8e8;
+  font-size: 13px; color: var(--text-1);
 }
 .wlMemoInput {
   width: 100%;
-  background: rgba(255,255,255,0.03); border: 1px solid #1f2d40;
-  color: #c8d8e8; padding: 4px 8px;
+  background: var(--surface-1); border: 1px solid var(--line);
+  color: var(--text-1); padding: 4px 8px;
   border-radius: 4px; font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
   transition: border-color .1s; box-sizing: border-box;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.wlMemoInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
-.wlMemoInput::placeholder { color: #2a3a52; }
+.wlMemoInput:focus { outline: none; border-color: var(--accent); background: var(--accent-soft); }
+.wlMemoInput::placeholder { color: var(--text-3); }
 
 /* ── 決算日入力 ────────────────────────────────────────────── */
 .wlEarningsInput {

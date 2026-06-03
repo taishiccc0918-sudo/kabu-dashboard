@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Supビルド済みの企業ロゴ・マスター（cronが収集）を code→URL の辞書で返す。
 // テーブル未作成/未収集なら ready:false（フロントは色イニシャルチップにフォールバック）。
-export const revalidate = 86400 // ロゴは滅多に変わらない。1日キャッシュで十分。
+export const revalidate = 600 // ロゴは滅多に変わらないが、初回反映/月次更新を取りこぼさない程度に（10分）。
 
 export async function GET(_req: NextRequest) {
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()

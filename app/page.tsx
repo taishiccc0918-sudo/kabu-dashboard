@@ -3886,6 +3886,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [loading, setLoading] = useState(false)
   const [stockQuery, setStockQuery] = useState('')           // 銘柄の検索（名前/コード）
   const [mediaSet, setMediaSet] = useState<Set<string>>(new Set()) // メディア絞り込み（複数選択）
+  const [feedSort, setFeedSort] = useState<'new' | 'important'>('new') // 新着順 / 重要度順
   const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
   const [visible, setVisible] = useState(FEED_DISPLAY_STEP) // 「もっと見る」で増やす表示件数
@@ -3975,6 +3976,18 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
     }),
     [items, q, mediaSet, scope, heartSet])
 
+  // 表示順: 新着順（既定）／重要度順（決算・適時開示・公式IRを上位＝有益な一次情報を優先。
+  // PV等の人気データは持たないので、捏造せず「開示の重み×新しさ」で擬似ランキング）
+  const displayed = useMemo(() => {
+    if (feedSort === 'new') return filtered
+    const score = (a: FeedItem) => (a.disc ? 2 : 0) + (a.ir ? 2 : 0)
+    return [...filtered].sort((a, b) => {
+      const s = score(b) - score(a)
+      if (s !== 0) return s
+      return (new Date(b.pubDate).getTime() || 0) - (new Date(a.pubDate).getTime() || 0)
+    })
+  }, [filtered, feedSort])
+
   // 絞り込み・スコープが変わったら表示件数をリセット（先頭から見せ直す）
   useEffect(() => { setVisible(FEED_DISPLAY_STEP) }, [q, mediaSet, scope])
 
@@ -3984,11 +3997,15 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         <div>
           <div className={styles.feedTitle}>お気に入り銘柄ニュース</div>
           <div className={styles.newsCount}>
-            {items !== null ? `${filtered.length} / ${items.length}件・直近3ヶ月・新着順` : '—'}
+            {items !== null ? `${filtered.length} / ${items.length}件・直近3ヶ月・${feedSort === 'new' ? '新着順' : '重要度順'}` : '—'}
             {fetchedAt && <span> ・ 取得 {fmtRelTime(new Date(fetchedAt).toISOString())}</span>}
           </div>
         </div>
         <div className={styles.feedActions}>
+          <div className={styles.newsSortBtns}>
+            <button className={`${styles.newsSortBtn} ${feedSort === 'new' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('new'); setVisible(FEED_DISPLAY_STEP) }} title="新しい順">新着</button>
+            <button className={`${styles.newsSortBtn} ${feedSort === 'important' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('important'); setVisible(FEED_DISPLAY_STEP) }} title="決算・適時開示・公式IRを上位に">重要度</button>
+          </div>
           <div className={styles.newsSortBtns}>
             <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')} title="♥お気に入りのニュースだけ">
               <span className={styles.heartGlyph}>♥</span>
@@ -4082,11 +4099,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
       {items !== null && filtered.length === 0 && !phase && <div className={styles.newsEmpty}>該当するニュースはありません</div>}
-      {filtered.length > visible && (
-        <div className={styles.feedPhase}>新着{visible}件を表示中（全{filtered.length}件）。下の「もっと見る」か、銘柄・メディアでの絞り込みで残りも見られます。</div>
+      {displayed.length > visible && (
+        <div className={styles.feedPhase}>{visible}件を表示中（全{displayed.length}件）。下の「もっと見る」か、銘柄・メディアでの絞り込みで残りも見られます。</div>
       )}
       <div className={styles.feedList}>
-        {filtered.slice(0, visible).map((a, i) => {
+        {displayed.slice(0, visible).map((a, i) => {
           const t = new Date(a.pubDate).getTime()
           const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
           const fav = faviconUrl(a.sourceUrl)
@@ -4110,9 +4127,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
           )
         })}
       </div>
-      {filtered.length > visible && (
+      {displayed.length > visible && (
         <button className={styles.feedMoreBtn} onClick={() => setVisible(v => v + FEED_DISPLAY_STEP)}>
-          もっと見る（残り{filtered.length - visible}件）
+          もっと見る（残り{displayed.length - visible}件）
         </button>
       )}
     </div>

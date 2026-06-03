@@ -302,33 +302,33 @@
 .table thead th.stickyCol0 { left: 48px !important; z-index: 12 !important; }
 .table thead th.stickyCol1 { left: 108px !important; z-index: 12 !important; }
 
-/* th groups */
+/* th groups: ソフトなトークン地色＋濃い読める文字＋一貫した1px境界（ライト/ダーク両対応） */
 .thPriceGroup {
-  background: rgba(16,185,129,0.08) !important;
-  color: #34d399 !important;
-  border-left: 2px solid rgba(16,185,129,0.3) !important;
+  background: var(--up-soft) !important;
+  color: var(--text-1) !important;
+  border-left: 1px solid var(--line-strong) !important;
 }
 .thPerGroup {
-  background: rgba(59,130,246,0.08) !important;
-  color: #60a5fa !important;
-  border-left: 2px solid rgba(59,130,246,0.3) !important;
+  background: var(--accent-soft) !important;
+  color: var(--text-1) !important;
+  border-left: 1px solid var(--line-strong) !important;
 }
 .thOtherGroup {
-  background: rgba(245,158,11,0.08) !important;
-  color: #fbbf24 !important;
-  border-left: 2px solid rgba(245,158,11,0.3) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-1) !important;
+  border-left: 1px solid var(--line-strong) !important;
 }
 .thInfoGroup {
-  background: rgba(255,255,255,0.02) !important;
-  color: #4e6280 !important;
-  border-left: 2px solid rgba(255,255,255,0.06) !important;
+  background: var(--surface-2) !important;
+  color: var(--text-2) !important;
+  border-left: 1px solid var(--line-strong) !important;
 }
 .thSort { cursor: pointer; }
-.thSort:hover { color: #e8eef8 !important; }
+.thSort:hover { color: var(--accent) !important; }
 .thLeft  { text-align: center !important; }
 .thRight { text-align: center !important; }
 .sortArrow { margin-left: 3px; opacity: .25; font-size: 9px; }
-.sorted { opacity: 1 !important; color: #60a5fa; }
+.sorted { opacity: 1 !important; color: var(--accent); }
 
 /* tbody rows */
 .table tbody tr {
@@ -378,7 +378,7 @@
   width: 140px; min-width: 140px; max-width: 140px;
   color: var(--text-1);
   position: sticky; left: 108px; z-index: 5;
-  border-right: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line);
   background: var(--surface-0);
 }
 .tdNum {
@@ -3565,10 +3565,8 @@
 }
 
 /* ── テーブルヘッダーグループ: 上部カラーライン ─ */
-.thPriceGroup { border-top: 2px solid rgba(16,185,129,0.45) !important; }
-.thPerGroup   { border-top: 2px solid rgba(59,130,246,0.45) !important; }
-.thOtherGroup { border-top: 2px solid rgba(245,158,11,0.45) !important; }
-.thInfoGroup  { border-top: 2px solid rgba(255,255,255,0.07) !important; }
+/* グループの上罫線は、地色で区別できるので細い共通線に統一（色付き太線の雑然さを解消） */
+.thPriceGroup, .thPerGroup, .thOtherGroup, .thInfoGroup { border-top: 1px solid var(--line) !important; }
 
 /* ── ページネーション: アクティブボタンのグロー ─ */
 .pageBtnActive {

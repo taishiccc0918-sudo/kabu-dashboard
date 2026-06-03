@@ -2870,16 +2870,17 @@ function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; lik
   const title =
     (hasPos ? `予想PER ${fmtN(band.fwdPER)}倍 → ${zone.label}\n` : '予想EPS非開示（現在位置なし）\n') +
     `直近1年 PER 安値 ${fmtN(band.lowPER)}倍 ｜ 高値 ${fmtN(band.highPER)}倍`
-  const h = big ? 9 : 7
-  const dot = big ? 13 : 10
+  const h = big ? 6 : 5
+  const dot = big ? 13 : 11
   return (
     <div title={title} style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg,#34d399 0%,#fbbf24 50%,#f87171 100%)' }}>
+      {/* 地色は淡いパステルのグラデで控えめに。現在地マーカー●をゾーン色で強調＝意味は明確・ピカピカ感を抑制 */}
+      <div style={{ position: 'relative', width: '100%', height: h, borderRadius: h / 2, background: 'linear-gradient(90deg, rgba(52,211,153,0.28) 0%, rgba(251,191,36,0.20) 50%, rgba(248,113,113,0.28) 100%)' }}>
         {hasPos && (
-          <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: '#fff', border: '2px solid #0d1219', boxShadow: '0 0 3px rgba(0,0,0,0.85)' }} />
+          <span style={{ position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%,-50%)', width: dot, height: dot, borderRadius: '50%', background: zone.color, border: '2px solid var(--surface-0)', boxShadow: '0 0 2px rgba(0,0,0,0.45)' }} />
         )}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 10, lineHeight: 1, color: '#a9b6c6', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 10, lineHeight: 1, color: 'var(--text-2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
         <span title="直近1年のPER安値">{fmtN(band.lowPER, 0)}</span>
         <span style={{ color: zone.color, fontWeight: 800, fontSize: big ? 13 : 11.5 }}>{hasPos ? `${fmtN(band.fwdPER)}倍 ${zone.label}` : zone.label}</span>
         <span title="直近1年のPER高値">{fmtN(band.highPER, 0)}</span>

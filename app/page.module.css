@@ -492,6 +492,21 @@
   box-shadow: var(--shadow-sm); flex-shrink: 0;
 }
 .cardMcap { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+/* 企業ロゴ（実ロゴ画像 or 色イニシャル）。CompanyLogo コンポーネント用 */
+.coLogo {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid var(--line); overflow: hidden;
+  flex-shrink: 0; padding: 2px; box-sizing: border-box; box-shadow: var(--shadow-sm);
+}
+.coLogoChip {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; flex-shrink: 0; line-height: 1;
+  font-family: 'Noto Sans JP', sans-serif; box-shadow: var(--shadow-sm);
+}
+.detailHeadRow { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
+.detailHeadText { min-width: 0; }
+.detailHeadRow .detailName { margin: 2px 0 0; }
 .cardPriceRow { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
 .cardPrice { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 27px; font-weight: 700; color: var(--text-1); letter-spacing: -0.01em; }
 .cardChange { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px; font-weight: 700; }

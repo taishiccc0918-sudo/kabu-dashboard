@@ -3273,6 +3273,56 @@ function genreColor(g: string): string {
   return `hsl(${h} 58% 44%)`
 }
 
+// ─── 企業ロゴ・マスター（/api/logos-stored を一度だけ読み、全コンポーネントで共有）──────
+let _logoMap: Record<string, string> | null = null
+let _logoPromise: Promise<void> | null = null
+const _logoSubs = new Set<() => void>()
+function loadLogoMap(): Promise<void> {
+  if (_logoPromise) return _logoPromise
+  _logoPromise = fetch('/api/logos-stored')
+    .then(r => r.json())
+    .then((d: { logos?: Record<string, string> }) => { _logoMap = d.logos ?? {} })
+    .catch(() => { _logoMap = {} })
+    .finally(() => { _logoSubs.forEach(f => f()) })
+  return _logoPromise
+}
+function useLogoMap(): Record<string, string> | null {
+  const [, force] = useState(0)
+  useEffect(() => {
+    if (_logoMap) return
+    const f = () => force(x => x + 1)
+    _logoSubs.add(f)
+    loadLogoMap()
+    return () => { _logoSubs.delete(f) }
+  }, [])
+  return _logoMap
+}
+
+// 企業ロゴ。あれば実ロゴ画像、無ければ（or 画像読込失敗）ジャンル色のイニシャルチップにフォールバック。
+function CompanyLogo({ code, name, genre, size = 28, radius = 8 }: {
+  code: string; name?: string; genre?: string; size?: number; radius?: number
+}) {
+  const map = useLogoMap()
+  const [failed, setFailed] = useState(false)
+  const url = map?.[code]
+  if (url && !failed) {
+    return (
+      <span className={styles.coLogo} style={{ width: size, height: size, borderRadius: radius }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      </span>
+    )
+  }
+  return (
+    <span className={styles.coLogoChip}
+      style={{ width: size, height: size, borderRadius: radius, background: genreColor(genre || ''), fontSize: Math.round(size * 0.46) }}>
+      {(name || code || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  )
+}
+
 // ─── StockCard ───────────────────────────────────────────────────────
 function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey = 0, chartMode, onChartModeChange }: {
   row: StockRow; apiKey: string; serverHasKey?: boolean; onClick: () => void; refreshKey?: number
@@ -3289,9 +3339,7 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
           {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
         <div className={styles.cardRight}>
-          <div className={styles.cardLogo} style={{ background: genreColor(r.genres[0] || '') }} title={r.genres[0] || ''}>
-            {(r.name || r.code).slice(0, 1)}
-          </div>
+          <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={38} radius={9} />
           {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
         </div>
       </div>
@@ -4252,8 +4300,13 @@ function DetailPanel({
 
   return (
     <>
-      <div className={styles.detailCode}>{r.code}</div>
-      <div className={styles.detailName}>{r.name || '—'}</div>
+      <div className={styles.detailHeadRow}>
+        <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={44} radius={10} />
+        <div className={styles.detailHeadText}>
+          <div className={styles.detailCode}>{r.code}</div>
+          <div className={styles.detailName}>{r.name || '—'}</div>
+        </div>
+      </div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
       </div>
@@ -4512,9 +4565,7 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
   return (
     <div className={styles.repCard} onClick={onClick}>
       <div className={styles.repCardHead}>
-        <div className={styles.repLogo} style={{ background: genreColor(r.genres[0] || '') }} title={r.genres[0] || ''}>
-          {(r.name || r.code).slice(0, 1)}
-        </div>
+        <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={32} radius={8} />
         <div className={styles.repCardId}>
           <div className={styles.repCardName}>
             {heart && <span className={styles.repHeart}>♥</span>}

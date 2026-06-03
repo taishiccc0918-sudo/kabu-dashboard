@@ -1,0 +1,24 @@
+name: refresh-logos
+
+# 全上場企業の企業ロゴ（Wikidata公式ロゴ / 公式サイト→Clearbit）を収集して Supabase に蓄積。
+# 月1回＋手動。ロゴは滅多に変わらないので低頻度で十分。APIキー不要。
+on:
+  schedule:
+    - cron: '30 4 1 * *'   # 毎月1日 04:30 UTC
+  workflow_dispatch:
+
+jobs:
+  refresh-logos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:logos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

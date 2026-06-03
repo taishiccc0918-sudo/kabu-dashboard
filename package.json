@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "refresh": "tsx scripts/refresh.ts",
     "refresh:news": "tsx scripts/refresh-news.ts",
+    "refresh:logos": "tsx scripts/refresh-logos.ts",
     "edinet:probe": "tsx scripts/edinet-probe.ts"
   },
   "dependencies": {

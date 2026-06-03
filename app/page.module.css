@@ -1221,7 +1221,17 @@
   /* ウォッチ（銘柄管理）の市場フィルターをコンパクトに */
   .wlMktSegment { gap: 2px; }
   .wlMktBtn { padding: 5px 8px; font-size: 11px; min-height: 32px; }
-  .wlIconFilterBtn { min-width: 36px; min-height: 32px; }
+  .wlIconFilterBtn { min-width: 38px; min-height: 38px; }
+  .wlMktSelect { flex: 1 1 auto; min-width: 0; }
+
+  /* ウォッチ: ジャンル絞り込みのプルダウン行を表示（横スクロールチップを廃止した置き換え） */
+  .wlSpGenreRow { display: flex; }
+  .wlSpGenreRow .genreFilterBtn { flex: 1 1 auto; min-height: 38px; justify-content: center; }
+  .wlSpGenreChipsRow { display: flex; }
+
+  /* ウォッチSPリストの固定崩れ修正: 独自スクロールをやめ body スクロール＋見出しは viewport 上端に固定 */
+  .wlSpList { overflow: visible; flex: none; min-height: 0; }
+  .wlSpStickyHeader { top: 0; font-size: 11.5px; color: var(--text-2); background: var(--surface-2); }
 
   /* 固定ボトムナビを表示し、コンテンツ下端に余白を確保 */
   .bottomNav {
@@ -2310,6 +2320,11 @@
 
 /* ── 銘柄管理 SP コンパクトリスト ────────────────────── */
 .wlSpList { flex: 1; min-height: 0; overflow-y: auto; } /* mobileOnly クラスが display を制御 */
+
+/* SP: ジャンル絞り込み（プルダウン化）。PC非表示・SPで表示 */
+.wlSpGenreRow { display: none; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-1); border-bottom: 1px solid var(--line); }
+.wlSpGenreRowLabel { font-size: 12px; color: var(--text-2); font-weight: 600; flex-shrink: 0; }
+.wlSpGenreChipsRow { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 10px; background: var(--surface-1); border-bottom: 1px solid var(--line); }
 /* SP: 列ヘッダー（スティッキー） */
 .wlSpStickyHeader {
   position: sticky; top: 0; z-index: 5;

@@ -1443,7 +1443,8 @@ export default function Page() {
                 onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
                 title="お気に入りのみ表示"
               >★</button>
-              <div className={styles.wlMktSegment}>
+              {/* PC: 市場ボタン群 */}
+              <div className={`${styles.wlMktSegment} ${styles.spHide}`}>
                 {(['all','prime','standard','growth'] as const).map(k => (
                   <button key={k}
                     className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
@@ -1451,6 +1452,18 @@ export default function Page() {
                   >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
                 ))}
               </div>
+              {/* SP: 市場プルダウン＋ジャンルプルダウン（横スクロールのチップ列を廃止して統合） */}
+              <select
+                className={`${styles.filterSelect} ${styles.wlMktSelect} ${wlMktF !== 'all' ? styles['filterSelect_' + wlMktF] : ''}`}
+                value={wlMktF}
+                onChange={e => { setWlMktF(e.target.value as 'all' | 'prime' | 'standard' | 'growth'); setWlPage(1) }}
+                aria-label="市場で絞り込み"
+              >
+                <option value="all">全市場</option>
+                <option value="prime">Prime</option>
+                <option value="standard">Standard</option>
+                <option value="growth">Growth</option>
+              </select>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
             </div>
           </>
@@ -1995,22 +2008,28 @@ function StockManager({
         </table>
       </div>
 
-      {/* SP: ジャンルフィルターバー */}
-      {allGenreOptions.length > 0 && (
-        <div className={styles.wlSpGenreBar}>
-          <span className={styles.wlSpGenreBarLabel}>ジャンル</span>
-          <div className={styles.wlSpGenreChips}>
-            {allGenreOptions.map(g => (
-              <button
-                key={g}
-                className={`${styles.wlSpGenreChip} ${genreFilters.has(g) ? styles.wlSpGenreChipActive : ''}`}
-                onClick={() => { setGenreFilters(prev => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n }); setPage(1) }}
-              >{g}</button>
-            ))}
-          </div>
-          {genreFilters.size > 0 && (
-            <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>✕</button>
-          )}
+      {/* SP: ジャンル絞り込みをプルダウン化（横スクロールのチップ列を廃止）。
+          選択中はチップを全幅で横に並べて高さを抑える */}
+      <div className={styles.wlSpGenreRow}>
+        <span className={styles.wlSpGenreRowLabel}>ジャンル</span>
+        <GenreFilterDropdown
+          label="ジャンルで絞り込む"
+          genres={managedGenreOptions}
+          activeFilters={genreFilters}
+          onApply={f => { setGenreFilters(f); setPage(1) }}
+          onClear={() => { setGenreFilters(new Set()); setPage(1) }}
+        />
+        {genreFilters.size > 0 && (
+          <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>全解除</button>
+        )}
+      </div>
+      {genreFilters.size > 0 && (
+        <div className={styles.wlSpGenreChipsRow}>
+          {Array.from(genreFilters).map(g => (
+            <span key={g} className={styles.filterGenreActiveChip} onClick={() => { setGenreFilters(prev => { const n = new Set(prev); n.delete(g); return n }); setPage(1) }}>
+              {g === GENRE_UNSET ? '未設定' : g} <span className={styles.filterGenreChipX}>×</span>
+            </span>
+          ))}
         </div>
       )}
 

@@ -293,7 +293,7 @@
   position: sticky;
   top: 96px;
   z-index: 10;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   border-top: 1px solid var(--line);
   user-select: none;
   box-sizing: border-box;
@@ -306,22 +306,22 @@
 .thPriceGroup {
   background: var(--up-soft) !important;
   color: var(--text-1) !important;
-  border-left: 1px solid var(--line-strong) !important;
+  border-left: 1px solid var(--line) !important;
 }
 .thPerGroup {
   background: var(--accent-soft) !important;
   color: var(--text-1) !important;
-  border-left: 1px solid var(--line-strong) !important;
+  border-left: 1px solid var(--line) !important;
 }
 .thOtherGroup {
   background: var(--surface-2) !important;
   color: var(--text-1) !important;
-  border-left: 1px solid var(--line-strong) !important;
+  border-left: 1px solid var(--line) !important;
 }
 .thInfoGroup {
   background: var(--surface-2) !important;
   color: var(--text-2) !important;
-  border-left: 1px solid var(--line-strong) !important;
+  border-left: 1px solid var(--line) !important;
 }
 .thSort { cursor: pointer; }
 .thSort:hover { color: var(--accent) !important; }

@@ -3298,19 +3298,23 @@ function useLogoMap(): Record<string, string> | null {
   return _logoMap
 }
 
-// 企業ロゴ。あれば実ロゴ画像、無ければ（or 画像読込失敗）ジャンル色のイニシャルチップにフォールバック。
+// 企業ロゴ。段階フォールバック: ①登録ロゴ(Clearbit/Wikidata) → ②公式サイトのファビコン
+// （ドメインが分かる場合＝公式HPから取得） → ③ジャンル色のイニシャルチップ。誤ロゴにはならない。
 function CompanyLogo({ code, name, genre, size = 28, radius = 8 }: {
   code: string; name?: string; genre?: string; size?: number; radius?: number
 }) {
   const map = useLogoMap()
-  const [failed, setFailed] = useState(false)
+  const [stage, setStage] = useState(0) // 0:登録ロゴ 1:ファビコン 2:チップ
   const url = map?.[code]
-  if (url && !failed) {
+  // Clearbit URL なら公式ドメインが分かる → ②でその公式サイトのファビコンに切替できる
+  const host = url && url.includes('logo.clearbit.com/') ? url.split('logo.clearbit.com/')[1].split('?')[0] : null
+  const src = stage === 0 ? url : stage === 1 && host ? `https://www.google.com/s2/favicons?domain=${host}&sz=128` : null
+  if (src) {
     return (
       <span className={styles.coLogo} style={{ width: size, height: size, borderRadius: radius }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
+        <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer"
+          onError={() => setStage(s => (s === 0 && host ? 1 : 2))}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </span>
     )

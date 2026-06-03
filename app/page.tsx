@@ -3173,12 +3173,8 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowHead}>
         <div className={styles.spRowFavCol}>
-          <button className={`${styles.spRowFav} ${isFav ? styles.spRowFavStar : ''}`}
-            onClick={e => { e.stopPropagation(); onToggleFav(r.code) }} aria-label="お気に入り（★）">
-            {isFav ? '★' : '☆'}
-          </button>
           <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
-            onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）">
+            onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
             {isSuperFav ? '♥' : '♡'}
           </button>
         </div>
@@ -3782,7 +3778,7 @@ type FeedItem = { title: string; link: string; source: string; sourceUrl: string
 type FeedScope = 'all' | 'hearts'
 const IR_FILTER = '__IR__'     // 企業公式サイト発
 const DISC_FILTER = '__DISC__' // 決算・適時開示（媒体不問）
-const FEED_DISPLAY_STEP = 600 // 1度に描画する件数の増分（DOM負荷対策。絞り込みは全件対象）
+const FEED_DISPLAY_STEP = 50 // 1度に描画する件数（DOM負荷を抑え、フィルター/並べ替えの切替を軽快に。絞り込みは全件対象）
 
 // タブを行き来しても再取得しないためのモジュールキャッシュ（SPA内で永続）。
 let feedCache: { key: string; items: FeedItem[] } | null = null
@@ -4006,16 +4002,13 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
             <button className={`${styles.newsSortBtn} ${feedSort === 'new' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('new'); setVisible(FEED_DISPLAY_STEP) }} title="新しい順">新着</button>
             <button className={`${styles.newsSortBtn} ${feedSort === 'important' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('important'); setVisible(FEED_DISPLAY_STEP) }} title="決算・適時開示・公式IRを上位に">重要度</button>
           </div>
-          <div className={styles.newsSortBtns}>
-            <button className={`${styles.newsSortBtn} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('hearts')} title="♥お気に入りのニュースだけ">
-              <span className={styles.heartGlyph}>♥</span>
-            </button>
-            <button className={`${styles.newsSortBtn} ${scope === 'all' ? styles.newsSortBtnActive : ''}`} onClick={() => setScope('all')} title="★お気に入り全体（♥を含む）のニュース">
-              <span className={styles.starGlyph}>★</span>
-            </button>
-          </div>
+          <button
+            className={`${styles.newsSortBtn} ${styles.newsHeartToggle} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`}
+            onClick={() => { setScope(s => s === 'hearts' ? 'all' : 'hearts'); setVisible(FEED_DISPLAY_STEP) }}
+            title="♥超お気に入りの銘柄だけに絞る（もう一度押すと全件）"
+          ><span className={styles.heartGlyph}>♥</span> のみ</button>
           <button className={styles.feedRefreshBtn} disabled={loading} onClick={() => load(true)} title="キャッシュを無視して最新ニュースを取得">
-            {loading ? '⏳' : '⟳'} 更新
+            {loading ? '🔄 取得中…' : '⟳ 更新'}
           </button>
         </div>
       </div>
@@ -4095,7 +4088,8 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         )}
       </div>
 
-      {phase && <div className={styles.feedPhase}>⏳ {phase}</div>}
+      {loading && <div className={styles.feedLoadingBar}><span className={styles.feedLoadingSpin}>🔄</span> 最新ニュースを取得中… <span className={styles.feedLoadingSub}>{phase || '少しお待ちください'}</span></div>}
+      {!loading && phase && <div className={styles.feedPhase}>{phase}</div>}
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}
       {items !== null && filtered.length === 0 && !phase && <div className={styles.newsEmpty}>該当するニュースはありません</div>}

@@ -63,9 +63,9 @@
   --surface-hover: #eef4fb;
   --line:        #e6ecf3;
   --line-strong: #d3dde8;
-  --text-1: #11203a;
-  --text-2: #56697f;
-  --text-3: #93a3b5;
+  --text-1: #0c1830;
+  --text-2: #475567;
+  --text-3: #6b7888;
   --accent:        #2563eb;
   --accent-strong: #1d4ed8;
   --accent-soft:   rgba(37,99,235,0.07);
@@ -699,6 +699,19 @@
 }
 .newsSortBtn:hover { border-color: var(--line-strong); color: var(--text-1); }
 .newsSortBtnActive { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.newsHeartToggle { white-space: nowrap; }
+.newsHeartToggle.newsSortBtnActive { background: rgba(244,63,94,0.12); border-color: #f43f5e; color: #f43f5e; }
+
+/* 更新中バナー（はっきり大きく見せる） */
+.feedLoadingBar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; margin-bottom: 12px;
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  border-radius: var(--r-btn); color: var(--accent);
+  font-size: 14px; font-weight: 700;
+}
+.feedLoadingSpin { display: inline-block; animation: spin 1s linear infinite; font-size: 16px; }
+.feedLoadingSub { color: var(--text-2); font-weight: 500; font-size: 12.5px; }
 
 /* ── お気に入り銘柄ニュース一覧（newsタブ） ───────────── */
 .feedWrap { max-width: 920px; margin: 0 auto; padding: 4px 4px 60px; }
@@ -995,15 +1008,14 @@
 
 .spRowHead { display: flex; align-items: center; gap: 8px; }
 
-/* ★/♥（縦並び・コンパクト） */
-.spRowFavCol { display: flex; flex-direction: column; flex-shrink: 0; }
+/* ♥（超お気に入り）トグルのみ。★は一覧＝全部★なので非表示 */
+.spRowFavCol { display: flex; align-items: center; flex-shrink: 0; }
 .spRowFav {
   background: none; border: none; cursor: pointer;
-  font-size: 16px; line-height: 1; width: 30px; height: 24px;
+  font-size: 20px; line-height: 1; width: 36px; height: 40px;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-3); padding: 0;
 }
-.spRowFavStar  { color: #f59e0b; }
 .spRowFavHeart { color: #f43f5e; }
 
 /* 銘柄名 + コード/市場/ジャンル/時価総額（基本情報＝小さめ） */

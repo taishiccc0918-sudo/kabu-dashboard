@@ -115,22 +115,29 @@ export function decodeShiftJis(data: Uint8Array): string {
 export function parseEdinetCsv(text: string): CsvRow[] {
   const lines = text.split(/\r?\n/).filter(l => l.length > 0)
   if (lines.length < 2) return []
-  const header = lines[0].split('\t')
-  const idx = (name: string) => header.findIndex(h => h.replace(/^﻿/, '').includes(name))
+  // EDINETのtype=5 CSVはタブ区切り＋各項目をダブルクオートで囲む。クオートを外す（""→"のエスケープ解除）。
+  const unq = (s: string): string => {
+    let v = (s ?? '').replace(/^﻿/, '').trim()
+    if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) v = v.slice(1, -1)
+    return v.replace(/""/g, '"').trim()
+  }
+  const splitRow = (line: string): string[] => line.split('\t').map(unq)
+  const header = splitRow(lines[0])
+  const idx = (name: string) => header.findIndex(h => h.includes(name))
   const iEl = idx('要素ID'), iItem = idx('項目名'), iCtx = idx('コンテキスト'),
         iUnitId = idx('ユニットID'), iUnit = idx('単位'), iVal = idx('値')
   // ヘッダが想定と違う（仕様変更）場合は空を返し、推測抽出をしない（捏造防止）
   if (iEl < 0 || iVal < 0) return []
   const rows: CsvRow[] = []
   for (let i = 1; i < lines.length; i++) {
-    const c = lines[i].split('\t')
+    const c = splitRow(lines[i])
     rows.push({
-      elementId: (c[iEl] ?? '').trim(),
-      itemName: iItem >= 0 ? (c[iItem] ?? '').trim() : '',
-      contextRef: iCtx >= 0 ? (c[iCtx] ?? '').trim() : '',
-      unitId: iUnitId >= 0 ? (c[iUnitId] ?? '').trim() : '',
-      unit: iUnit >= 0 ? (c[iUnit] ?? '').trim() : '',
-      value: (c[iVal] ?? '').trim(),
+      elementId: c[iEl] ?? '',
+      itemName: iItem >= 0 ? (c[iItem] ?? '') : '',
+      contextRef: iCtx >= 0 ? (c[iCtx] ?? '') : '',
+      unitId: iUnitId >= 0 ? (c[iUnitId] ?? '') : '',
+      unit: iUnit >= 0 ? (c[iUnit] ?? '') : '',
+      value: c[iVal] ?? '',
     })
   }
   return rows
@@ -178,6 +185,115 @@ function splitCsvLine(line: string): string[] {
   }
   out.push(cur)
   return out
+}
+
+// ============================================================
+// ファクトシート抽出（実物の有報 S100VWVY=トヨタ で検証済みのマッピング）
+//   すべて一次情報の機械抽出。判定不能は null（＝UIで「データなし」）。値の生成・推測はしない。
+// ============================================================
+export type FactsheetExtract = {
+  bizDesc: string | null
+  ceo: string | null
+  founded: string | null
+  employees: number | null
+  employeesAsOf: string | null
+  segments: { name: string; sales: number }[] | null
+}
+
+function val(rows: CsvRow[], pred: (r: CsvRow) => boolean): string | null {
+  const r = rows.find(pred)
+  return r && r.value && r.value !== '－' ? r.value : null
+}
+
+// 全角数字→半角
+function toHalfNum(s: string): string {
+  return s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+}
+
+// セグメントのコンテキストID（例 CurrentYearDuration_xxxxAutomotiveReportableSegmentMember）から
+// 事業区分名を取り出す。EDINETコード接頭辞と末尾 ReportableSegment(s)Member を除去し、camelCaseを空白区切りに。
+function segmentNameFromCtx(ctx: string): string {
+  let m = ctx.replace(/^CurrentYearDuration_/, '')
+  m = m.replace(/^jp[a-z0-9]+-asr_[A-Z0-9]+-\d+/i, '') // 会社別接頭辞を除去
+  m = m.replace(/ReportableSegments?Member$/i, '')
+  m = m.replace(/Member$/i, '')
+  m = m.replace(/([a-z])([A-Z])/g, '$1 $2').trim() // camelCase→空白
+  return m || 'その他'
+}
+
+// type=5 CSV の行群から会社概要を抽出。検証済みの要素ID・コンテキストに厳密一致させる。
+export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
+  // 事業内容（原文テキストブロック・抜粋）
+  let bizDesc = val(rows, r => r.elementId === 'jpcrp_cor:DescriptionOfBusinessTextBlock')
+  if (bizDesc) {
+    bizDesc = stripHtml(bizDesc).replace(/^[\s　]*[0-9０-９]+\s*【事業の内容】/, '').trim()
+    if (bizDesc.length > 160) bizDesc = bizDesc.slice(0, 160) + '…'
+  }
+
+  // 代表者（表紙の役職氏名）。空白を全て詰める（例「取締役社長  佐 藤」→「取締役社長佐藤」）
+  let ceo = val(rows, r => r.elementId === 'jpcrp_cor:TitleAndNameOfRepresentativeCoverPage')
+  if (ceo) ceo = ceo.replace(/[\s　]+/g, '').trim()
+
+  // 創業/設立: 沿革を「年月＋概要」エントリに分割し、創立/設立を含むエントリの年月だけを採用。
+  //   ※年と離れた位置の「創立」を誤接続しない（別の年の出来事に紐づける捏造を防ぐ）。
+  let founded: string | null = null
+  const history = val(rows, r => r.elementId === 'jpcrp_cor:CompanyHistoryTextBlock')
+  if (history) {
+    const txt = stripHtml(history)
+    const ym = /[0-9０-９]{4}年[0-9０-９]{1,2}月/g
+    const ms = [...txt.matchAll(ym)]
+    // 「会社創立／会社設立」という提出者本体専用の表現のみ採用。曖昧な「設立」単独（子会社設立等）は
+    // 誤接続＝捏造になるため拾わない（間違うくらいならデータなしにする）。
+    const KEY = /(会社創立|会社設立)/
+    for (let i = 0; i < ms.length; i++) {
+      const start = ms[i].index ?? 0
+      const end = i + 1 < ms.length ? (ms[i + 1].index ?? txt.length) : txt.length
+      const seg = txt.slice(start, end)
+      const k = seg.match(KEY)
+      if (k) { founded = `${toHalfNum(ms[i][0])}（${k[1]}）`; break }
+    }
+  }
+
+  // 連結従業員数: 「主要な経営指標等の推移」表の当期連結値（…SummaryOfBusinessResults / CurrentYearDuration）
+  let employees: number | null = null
+  const empStr =
+    val(rows, r => /NumberOfEmployees.*SummaryOfBusinessResults/i.test(r.elementId) && r.contextRef === 'CurrentYearDuration')
+    ?? val(rows, r => r.elementId === 'jpcrp_cor:NumberOfEmployees' && r.contextRef === 'CurrentYearInstant')
+  if (empStr) {
+    const n = parseInt(toHalfNum(empStr).replace(/[^0-9]/g, ''), 10)
+    if (Number.isFinite(n) && n > 0) employees = n
+  }
+  // 従業員数の基準日 = 当会計期間終了日
+  const employeesAsOf = val(rows, r => r.elementId === 'jpdei_cor:CurrentPeriodEndDateDEI')
+
+  // セグメント別売上: 当期(CurrentYearDuration)・報告セグメント・外部顧客売上を優先（内部取引は除外）
+  const isSegCtx = (ctx: string) => /^CurrentYearDuration_.*ReportableSegments?Member$/.test(ctx) && !/NonConsolidated/i.test(ctx)
+  const collectSeg = (elPred: (id: string) => boolean): { name: string; sales: number }[] => {
+    const map = new Map<string, number>()
+    for (const r of rows) {
+      if (!isSegCtx(r.contextRef)) continue
+      if (/Intersegment/i.test(r.elementId)) continue
+      if (!elPred(r.elementId)) continue
+      const n = parseInt(toHalfNum(r.value).replace(/[^0-9-]/g, ''), 10)
+      if (!Number.isFinite(n)) continue
+      const name = segmentNameFromCtx(r.contextRef)
+      if (!map.has(name)) map.set(name, n) // 先勝ち（同名重複の保険）
+    }
+    return [...map.entries()].map(([name, sales]) => ({ name, sales }))
+  }
+  // ①外部顧客売上 を最優先 → ②無ければセグメント売上高合計
+  let segments = collectSeg(id => /(OperatingRevenueFromExternalCustomers|RevenueFromExternalCustomers|SalesToExternalCustomers|NetSalesOfExternalCustomers)/i.test(id))
+  if (segments.length === 0) segments = collectSeg(id => /(SalesRevenues|NetSales|OperatingRevenue|Revenue|Sales)/i.test(id))
+  segments.sort((a, b) => b.sales - a.sales)
+
+  return {
+    bizDesc: bizDesc || null,
+    ceo: ceo || null,
+    founded,
+    employees,
+    employeesAsOf: employeesAsOf || null,
+    segments: segments.length > 0 ? segments : null,
+  }
 }
 
 // HTMLブロック（事業内容など）からタグを除去して素のテキストにする（原文抜粋用・生成はしない）。

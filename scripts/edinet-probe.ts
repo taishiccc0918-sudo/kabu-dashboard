@@ -15,7 +15,7 @@
  */
 import {
   fetchSecToEdinetMap, fetchDocList, fetchDocCsv, normSecCode,
-  stripHtml, DOCTYPE_YUHO, type CsvRow,
+  stripHtml, extractFactsheet, DOCTYPE_YUHO, type CsvRow,
 } from '../app/lib/edinet'
 
 const API_KEY = (process.env.EDINET_API_KEY ?? '').trim()
@@ -91,7 +91,10 @@ async function main() {
   const rows = await fetchDocCsv(docID, API_KEY)
   if (rows.length === 0) { console.error('CSVが取得できませんでした（キー/docID/仕様変更を確認）'); process.exit(1) }
   dump(rows)
-  console.log('\n完了。上の出力をもとに refresh-edinet.ts の抽出マッピングを確定します。')
+
+  console.log('\n========== extractFactsheet() の抽出結果（実際にDBへ入る値）==========')
+  console.log(JSON.stringify(extractFactsheet(rows), null, 2))
+  console.log('\n完了。')
 }
 
 main().catch(e => { console.error(e); process.exit(1) })

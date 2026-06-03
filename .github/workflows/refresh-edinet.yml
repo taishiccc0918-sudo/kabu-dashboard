@@ -1,0 +1,26 @@
+name: refresh-edinet
+
+# お気に入り銘柄の最新「有価証券報告書」をEDINETから取得し、会社概要（事業内容/代表者/設立/
+# 従業員数/セグメント別売上）をSupabase company_factsheet に蓄積する。有報は年1回なので月次で十分。
+# 毎月1日 + 手動実行。
+on:
+  schedule:
+    - cron: '0 19 1 * *'   # 毎月1日 04:00 JST
+  workflow_dispatch:
+
+jobs:
+  refresh-edinet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55       # 日付走査(最大400日×約4秒)＋書類CSV取得の余裕
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22    # supabase-js のネイティブWebSocket要件
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:edinet
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EDINET_API_KEY: ${{ secrets.EDINET_API_KEY }}

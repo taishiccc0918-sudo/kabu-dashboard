@@ -11,7 +11,8 @@
     "refresh": "tsx scripts/refresh.ts",
     "refresh:news": "tsx scripts/refresh-news.ts",
     "refresh:logos": "tsx scripts/refresh-logos.ts",
-    "edinet:probe": "tsx scripts/edinet-probe.ts"
+    "edinet:probe": "tsx scripts/edinet-probe.ts",
+    "refresh:edinet": "tsx scripts/refresh-edinet.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

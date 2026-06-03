@@ -1107,11 +1107,11 @@
     position: sticky; top: 68px;
     align-items: center;
   }
-  /* 検索を横幅いっぱいに伸ばし、フィルターボタンは右端へ */
-  .searchWrap { flex: 1 1 auto; min-width: 0; order: 0; }
+  /* 検索：フィルター ＝ 約8:2 で1行に */
+  .searchWrap { flex: 8 1 0; min-width: 0; order: 0; }
   .searchInput { width: 100% !important; font-size: 16px !important; box-sizing: border-box; }
   .searchInput:focus { width: 100% !important; }
-  .filterToggleBtn { flex-shrink: 0; }
+  .filterToggleBtn { flex: 2 1 0; min-width: 0; padding: 0 6px; justify-content: center; }
   .spacer { display: none; }
   .filterDivider { display: none; }
   .tabGroup { margin-left: auto; }
@@ -1193,12 +1193,13 @@
   .filterBarRow { gap: 6px; align-items: stretch; }
   .filterPanelLabel { font-size: 11px; }
   .filterGroup { flex: 0 0 auto; }
-  .filterSelect, .filterGenreWrap, .filterPanelClear { flex: 1 1 0; min-width: 0; }
+  /* 市場・ジャンルは広めに等幅、全クリアはコンパクト */
+  .filterSelect, .filterGenreWrap { flex: 1 1 0; min-width: 0; }
+  .filterPanelClear { flex: 0 0 auto; padding: 0 12px; white-space: nowrap; }
   .filterSelect, .genreFilterBtn, .filterPanelClear, .heartFilterBtn {
     min-height: 38px; box-sizing: border-box;
   }
   .genreFilterBtn { width: 100%; justify-content: center; }
-  .filterPanelClear { white-space: nowrap; }
   /* ジャンルは検索入力を出さず「プルダウンで選ぶだけ」にする（本人要望） */
   .genreFilterSearch { display: none !important; }
   /* 市場プルダウンを表示（PCのボタン群はspHideで非表示） */
@@ -2198,13 +2199,18 @@
   transition: background .1s; flex-shrink: 0;
 }
 .genreFilterSelectAll:hover { background: rgba(255,255,255,0.04); }
-.genreFilterList { flex: 1; overflow-y: auto; padding: 2px 0; }
+/* ジャンルは縦1列だと長いので2列グリッドで選びやすく */
+.genreFilterList {
+  flex: 1; overflow-y: auto; padding: 2px 4px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 4px;
+}
 .genreFilterItem {
   display: flex; align-items: center; gap: 7px;
-  padding: 5px 10px; cursor: pointer; transition: background .1s;
-  font-size: 11px; color: #c8d8e8;
+  padding: 8px 8px; cursor: pointer; transition: background .1s;
+  font-size: 13px; color: #c8d8e8; min-width: 0;
   font-family: 'Noto Sans JP', sans-serif;
 }
+.genreFilterItem .genreFilterLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .genreFilterItem:hover { background: rgba(255,255,255,0.04); }
 .genreFilterCheck {
   width: 14px; height: 14px; flex-shrink: 0;

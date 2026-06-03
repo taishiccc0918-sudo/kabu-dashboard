@@ -262,6 +262,7 @@ export default function Page() {
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showFilterBar, setShowFilterBar] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
+  const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
   const bandFetchingRef = useRef(false)
@@ -1478,11 +1479,6 @@ export default function Page() {
                 onClick={() => setFilterHeart(h => !h)}
                 title="超お気に入り（♥）銘柄のみ表示"
               >♥</button>
-              <button
-                className={`${styles.filterBtn} ${styles.starFilterBtn} ${filterFav ? styles.starFilterBtnActive : ''}`}
-                onClick={() => setFilterFav(f => !f)}
-                title="お気に入り（★）銘柄のみ表示"
-              >★</button>
             </div>
             <div className={styles.filterDivider} />
             {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場） */}
@@ -1549,7 +1545,7 @@ export default function Page() {
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
               <span className={styles.spListHeaderCount}>{filteredRows.length}{filteredRows.length !== allRows.length ? `/${allRows.length}` : ''}</span>
-              <span className={styles.spSortLabel}>並べ替え</span>
+              <span className={styles.spSortSpacer} />
               <select
                 className={styles.spSortSelect}
                 value={sortKey ? `${sortKey}|${sortDir > 0 ? 'asc' : 'desc'}` : ''}
@@ -1687,8 +1683,11 @@ export default function Page() {
 
       {detailCode && detailRow && (
         <div className={styles.detailOverlay} onClick={e => { if (e.target === e.currentTarget) setDetailCode(null) }}>
-          <div className={styles.detailPanel}>
+          <div className={styles.detailPanel} ref={detailScrollRef}>
             <div className={styles.detailTopBar}>
+              <button className={styles.detailTopBtn}
+                onClick={() => detailScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                aria-label="このページの先頭へ">↑ 先頭へ</button>
               <button className={styles.detailClose} onClick={() => setDetailCode(null)} aria-label="閉じる">× 閉じる</button>
             </div>
             <DetailPanel

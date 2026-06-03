@@ -577,20 +577,26 @@
 .detailPanel {
   background: var(--surface-0); width: 440px; height: 100vh;
   overflow-y: auto; border-left: 1px solid var(--line);
-  padding: 24px; animation: slideIn .18s ease; position: relative;
+  padding: 0 24px 24px; animation: slideIn .18s ease; position: relative;
   box-shadow: var(--shadow-md);
 }
-/* スクロールしても常に閉じられる固定バー（詳細パネル上部） */
+/* 詳細パネル上部の固定バー（全幅・スクロールしても常に表示）
+   左=このページ先頭へ / 右=閉じる */
 .detailTopBar {
   position: sticky; top: 0; z-index: 6;
-  display: flex; justify-content: flex-end;
-  margin: -24px -24px 8px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 -24px 14px; padding: 10px 16px;
   background: var(--surface-0); border-bottom: 1px solid var(--line);
+}
+.detailTopBtn {
+  background: none; border: 1px solid var(--line); color: var(--text-2);
+  height: 32px; padding: 0 12px; border-radius: var(--r-pill);
+  cursor: pointer; font-size: 13px; font-weight: 600;
 }
 .detailClose {
   background: var(--surface-1); border: 1px solid var(--line);
-  color: var(--text-2); height: 32px; padding: 0 14px;
-  border-radius: var(--r-pill); cursor: pointer; font-size: 13px; font-weight: 600;
+  color: var(--text-1); height: 32px; padding: 0 14px;
+  border-radius: var(--r-pill); cursor: pointer; font-size: 13px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; gap: 4px;
   transition: all .12s;
 }
@@ -965,11 +971,11 @@
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
 }
 .spListHeaderCount::after { content: '件'; font-size: 10px; }
-.spSortLabel { margin-left: auto; font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+.spSortSpacer { flex: 1; }
 .spSortSelect {
   background: var(--surface-0); border: 1px solid var(--line-strong); color: var(--text-1);
-  border-radius: var(--r-btn); font-size: 12.5px; font-weight: 600; padding: 5px 8px;
-  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; max-width: 58%;
+  border-radius: var(--r-btn); font-size: 12.5px; font-weight: 600; padding: 6px 10px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; max-width: 72%;
 }
 
 .spList { display: flex; flex-direction: column; }
@@ -1076,21 +1082,20 @@
 /* ── RESPONSIVE OVERRIDES ────────────────────────── */
 @media (max-width: 768px) {
   /* ヘッダー - 2段レイアウト */
+  /* 日付を消した分、ロゴ＋財務♥★ と メニュー/アイコン を必ず1行に（余白削減・menuを上へ） */
   .header {
-    height: auto; flex-wrap: wrap;
-    padding: 8px 12px; gap: 4px;
+    height: auto; flex-wrap: nowrap;
+    padding: 8px 12px; gap: 6px;
     position: sticky; top: 0;
   }
-  /* 日付を消した分、ロゴ＋財務♥★ と メニュー/アイコン を1行に並べて余白削減 */
   .headerLeft {
-    flex: 1 1 auto; width: auto; min-width: 0; gap: 8px;
+    flex: 1 1 auto; width: auto; min-width: 0; gap: 8px; overflow: hidden;
   }
   .headerRight {
     flex: 0 0 auto; width: auto;
     justify-content: flex-end; gap: 6px;
   }
   .logo { font-size: 14px; flex-shrink: 0; }
-  .lastUpdate { font-size: 10px; min-width: 0; overflow: hidden; }
   .spHide { display: none !important; }
   .spOnly { display: flex !important; }
   .apiKeyWarning { font-size: 10px; padding: 3px 8px; }
@@ -1161,13 +1166,16 @@
   /* ── ヘッダーはスクロールで隠し、画面を縦に広く使う ──
      主要ナビは下部固定ナビ＋「ウォッチ」から到達できるので隠してOK */
   .header { position: static; }
+  /* 財務日付＋♥★を1行で。スペース不足なら財務日付が省略され、♥★は必ず残す */
   .lastUpdate {
     flex: 1 1 auto; min-width: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    font-size: 11px; padding: 2px 8px;
+    display: flex; align-items: center; gap: 2px;
+    background: none; border: none; padding: 0; font-size: 11px;
   }
-  .lastUpdate strong { font-size: 11px; }
-  .discDateLabel { margin-left: 6px; font-size: 10px; }
+  .discDateLabel {
+    margin-left: 0; font-size: 11px; flex-shrink: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 
   /* 固定の整理: ツールバー/フィルターはスクロールで退避し、
      リスト列見出し(.spListHeader)だけを最上部に固定＝固定崩れ・行の挟まりを解消 */
@@ -1177,11 +1185,20 @@
   .spSearchToggle { display: inline-flex !important; }
   .spSearchHidden { display: none !important; }
 
-  /* フィルターバーをギュッと（開いても画面を占有しすぎない） */
-  .filterBar { padding: 7px 8px; }
-  .filterBarRow { gap: 5px 6px; }
+  /* メニュー/アカウントのドロップダウンが画面外に切れないようにする */
+  .moreMenu, .userDropdown { right: 0; max-width: calc(100vw - 16px); }
+
+  /* フィルターバーをギュッと＋ボックスの大きさを揃える（市場/ジャンル/全クリアを等幅・同じ高さ） */
+  .filterBar { padding: 8px; }
+  .filterBarRow { gap: 6px; align-items: stretch; }
   .filterPanelLabel { font-size: 11px; }
-  .filterGenreWrap { gap: 4px; }
+  .filterGroup { flex: 0 0 auto; }
+  .filterSelect, .filterGenreWrap, .filterPanelClear { flex: 1 1 0; min-width: 0; }
+  .filterSelect, .genreFilterBtn, .filterPanelClear, .heartFilterBtn {
+    min-height: 38px; box-sizing: border-box;
+  }
+  .genreFilterBtn { width: 100%; justify-content: center; }
+  .filterPanelClear { white-space: nowrap; }
   /* ジャンルは検索入力を出さず「プルダウンで選ぶだけ」にする（本人要望） */
   .genreFilterSearch { display: none !important; }
   /* 市場プルダウンを表示（PCのボタン群はspHideで非表示） */

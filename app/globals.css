@@ -42,6 +42,12 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: #3b4f68; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
+/* SP: ページ用スクロールバーの溝（右端の薄暗い5px帯）を消す＝タッチはオーバーレイで足りる */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; }
+  body::-webkit-scrollbar, html::-webkit-scrollbar { width: 0; height: 0; }
+}
+
 ::selection { background: rgba(59,130,246,0.3); color: inherit; }
 
 a { color: inherit; text-decoration: none; }

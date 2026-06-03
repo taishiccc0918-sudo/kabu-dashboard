@@ -1353,9 +1353,9 @@ export default function Page() {
               {activeFilterCount > 0 ? `フィルター(${activeFilterCount}) ${showFilterBar ? '▲' : '▼'}` : `フィルター ${showFilterBar ? '▲' : '▼'}`}
             </button>
             <button
-              className={`${styles.filterToggleBtn} ${showDetail ? styles.filterToggleBtnActive : ''}`}
+              className={`${styles.filterToggleBtn} ${styles.spHide} ${showDetail ? styles.filterToggleBtnActive : ''}`}
               onClick={() => setShowDetail(s => !s)}
-              title="時価総額・PBR・ROE・営業利益率・配当・EPS成長率 の表示を切替"
+              title="時価総額・PBR・ROE・営業利益率・配当・EPS成長率 の表示を切替（PC表のみ）"
               style={{padding:'4px 10px'}}
             >{showDetail ? '指標を絞る' : '＋ 詳細指標'}</button>
           </>
@@ -1480,7 +1480,8 @@ export default function Page() {
               >★</button>
             </div>
             <div className={styles.filterDivider} />
-            <div className={styles.filterGroup}>
+            {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場） */}
+            <div className={`${styles.filterGroup} ${styles.spHide}`}>
               {(['all','prime','standard','growth'] as const).map(k => (
                 <button key={k}
                   className={`${styles.filterBtn} ${styles['mktBtn_'+k]} ${mktFilter === k ? styles.filterBtnActive : ''}`}
@@ -1488,11 +1489,22 @@ export default function Page() {
                 >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
               ))}
             </div>
+            <select
+              className={styles.filterSelect}
+              value={mktFilter}
+              onChange={e => setMktFilter(e.target.value)}
+              aria-label="市場で絞り込み"
+            >
+              <option value="all">市場：すべて</option>
+              <option value="prime">市場：Prime</option>
+              <option value="standard">市場：Standard</option>
+              <option value="growth">市場：Growth</option>
+            </select>
             <div className={styles.filterDivider} />
             <div className={styles.filterGenreWrap}>
-              <span className={styles.filterPanelLabel}>ジャンル</span>
+              <span className={`${styles.filterPanelLabel} ${styles.spHide}`}>ジャンル</span>
               <GenreFilterDropdown
-                label="ジャンルを選ぶ"
+                label="ジャンル"
                 genres={allGenreOptions}
                 activeFilters={genreFilters}
                 onApply={setGenreFilters}
@@ -3108,10 +3120,13 @@ function mcapShort(v: number): string {
   if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
   return Math.round(v).toLocaleString() + '億'
 }
-// 行右側「切替カラム」の単一値を算出。色クラス付き。
-function spColCell(r: StockRow, col: SpCol): { value: string; cls: string } {
+// 行右側「切替カラム」の値を算出。色クラス付き。dayのみ前日差(額)を sub に。
+function spColCell(r: StockRow, col: SpCol): { value: string; cls: string; sub?: string } {
   switch (col) {
-    case 'day':  return { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
+    case 'day': {
+      const yen = (r.close != null && r.chg1d != null) ? Math.round(r.close - r.close / (1 + r.chg1d)) : null
+      return { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d), sub: yen != null ? (yen >= 0 ? '+' : '') + yen.toLocaleString() : undefined }
+    }
     case 'mcap': return { value: mcapShort(r.mcap), cls: '' }
     case 'per':  return { value: r.perF != null ? fmtN(r.perF) + '倍' : '—', cls: '' }
     case 'peg':  return { value: r.peg != null ? fmtN(r.peg, 2) : '—', cls: r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : '' }
@@ -3155,6 +3170,7 @@ function SpStockRow({ row: r, col, isFav, isSuperFav, onToggleFav, onToggleSuper
       <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
       <div className={styles.spRowMetric}>
         <div className={`${styles.spRowMetricTop} ${c.cls ? styles[c.cls] : ''}`}>{c.value}</div>
+        {c.sub && <div className={`${styles.spRowMetricSub} ${c.cls ? styles[c.cls] : ''}`}>{c.sub}</div>}
       </div>
     </div>
   )

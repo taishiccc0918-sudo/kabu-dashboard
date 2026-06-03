@@ -1030,13 +1030,25 @@
   line-height: 1.1; letter-spacing: -0.3px;
 }
 
-/* 切替カラム（1指標＝大きく見やすく） */
+/* 切替カラム（基本1指標＝大きく。前日比のみ %＋前日差の2段） */
 .spRowMetric {
   width: 90px; flex-shrink: 0; text-align: right;
   font-family: 'JetBrains Mono', monospace;
-  display: flex; align-items: center; justify-content: flex-end;
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1px;
 }
 .spRowMetricTop { font-size: 17px; font-weight: 700; color: var(--text-1); line-height: 1.15; }
+.spRowMetricSub { font-size: 12.5px; font-weight: 600; color: var(--text-2); line-height: 1.1; opacity: 0.85; }
+
+/* 時価総額/PER数値絞り込みのまとめ（PCは元の並びを維持＝display:contents、SPはspHideで非表示） */
+.filterNumGroup { display: contents; }
+
+/* 市場プルダウン（SP用・デフォルト全市場）。PCではボタン群を使うので非表示 */
+.filterSelect {
+  display: none;
+  background: var(--surface-1); border: 1px solid var(--line); color: var(--text-1);
+  border-radius: var(--r-btn); font-size: 13px; font-weight: 600; padding: 7px 10px;
+  min-height: 36px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif;
+}
 
 /* SP検索トグル（アイコン→タップで検索窓を開く。キーボード暴発防止） */
 .spSearchToggle {
@@ -1163,6 +1175,13 @@
   .filterGenreWrap { gap: 4px; }
   /* ジャンルは検索入力を出さず「プルダウンで選ぶだけ」にする（本人要望） */
   .genreFilterSearch { display: none !important; }
+  /* 市場プルダウンを表示（PCのボタン群はspHideで非表示） */
+  .filterSelect { display: inline-block; }
+
+  /* ニュース: 検索とメディアを1行に詰める（余白解消・本人要望） */
+  .feedFilterRow { flex-wrap: nowrap; gap: 6px; }
+  .feedSearchWrap { flex: 1 1 auto; min-width: 0; }
+  .feedSelect { flex-shrink: 0; padding: 8px 10px; }
 
   /* ニュース: メディア絞り込みを下からのシート化（画面外はみ出し解消） */
   .feedMediaPanel {
@@ -1170,7 +1189,6 @@
     bottom: calc(70px + env(safe-area-inset-bottom));
     width: auto; max-width: none; max-height: 56vh;
   }
-  .feedSearchWrap { flex: 1 1 100%; }
   .feedItem { padding: 11px 13px; }
 
   /* ウォッチ（銘柄管理）の市場フィルターをコンパクトに */

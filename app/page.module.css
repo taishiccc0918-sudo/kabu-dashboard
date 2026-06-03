@@ -82,8 +82,8 @@
 /* ── HEADER ─────────────────────────────────────── */
 .header {
   height: 52px;
-  background: rgba(8,12,18,0.97);
-  border-bottom: 1px solid #1f2d40;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
   padding: 0 20px;
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 500;
@@ -93,7 +93,7 @@
 .logo {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 15px; font-weight: 700;
-  color: #e8eef8;
+  color: var(--text-1);
   cursor: pointer;
   letter-spacing: -0.3px;
   display: flex; align-items: center; gap: 6px;
@@ -102,92 +102,92 @@
   content: '';   /* ロゴSVGに置き換えたため▶は廃止 */
   display: none;
 }
-.logo span { color: #60a5fa; }
+.logo span { color: var(--accent); }
 .lastUpdate {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 11px; color: #4e6280;
-  background: rgba(59,130,246,0.06);
-  border: 1px solid rgba(59,130,246,0.15);
+  font-size: 11px; color: var(--text-3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   padding: 3px 10px; border-radius: 4px;
 }
-.lastUpdate strong { color: #8b949e; font-weight: 600; }
-.discDateLabel { margin-left: 10px; font-size: 11px; color: #6b7280; font-family: 'JetBrains Mono', monospace; }
-.tdNonDisclosure { color: #6b7280 !important; font-style: italic; }
+.lastUpdate strong { color: var(--text-2); font-weight: 600; }
+.discDateLabel { margin-left: 10px; font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+.tdNonDisclosure { color: var(--text-3) !important; font-style: italic; }
 
 .headerRight { display: flex; align-items: center; gap: 8px; }
-.apiLabel { font-size: 11px; color: #4e6280; font-family: 'JetBrains Mono', 'Courier New', monospace; }
+.apiLabel { font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', 'Courier New', monospace; }
 .apiInput {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 5px 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  color: var(--text-1); padding: 5px 10px;
   border-radius: 6px; font-size: 11px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; width: 220px;
   transition: border-color .15s;
 }
-.apiInput:focus { outline: none; border-color: #3b82f6; }
+.apiInput:focus { outline: none; border-color: var(--accent); }
 .btnPrimary {
   padding: 6px 16px; border-radius: 6px; border: none;
-  background: #3b82f6; color: #fff;
+  background: var(--accent); color: #fff;
   font-size: 12px; font-weight: 700;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .15s; white-space: nowrap;
   letter-spacing: 0.3px;
 }
-.btnPrimary:hover { background: #2563eb; transform: translateY(-1px); }
-.btnPrimary:disabled { background: #1a2235; color: #4e6280; cursor: not-allowed; transform: none; }
+.btnPrimary:hover { background: var(--accent-strong); transform: translateY(-1px); }
+.btnPrimary:disabled { background: var(--surface-1); color: var(--text-3); cursor: not-allowed; transform: none; }
 .btnSecondary {
   padding: 6px 13px; border-radius: 6px;
-  border: 1px solid #2a3a52;
-  background: rgba(255,255,255,0.03);
-  color: #8fa3be; font-size: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  color: var(--text-2); font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .15s; white-space: nowrap;
 }
-.btnSecondary:hover { color: #e8eef8; border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+.btnSecondary:hover { color: var(--text-1); border-color: var(--accent); background: var(--accent-soft); }
 
 /* ── TOOLBAR ─────────────────────────────────────── */
 .toolbar {
   height: 44px;
   padding: 0 20px;
   display: flex; align-items: center; gap: 8px;
-  background: #0d1219;
-  border-bottom: 1px solid #1f2d40;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
   position: sticky; top: 52px; z-index: 400;
   flex-shrink: 0;
 }
 .searchWrap { position: relative; }
 .searchIcon {
   position: absolute; left: 8px; top: 50%;
-  transform: translateY(-50%); color: #4e6280; font-size: 11px;
+  transform: translateY(-50%); color: var(--text-3); font-size: 11px;
 }
 .searchInput {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 5px 9px 5px 26px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  color: var(--text-1); padding: 5px 9px 5px 26px;
   border-radius: 6px; font-size: 12px; width: 180px;
   font-family: 'Noto Sans JP', sans-serif;
   transition: border-color .15s;
 }
-.searchInput:focus { outline: none; border-color: #3b82f6; width: 220px; }
+.searchInput:focus { outline: none; border-color: var(--accent); width: 220px; }
 .filterGroup { display: flex; gap: 2px; }
 .filterBtn {
   padding: 4px 12px; border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
-  color: #aebccd; font-size: 12px; font-weight: 600;
+  color: var(--text-2); font-size: 12px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s;
 }
-.filterBtn:hover { color: #8fa3be; background: rgba(255,255,255,0.05); }
+.filterBtn:hover { color: var(--text-1); background: var(--surface-hover); }
 .filterBtnActive {
-  border-color: #3b82f6;
-  color: #60a5fa;
-  background: rgba(59,130,246,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .sortSelect {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #2a3a52;
-  color: #8fa3be; padding: 4px 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  color: var(--text-2); padding: 4px 8px;
   border-radius: 6px; font-size: 11px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer;
@@ -196,19 +196,19 @@
 .spacer { flex: 1; }
 .tabGroup {
   display: flex; gap: 1px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #1f2d40;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
   padding: 2px; border-radius: 7px;
 }
 .tabBtn {
   padding: 4px 14px; border-radius: 5px; border: none;
-  background: transparent; color: #4e6280;
+  background: transparent; color: var(--text-3);
   font-size: 11px; font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s;
 }
 .tabBtnActive {
-  background: #1e2d42; color: #e8eef8;
-  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+  background: var(--accent-soft); color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── 検索ドロップダウン ─────────────────────────── */
@@ -2786,30 +2786,10 @@
 
 .lightMode { background: #eef2f7 !important; color: #0f172a !important; }
 
-.lightMode .header {
-  background: rgba(255,255,255,0.97) !important;
-  border-bottom: 1px solid #cbd5e1 !important;
-}
-.lightMode .logo { color: #1e293b !important; }
-.lightMode .logo span { color: #2563eb !important; }
-.lightMode .lastUpdate { color: #64748b !important; background: rgba(37,99,235,0.06) !important; border-color: rgba(37,99,235,0.2) !important; }
-.lightMode .lastUpdate strong { color: #2563eb !important; }
-.lightMode .apiLabel { color: #64748b !important; }
-.lightMode .apiInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
-.lightMode .btnSecondary { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .btnSecondary:hover { color: #1e293b !important; border-color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
-.lightMode .themeToggle { background: #f8fafc !important; border-color: #94a3b8 !important; }
-.lightMode .themeToggle:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; }
-
-.lightMode .toolbar { background: #e8edf3 !important; border-bottom: 1px solid #cbd5e1 !important; }
-.lightMode .searchInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
-.lightMode .filterBtn { color: #64748b !important; }
-.lightMode .filterBtn:hover { color: #1e293b !important; background: rgba(0,0,0,0.05) !important; }
-.lightMode .filterBtnActive { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.08) !important; }
-.lightMode .sortSelect { background: #fff !important; border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .tabGroup { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; }
-.lightMode .tabBtn { color: #64748b !important; }
-.lightMode .tabBtnActive { background: #fff !important; color: #1e293b !important; }
+/* ヘッダー/ツールバー/ボタン/検索/タブは設計トークンで両テーマ対応済み（旧ライト上書きは撤去）。
+   themeToggle のみ未トークン化のため明示指定を残す。 */
+.lightMode .themeToggle { background: var(--surface-1) !important; border-color: var(--line-strong) !important; }
+.lightMode .themeToggle:hover { background: var(--accent-soft) !important; border-color: var(--accent) !important; }
 
 /* テーブルはトークン駆動（.root.lightMode の変数）で両テーマ対応済み。
    旧ライト用 !important 上書きは撤去。星アイコンのみ視認性を確保。 */

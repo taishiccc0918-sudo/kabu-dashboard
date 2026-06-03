@@ -1008,7 +1008,7 @@
 }
 .spRowMcap {
   font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace;
-  flex-shrink: 0; margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* 現在値 + 前日比 */
@@ -1085,9 +1085,11 @@
     position: sticky; top: 68px;
     align-items: center;
   }
-  .searchWrap { width: 100%; order: -1; }
+  /* 検索を横幅いっぱいに伸ばし、フィルターボタンは右端へ */
+  .searchWrap { flex: 1 1 auto; min-width: 0; order: 0; }
   .searchInput { width: 100% !important; font-size: 16px !important; box-sizing: border-box; }
   .searchInput:focus { width: 100% !important; }
+  .filterToggleBtn { flex-shrink: 0; }
   .spacer { display: none; }
   .filterDivider { display: none; }
   .tabGroup { margin-left: auto; }
@@ -1124,11 +1126,15 @@
   .cardPrice { font-size: 18px; }
   .cardMetrics { grid-template-columns: 1fr 1fr; }
 
-  /* ディテールパネル */
+  /* ディテールパネル＝下からのボトムシート。背景はロック済みでずれない。
+     パネル内だけが縦横スクロール（max-width:100vwで横はみ出しも封じる） */
+  .detailOverlay { align-items: flex-end; justify-content: center; overflow: hidden; }
   .detailPanel {
-    width: 100%; border-left: none;
-    border-top: 1px solid #2a3a52;
-    height: 85vh; top: auto; bottom: 0;
+    width: 100%; max-width: 100vw; border-left: none;
+    border-top: 1px solid var(--line-strong);
+    height: 88vh; top: auto; bottom: 0;
+    overflow: auto; overscroll-behavior: contain;
+    border-radius: 14px 14px 0 0;
     animation: slideUp .2s ease;
   }
   .statusBar { display: none; }   /* SPはボトムナビを優先 */

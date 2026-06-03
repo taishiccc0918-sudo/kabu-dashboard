@@ -233,7 +233,6 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('準備中...')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [spSearchOpen, setSpSearchOpen] = useState(false)  // SP: 検索窓はアイコンから開く（キーボード暴発防止）
   const [mktFilter,  setMktFilter]  = useState<string>('all')
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
@@ -306,6 +305,12 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
+  // 詳細パネル表示中は背景のスクロールをロック（開いた時に背景がずれる/動くのを防ぐ）
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.body.style.overflow = detailCode ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [detailCode])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
 
@@ -1320,12 +1325,7 @@ export default function Page() {
 
       <div className={styles.toolbar} data-toolbar="">
         {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
-          <button className={`${styles.spSearchToggle} ${styles.spOnly}`} onClick={() => setSpSearchOpen(o => !o)} title="銘柄を検索">
-            🔍 {spSearchOpen ? '閉じる' : '検索'}
-          </button>
-        )}
-        {tab !== 'watchlist' && tab !== 'report' && tab !== 'news' && (
-          <div className={`${styles.searchWrap} ${spSearchOpen ? '' : styles.spSearchHidden}`} ref={searchWrapRef}>
+          <div className={styles.searchWrap} ref={searchWrapRef}>
             <span className={styles.searchIcon}>🔍</span>
             <input
               className={styles.searchInput}
@@ -1501,10 +1501,10 @@ export default function Page() {
               onChange={e => setMktFilter(e.target.value)}
               aria-label="市場で絞り込み"
             >
-              <option value="all">市場：すべて</option>
-              <option value="prime">市場：Prime</option>
-              <option value="standard">市場：Standard</option>
-              <option value="growth">市場：Growth</option>
+              <option value="all">全市場</option>
+              <option value="prime">Prime</option>
+              <option value="standard">Standard</option>
+              <option value="growth">Growth</option>
             </select>
             <div className={styles.filterDivider} />
             <div className={styles.filterGenreWrap}>
@@ -1549,7 +1549,7 @@ export default function Page() {
         {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
-              <span className={styles.spListHeaderCount}>{filteredRows.length}件</span>
+              <span className={styles.spListHeaderCount}>{filteredRows.length}</span>
               <span className={styles.spSortLabel}>並べ替え</span>
               <select
                 className={styles.spSortSelect}
@@ -1563,13 +1563,16 @@ export default function Page() {
                 aria-label="並べ替え"
               >
                 <option value="">標準（コード順）</option>
-                <option value="perPos|asc">PER割安順（レンジ下）</option>
-                <option value="perPos|desc">PER割高順（レンジ上）</option>
-                <option value="perF|asc">PER今期が低い順</option>
-                <option value="mcap|desc">時価総額が大きい順</option>
-                <option value="chg1d|desc">値上がり順</option>
-                <option value="chg1d|asc">値下がり順</option>
-                <option value="divY|desc">配当が高い順</option>
+                <option value="perPos|asc">PER位置：低い順（レンジ下）</option>
+                <option value="perPos|desc">PER位置：高い順（レンジ上）</option>
+                <option value="perF|asc">今期PER：低い順</option>
+                <option value="perF|desc">今期PER：高い順</option>
+                <option value="mcap|desc">時価総額：大きい順</option>
+                <option value="divY|desc">配当：高い順</option>
+                <option value="chg1d|desc">値上がり：前日比</option>
+                <option value="chg1w|desc">値上がり：1週間</option>
+                <option value="chg3m|desc">値上がり：3ヶ月</option>
+                <option value="chg1y|desc">値上がり：1年</option>
               </select>
             </div>
             <div className={styles.spList}>
@@ -3149,10 +3152,6 @@ function SpStockRow({ row: r, isFav, isSuperFav, onToggleFav, onToggleSuperFav, 
             {r.genres[0] && <span className={styles.spRowGenre}>{r.genres[0]}</span>}
             {r.mcap ? <span className={styles.spRowMcap}>{mcapShort(r.mcap)}</span> : null}
           </div>
-        </div>
-        <div className={styles.spRowPriceCol}>
-          <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
-          <div className={`${styles.spRowDay} ${styles[dayCls]}`}>{fmtPct(r.chg1d)}</div>
         </div>
       </div>
       {/* 主役: PER位置バー（直近1年レンジ内の現在地＝買いタイミングの目安） */}

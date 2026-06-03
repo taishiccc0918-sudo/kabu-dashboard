@@ -14,7 +14,7 @@ import { createClient } from './lib/supabase/client'
 
 // ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
 // （StockRow は genres:string[] のため、見出しクリックは「主ジャンル genres[0]」で並び替える）
-type SortKeyEx = keyof StockRow | 'genre'
+type SortKeyEx = keyof StockRow | 'genre' | 'perPos'
 
 interface DropdownResult {
   code: string
@@ -233,7 +233,6 @@ export default function Page() {
   const [statusMsg,  setStatusMsg]  = useState('準備中...')
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
-  const [spCol,      setSpCol]      = useState<number>(0)   // SP高密度リストの切替カラム（前日比/PER/…）
   const [spSearchOpen, setSpSearchOpen] = useState(false)  // SP: 検索窓はアイコンから開く（キーボード暴発防止）
   const [mktFilter,  setMktFilter]  = useState<string>('all')
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
@@ -307,7 +306,6 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
-  useEffect(() => { lsSet('spCol', spCol) }, [spCol])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
 
@@ -549,7 +547,6 @@ export default function Page() {
       setTab('card')
     }
     setForcePc(ls('forcePc', false))
-    setSpCol(ls('spCol', 0))
     setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
 
     // ── 前回取得データをキャッシュから即時復元（UX高速化）────────────
@@ -999,8 +996,17 @@ export default function Page() {
           const c = ag.localeCompare(bg, 'ja') * sortDir
           return c !== 0 ? c : a.code.localeCompare(b.code)
         }
-        const av = a[sortKey]
-        const bv = b[sortKey]
+        // PER位置（直近1年レンジ内の現在地）。算出不可は常に末尾。割安順=昇順
+        if (sortKey === 'perPos') {
+          const ap = a.perBand?.position
+          const bp = b.perBand?.position
+          if (ap == null && bp == null) return a.code.localeCompare(b.code)
+          if (ap == null) return 1
+          if (bp == null) return -1
+          return (ap - bp) * sortDir
+        }
+        const av = a[sortKey as keyof StockRow]
+        const bv = b[sortKey as keyof StockRow]
         if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv) * sortDir
         const an = (av as number) ?? (sortDir > 0 ? Infinity : -Infinity)
         const bn = (bv as number) ?? (sortDir > 0 ? Infinity : -Infinity)
@@ -1539,29 +1545,32 @@ export default function Page() {
       )}
 
       <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
-        {/* SP専用 高密度リスト（楽天証券型・1画面に多数／右カラム切替式） */}
+        {/* SP専用リスト（"いつ買うか"を助ける＝PER位置バーが主役。基本情報は小さく） */}
         {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
-              <button className={styles.spListHeaderName} onClick={() => handleSort('code')} title="銘柄コードで並べ替え">
-                銘柄名{sortKey === 'code' ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}
-                <span className={styles.spListHeaderCount}>{filteredRows.length}</span>
-              </button>
-              <button className={styles.spListHeaderPrice} onClick={() => handleSort('close')} title="株価で並べ替え">
-                現在値{sortKey === 'close' ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}
-              </button>
-              <div className={styles.spListHeaderMetricWrap}>
-                <button
-                  className={styles.spListHeaderMetric}
-                  onClick={() => setSpCol(c => (c + 1) % SP_COLS.length)}
-                  title="タップで表示する指標を切替"
-                >{SP_COL_LABEL[SP_COLS[spCol]]} ▸</button>
-                <button
-                  className={`${styles.spListHeaderSort} ${sortKey === SP_COL_SORTKEY[SP_COLS[spCol]] ? styles.spListHeaderSortActive : ''}`}
-                  onClick={() => handleSort(SP_COL_SORTKEY[SP_COLS[spCol]])}
-                  title="この指標で大きい順／小さい順に並べ替え"
-                >{sortKey === SP_COL_SORTKEY[SP_COLS[spCol]] ? (sortDir > 0 ? '↑' : '↓') : '⇅'}</button>
-              </div>
+              <span className={styles.spListHeaderCount}>{filteredRows.length}件</span>
+              <span className={styles.spSortLabel}>並べ替え</span>
+              <select
+                className={styles.spSortSelect}
+                value={sortKey ? `${sortKey}|${sortDir > 0 ? 'asc' : 'desc'}` : ''}
+                onChange={e => {
+                  const v = e.target.value
+                  if (!v) { setSortKey(null); setSortDir(-1); return }
+                  const [k, d] = v.split('|')
+                  setSortKey(k as SortKeyEx); setSortDir(d === 'asc' ? 1 : -1)
+                }}
+                aria-label="並べ替え"
+              >
+                <option value="">標準（コード順）</option>
+                <option value="perPos|asc">PER割安順（レンジ下）</option>
+                <option value="perPos|desc">PER割高順（レンジ上）</option>
+                <option value="perF|asc">PER今期が低い順</option>
+                <option value="mcap|desc">時価総額が大きい順</option>
+                <option value="chg1d|desc">値上がり順</option>
+                <option value="chg1d|asc">値下がり順</option>
+                <option value="divY|desc">配当が高い順</option>
+              </select>
             </div>
             <div className={styles.spList}>
               {filteredRows.length === 0
@@ -1570,7 +1579,6 @@ export default function Page() {
                   <SpStockRow
                     key={r.code}
                     row={r}
-                    col={SP_COLS[spCol]}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
@@ -3104,73 +3112,52 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   )
 }
 
-// ─── SP高密度リスト: 切替カラム定義（1カラム=1指標で見やすく） ─────────────
-const SP_COLS = ['day', 'mcap', 'per', 'peg', 'div', 'pbr', 'roe', 'mom'] as const
-type SpCol = typeof SP_COLS[number]
-const SP_COL_LABEL: Record<SpCol, string> = {
-  day: '前日比', mcap: '時価総額', per: 'PER今期', peg: 'PEG', div: '配当', pbr: 'PBR', roe: 'ROE', mom: '1ヶ月',
-}
-// 切替カラム→並べ替えキー（大きい順/小さい順）
-const SP_COL_SORTKEY: Record<SpCol, keyof StockRow> = {
-  day: 'chg1d', mcap: 'mcap', per: 'perF', peg: 'peg', div: 'divY', pbr: 'pbr', roe: 'roe', mom: 'chg1m',
-}
 // 時価総額を短く（1兆円以上は「○.○兆」表記）
 function mcapShort(v: number): string {
   if (!v) return '—'
   if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
   return Math.round(v).toLocaleString() + '億'
 }
-// 行右側「切替カラム」の値を算出。色クラス付き。dayのみ前日差(額)を sub に。
-function spColCell(r: StockRow, col: SpCol): { value: string; cls: string; sub?: string } {
-  switch (col) {
-    case 'day': {
-      const yen = (r.close != null && r.chg1d != null) ? Math.round(r.close - r.close / (1 + r.chg1d)) : null
-      return { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d), sub: yen != null ? (yen >= 0 ? '+' : '') + yen.toLocaleString() : undefined }
-    }
-    case 'mcap': return { value: mcapShort(r.mcap), cls: '' }
-    case 'per':  return { value: r.perF != null ? fmtN(r.perF) + '倍' : '—', cls: '' }
-    case 'peg':  return { value: r.peg != null ? fmtN(r.peg, 2) : '—', cls: r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : '' }
-    case 'div':  return { value: fmtPct(r.divY), cls: '' }
-    case 'pbr':  return { value: r.pbr != null ? fmtN(r.pbr) : '—', cls: '' }
-    case 'roe':  return { value: fmtPct(r.roe), cls: r.roe != null && r.roe > 0.1 ? 'up' : '' }
-    case 'mom':  return { value: fmtPct(r.chg1m), cls: pctClass(r.chg1m) }
-  }
-}
 
-// ─── SpStockRow（SP専用・1銘柄1行の高密度行）──────────────────────────
-function SpStockRow({ row: r, col, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
-  row: StockRow; col: SpCol
+// ─── SpStockRow（SP専用・1銘柄1行。"いつ買うか"＝PER位置バーが主役）──────────
+function SpStockRow({ row: r, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
   onClick: () => void
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   const dayCls = pctClass(r.chg1d)
-  const c = spColCell(r, col)
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
-      <div className={styles.spRowFavCol}>
-        <button className={`${styles.spRowFav} ${isFav ? styles.spRowFavStar : ''}`}
-          onClick={e => { e.stopPropagation(); onToggleFav(r.code) }} aria-label="お気に入り（★）">
-          {isFav ? '★' : '☆'}
-        </button>
-        <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
-          onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）">
-          {isSuperFav ? '♥' : '♡'}
-        </button>
-      </div>
-      <div className={styles.spRowMain}>
-        <div className={styles.spRowName}>{r.name || '—'}</div>
-        <div className={styles.spRowSub}>
-          <span className={styles.spRowCode}>{r.code}</span>
-          <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-          {r.genres[0] && <span className={styles.spRowGenre}>{r.genres[0]}</span>}
+      <div className={styles.spRowHead}>
+        <div className={styles.spRowFavCol}>
+          <button className={`${styles.spRowFav} ${isFav ? styles.spRowFavStar : ''}`}
+            onClick={e => { e.stopPropagation(); onToggleFav(r.code) }} aria-label="お気に入り（★）">
+            {isFav ? '★' : '☆'}
+          </button>
+          <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
+            onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）">
+            {isSuperFav ? '♥' : '♡'}
+          </button>
+        </div>
+        <div className={styles.spRowMain}>
+          <div className={styles.spRowName}>{r.name || '—'}</div>
+          <div className={styles.spRowSub}>
+            <span className={styles.spRowCode}>{r.code}</span>
+            <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+            {r.genres[0] && <span className={styles.spRowGenre}>{r.genres[0]}</span>}
+            {r.mcap ? <span className={styles.spRowMcap}>{mcapShort(r.mcap)}</span> : null}
+          </div>
+        </div>
+        <div className={styles.spRowPriceCol}>
+          <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
+          <div className={`${styles.spRowDay} ${styles[dayCls]}`}>{fmtPct(r.chg1d)}</div>
         </div>
       </div>
-      <div className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</div>
-      <div className={styles.spRowMetric}>
-        <div className={`${styles.spRowMetricTop} ${c.cls ? styles[c.cls] : ''}`}>{c.value}</div>
-        {c.sub && <div className={`${styles.spRowMetricSub} ${c.cls ? styles[c.cls] : ''}`}>{c.sub}</div>}
+      {/* 主役: PER位置バー（直近1年レンジ内の現在地＝買いタイミングの目安） */}
+      <div className={styles.spRowBand}>
+        <PerBandBar band={r.perBand} likePer={r.likePer} big />
       </div>
     </div>
   )

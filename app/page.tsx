@@ -1259,10 +1259,9 @@ export default function Page() {
             </svg>
             株式<span>ウォッチ</span>
           </div>
-          <div className={styles.lastUpdate}>{lastUpdate ? <><span className={styles.todayLabel}>本日</span><strong>{lastUpdate.replace(/^\d{4}[-/]/, '')}</strong></> : '未取得'}{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
+          <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
             <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
-            <span style={{color:'var(--text-3)',margin:'0 4px'}}>·</span>
-            <span style={{color:'#f59e0b'}}>★{favorites.size}</span>
+            <span style={{color:'#f59e0b',marginLeft:8}}>★{favorites.size}</span>
           </span>}</div>
         </div>
         <div className={styles.headerRight}>
@@ -1496,7 +1495,7 @@ export default function Page() {
               ))}
             </div>
             <select
-              className={styles.filterSelect}
+              className={`${styles.filterSelect} ${mktFilter !== 'all' ? styles['filterSelect_' + mktFilter] : ''}`}
               value={mktFilter}
               onChange={e => setMktFilter(e.target.value)}
               aria-label="市場で絞り込み"
@@ -1549,7 +1548,7 @@ export default function Page() {
         {tab !== 'watchlist' && tab !== 'news' && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
-              <span className={styles.spListHeaderCount}>{filteredRows.length}</span>
+              <span className={styles.spListHeaderCount}>{filteredRows.length}{filteredRows.length !== allRows.length ? `/${allRows.length}` : ''}</span>
               <span className={styles.spSortLabel}>並べ替え</span>
               <select
                 className={styles.spSortSelect}
@@ -1563,8 +1562,8 @@ export default function Page() {
                 aria-label="並べ替え"
               >
                 <option value="">標準（コード順）</option>
-                <option value="perPos|asc">PER位置：低い順（レンジ下）</option>
-                <option value="perPos|desc">PER位置：高い順（レンジ上）</option>
+                <option value="perPos|asc">PER：直近1年で低い水準の順</option>
+                <option value="perPos|desc">PER：直近1年で高い水準の順</option>
                 <option value="perF|asc">今期PER：低い順</option>
                 <option value="perF|desc">今期PER：高い順</option>
                 <option value="mcap|desc">時価総額：大きい順</option>
@@ -1582,6 +1581,7 @@ export default function Page() {
                   <SpStockRow
                     key={r.code}
                     row={r}
+                    sortKey={sortKey}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
@@ -1688,7 +1688,9 @@ export default function Page() {
       {detailCode && detailRow && (
         <div className={styles.detailOverlay} onClick={e => { if (e.target === e.currentTarget) setDetailCode(null) }}>
           <div className={styles.detailPanel}>
-            <button className={styles.detailClose} onClick={() => setDetailCode(null)}>×</button>
+            <div className={styles.detailTopBar}>
+              <button className={styles.detailClose} onClick={() => setDetailCode(null)} aria-label="閉じる">× 閉じる</button>
+            </div>
             <DetailPanel
               row={detailRow}
               fin={detailFin}
@@ -3122,15 +3124,32 @@ function mcapShort(v: number): string {
   return Math.round(v).toLocaleString() + '億'
 }
 
+// 並べ替え中の指標を各行の右上に出す（例: 値上がり1年なら +123%、配当なら 3.2% 等）
+function sortMetricDisplay(r: StockRow, sortKey: SortKeyEx | null): { value: string; cls: string } | null {
+  switch (sortKey) {
+    case 'perF': case 'perPos':
+      return r.perF != null ? { value: 'PER ' + fmtN(r.perF) + '倍', cls: '' } : null
+    case 'divY':
+      return r.divY != null ? { value: '配当 ' + fmtPct(r.divY), cls: '' } : null
+    case 'chg1d': return { value: '前日 ' + fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
+    case 'chg1w': return { value: '1週 ' + fmtPct(r.chg1w), cls: pctClass(r.chg1w) }
+    case 'chg3m': return { value: '3ヶ月 ' + fmtPct(r.chg3m), cls: pctClass(r.chg3m) }
+    case 'chg1y': return { value: '1年 ' + fmtPct(r.chg1y), cls: pctClass(r.chg1y) }
+    case 'mcap':  return r.mcap ? { value: mcapShort(r.mcap), cls: '' } : null
+    default: return null
+  }
+}
+
 // ─── SpStockRow（SP専用・1銘柄1行。"いつ買うか"＝PER位置バーが主役）──────────
-function SpStockRow({ row: r, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
-  row: StockRow
+function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow; sortKey: SortKeyEx | null
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
   onClick: () => void
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   const dayCls = pctClass(r.chg1d)
+  const sm = sortMetricDisplay(r, sortKey)
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowHead}>
@@ -3153,6 +3172,7 @@ function SpStockRow({ row: r, isFav, isSuperFav, onToggleFav, onToggleSuperFav, 
             {r.mcap ? <span className={styles.spRowMcap}>{mcapShort(r.mcap)}</span> : null}
           </div>
         </div>
+        {sm && <div className={`${styles.spRowSortVal} ${sm.cls ? styles[sm.cls] : ''}`}>{sm.value}</div>}
       </div>
       {/* 主役: PER位置バー（直近1年レンジ内の現在地＝買いタイミングの目安） */}
       <div className={styles.spRowBand}>
@@ -3313,7 +3333,8 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }:
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [pending, setPending] = useState<Set<string>>(new Set(activeFilters))
-  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({})
+  // 初期は画面外に置き、開いた瞬間に正しい位置へ（左下にチラッと出るのを防ぐ）
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({ position: 'fixed', top: -9999, left: -9999 })
   const btnRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -3322,11 +3343,14 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }:
   useEffect(() => { setPending(new Set(activeFilters)) }, [activeFilters])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setPanelStyle({ position: 'fixed', top: -9999, left: -9999 }); return }
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      const left = Math.max(4, r.left - 200 + r.width + 4)
-      setPanelStyle({ position: 'fixed', top: r.bottom + 4, left })
+      const pw = Math.min(300, window.innerWidth - 16)
+      let left = r.left
+      if (left + pw > window.innerWidth - 8) left = window.innerWidth - 8 - pw
+      left = Math.max(8, left)
+      setPanelStyle({ position: 'fixed', top: r.bottom + 6, left, width: pw })
     }
     function onDown(e: MouseEvent) {
       if (

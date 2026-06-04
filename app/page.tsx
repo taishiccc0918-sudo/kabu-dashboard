@@ -1388,31 +1388,13 @@ export default function Page() {
               <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
                 <input
                   className={styles.wlHeaderSearch}
-                  placeholder="🔍 銘柄検索（, で一括追加）"
+                  placeholder="🔍 銘柄名・コード・メモで検索"
                   value={wlSearch}
                   onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setWlPage(1) }}
                   onFocus={() => setWlShowDropdown(true)}
                   onBlur={() => setTimeout(() => setWlShowDropdown(false), 150)}
                   onKeyDown={e => {
-                    // カンマ区切り一括登録: "7203,6758" + Enter
-                    if (e.key === 'Enter' && wlSearch.includes(',')) {
-                      e.preventDefault()
-                      const codes = wlSearch.split(/[,，\s　]+/).map(s => s.trim()).filter(Boolean)
-                      if (codes.length > 0) {
-                        pushUndo()
-                        const toAdd = codes.filter(c => masterDB[c] && !favorites.has(c))
-                        if (toAdd.length > 0) {
-                          setFavorites(prev => {
-                            const next = new Set(prev)
-                            toAdd.forEach(c => { next.add(c); sbSyncFav(c, 'star', true) })
-                            lsSet('favorites', Array.from(next))
-                            return next
-                          })
-                        }
-                        setWlSearch(''); setWlPage(1); setWlShowDropdown(false)
-                        return
-                      }
-                    }
+                    // 一括追加は専用ボタン（＋まとめて追加）に分離。検索窓は検索専用。
                     if (!wlShowDropdown || !wlSearch.trim()) return
                     if (e.key === 'ArrowDown') { e.preventDefault(); setWlDropdownActive(i => Math.min(i + 1, wlDropdownResults.length - 1)) }
                     else if (e.key === 'ArrowUp') { e.preventDefault(); setWlDropdownActive(i => Math.max(i - 1, 0)) }
@@ -1464,6 +1446,11 @@ export default function Page() {
                 <option value="growth">Growth</option>
               </select>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
+              <button
+                className={`${styles.wlBulkAddBtn} ${wlShowBulkAdd ? styles.wlBulkAddBtnOn : ''}`}
+                onClick={() => setWlShowBulkAdd(v => !v)}
+                title="コードを入力してまとめて★に追加"
+              >＋まとめて追加</button>
             </div>
           </>
         )}
@@ -1835,7 +1822,7 @@ function StockManager({
         const matchUnset = genreFilters.has(GENRE_UNSET) && genres.length === 0
         if (!matchRegular && !matchUnset) return false
       }
-      if (q && !normalizeSearchText(code + ' ' + rec.name).includes(q)) return false
+      if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '')).includes(q)) return false
       return true
     })
   }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta])
@@ -2893,7 +2880,7 @@ function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; lik
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 10, lineHeight: 1, color: 'var(--text-2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
         <span title="直近1年のPER安値">{fmtN(band.lowPER, 0)}</span>
-        <span style={{ color: zone.color, fontWeight: 800, fontSize: big ? 13 : 11.5 }}>{hasPos ? `${fmtN(band.fwdPER)}倍 ${zone.label}` : zone.label}</span>
+        <span style={{ color: zone.color, fontWeight: 800, fontSize: big ? 13 : 11.5, whiteSpace: 'nowrap' }}>{hasPos ? `${fmtN(band.fwdPER)}倍 ${zone.label}` : zone.label}</span>
         <span title="直近1年のPER高値">{fmtN(band.highPER, 0)}</span>
       </div>
     </div>
@@ -3180,7 +3167,15 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   const dayCls = pctClass(r.chg1d)
-  const sm = sortMetricDisplay(r, sortKey)
+  // PER位置（右上に「○倍 割安/中立/高」、下に両端の最小/最大つき細バー）
+  const band = r.perBand
+  const hasBar = !!band && band.highPER != null && band.lowPER != null
+  const hasPos = hasBar && band!.position != null
+  const pos = hasPos ? Math.max(0, Math.min(1, band!.position!)) : 0.5
+  const zone = hasPos ? perBandZone(pos) : null
+  const zoneText = hasPos ? `${fmtN(band!.fwdPER)}倍 ${zone!.label}`
+    : hasBar ? '予想なし'
+    : (band?.reason ? (PER_BAND_REASON_LABEL[band.reason] ?? '—') : '—')
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowHead}>
@@ -3188,17 +3183,21 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
           {isSuperFav ? '♥' : '♡'}
         </button>
-        {/* 1行に集約: 銘柄名＋コード＋市場（高さ半減） */}
         <span className={styles.spRowName}>{r.name || '—'}</span>
         <span className={styles.spRowCode}>{r.code}</span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         <span className={styles.spRowSpacer} />
-        {sm && <span className={`${styles.spRowSortVal} ${sm.cls ? styles[sm.cls] : ''}`}>{sm.value}</span>}
+        <span className={styles.spRowZone} style={{ color: zone?.color ?? 'var(--text-3)' }}>{zoneText}</span>
       </div>
-      {/* PER位置バー（コンパクト） */}
-      <div className={styles.spRowBand}>
-        <PerBandBar band={r.perBand} likePer={r.likePer} />
-      </div>
+      {hasBar && (
+        <div className={styles.spBarRow}>
+          <span className={styles.spBarEnd}>{fmtN(band!.lowPER, 0)}</span>
+          <div className={styles.spBarTrack}>
+            {hasPos && <span className={styles.spBarMarker} style={{ left: `${pos * 100}%`, background: zone!.color }} />}
+          </div>
+          <span className={styles.spBarEnd}>{fmtN(band!.highPER, 0)}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -4531,7 +4530,7 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
-  const W = 480, H = 250, L = 24, R = 12, T = 12, B = 12
+  const W = 420, H = 340, L = 24, R = 12, T = 12, B = 12
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
   const FS = 7       // ラベル文字サイズ（SVG単位。viewBox拡大に合わせ可読性維持）

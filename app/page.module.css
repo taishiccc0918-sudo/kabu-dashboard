@@ -1100,8 +1100,19 @@
   color: var(--text-1); white-space: nowrap;
 }
 
-/* PER位置バー（コンパクト） */
-.spRowBand { padding: 0 1px; }
+/* PER位置: 右上の「○倍 割安/中立/高」＋下の細バー（両端に最小/最大）＝行をさらに圧縮 */
+.spRowZone { flex-shrink: 0; font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+.spBarRow { display: flex; align-items: center; gap: 5px; }
+.spBarEnd { font-size: 9.5px; color: var(--text-3); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; width: 18px; text-align: center; }
+.spBarTrack {
+  position: relative; flex: 1; height: 5px; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(52,211,153,0.30) 0%, rgba(251,191,36,0.22) 50%, rgba(248,113,113,0.30) 100%);
+}
+.spBarMarker {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid var(--surface-0); box-shadow: 0 0 2px rgba(0,0,0,0.4);
+}
 
 /* 時価総額/PER数値絞り込みのまとめ（PCは元の並びを維持＝display:contents、SPはspHideで非表示） */
 .filterNumGroup { display: contents; }
@@ -1305,6 +1316,13 @@
     box-shadow: 0 -2px 12px rgba(0,0,0,0.18);
   }
   .root { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+  /* SP: レポート/俯瞰マップを画面いっぱいに使う */
+  .reportRoot { padding: 12px 6px; }
+  .repMapCard { padding: 10px 4px; }
+  .repMapSvg { max-height: none; }
+  .repMapPlot { gap: 3px; }
+  .repMapYax .repMapAxName { font-size: 10px; }
 
   /* 「↑TOP」を下部固定ナビの上に重ねない位置へ（文字切れ防止） */
   .scrollTopBtn { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px; }
@@ -1677,8 +1695,15 @@
 /* ヘッダー内件数 */
 .wlHeaderCount {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #4e6280; white-space: nowrap; flex-shrink: 0;
+  font-size: 11px; color: var(--text-3); white-space: nowrap; flex-shrink: 0;
 }
+.wlBulkAddBtn {
+  flex-shrink: 0; white-space: nowrap; cursor: pointer;
+  font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: var(--r-btn);
+  border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.wlBulkAddBtnOn { background: var(--accent); color: #fff; border-color: var(--accent); }
 .wlUndoHint {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; color: #6a8096; white-space: nowrap; flex-shrink: 0;
@@ -2759,7 +2784,7 @@
 .repMapWrap { width: 100%; }
 .repMapPlot { display: flex; align-items: stretch; gap: 6px; }
 .repMapYax { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 4px 0; }
-.repMapSvg { flex: 1; min-width: 0; width: 100%; height: auto; display: block; touch-action: manipulation; }
+.repMapSvg { flex: 1; min-width: 0; width: 100%; height: auto; display: block; touch-action: manipulation; max-height: 620px; }
 .repDot { cursor: pointer; }
 .repDot:hover text { fill: var(--text-1) !important; }
 /* 縦軸・横軸のラベルは同じ体裁に統一 */
@@ -2820,7 +2845,7 @@
   padding: 5px 4px; text-align: center;
 }
 .repChipK { display: block; font-size: 10.5px; color: var(--text-3); font-weight: 600; }
-.repChipV { display: block; font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; color: var(--text-1); }
+.repChipV { display: block; font-size: 12.5px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; color: var(--text-1); white-space: nowrap; letter-spacing: -0.3px; }
 
 .repBandRow { margin: 6px 0 12px; }
 .repBandLabel { font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }

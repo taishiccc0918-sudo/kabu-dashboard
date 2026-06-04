@@ -542,8 +542,8 @@
 }
 .chartTab:hover { color: var(--text-2); border-color: var(--line-strong); }
 .chartTabActive { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }
-.chartCanvas { width: 100%; height: 110px; display: block; }
-.chartLoading { height: 110px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 11px; }
+.chartCanvas { width: 100%; height: 210px; display: block; }
+.chartLoading { height: 210px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 11px; }
 .chartRetryBtn { font-size: 11px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--r-btn); padding: 4px 12px; cursor: pointer; }
 .chartRetryBtn:hover { background: var(--accent-soft); border-color: var(--accent); }
 
@@ -719,6 +719,14 @@
 .newsSortRow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .newsCount { font-size: 13px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; }
 .newsSortBtns { display: flex; gap: 4px; }
+.newsMediaSelect {
+  font-size: 12.5px; padding: 5px 10px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--surface-1);
+  color: var(--text-1); cursor: pointer; font-weight: 600; max-width: 60%;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.newsMediaSelect:hover { border-color: var(--line-strong); }
+.newsMediaSelect:focus { outline: none; border-color: var(--accent); }
 .newsSortBtn {
   font-size: 11px; padding: 4px 11px; border-radius: var(--r-pill);
   border: 1px solid var(--line); background: var(--surface-1);

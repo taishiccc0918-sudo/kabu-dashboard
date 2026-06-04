@@ -2609,7 +2609,7 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
       const ctx = canvas.getContext('2d')
       if (!ctx) return
       const w = canvas.clientWidth || canvas.offsetWidth || (canvas.parentElement?.clientWidth ?? 280)
-      const h = 155  // 下部15pxをX軸ラベル用に確保
+      const h = 210  // チャートを大きく。下部はX軸ラベル用に確保
       canvas.width = w; canvas.height = h
       ctx.clearRect(0, 0, w, h)
       const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
@@ -2652,11 +2652,11 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
         })
         ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash([])
         ctx.stroke()
-        // 凡例（右上に逆順で配置）
-        const legX = w - 8 - maIdx * 46
-        ctx.fillStyle = color; ctx.fillRect(legX - 38, 5, 10, 1.5)
-        ctx.fillStyle = 'rgba(200,220,240,0.6)'; ctx.font = '9px JetBrains Mono, monospace'
-        ctx.fillText(label, legX - 26, 12)
+        // 凡例（右上に逆順で配置）。視認性のため濃く・大きく。
+        const legX = w - 8 - maIdx * 56
+        ctx.fillStyle = color; ctx.fillRect(legX - 46, 7, 14, 2.5)
+        ctx.fillStyle = 'rgba(220,232,248,0.95)'; ctx.font = 'bold 11px JetBrains Mono, monospace'
+        ctx.fillText(label, legX - 30, 14)
       })
 
       // ── X軸ラベル（年月） ─────────────────────────────
@@ -2665,7 +2665,7 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
         const len = chartDates.length
         ctx.save()
         ctx.textAlign = 'center'
-        ctx.font = '8px JetBrains Mono, monospace'
+        ctx.font = 'bold 10px JetBrains Mono, monospace'
         if (mode === '3years') {
           // 年ラベル: データの年範囲から直接計算して配置（ラベル欠け防止）
           const firstYear = parseInt(chartDates[0].slice(0, 4))
@@ -2675,9 +2675,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
             if (idx < 0) continue
             const x = toX(idx, len)
             if (x < 20 || x > w - 20) continue  // 端すぎる場合はスキップ
-            ctx.fillStyle = 'rgba(140,155,170,0.1)'
+            ctx.fillStyle = 'rgba(150,165,185,0.3)'
             ctx.fillRect(Math.round(x), 16, 1, h - 34)
-            ctx.fillStyle = 'rgba(140,155,170,0.55)'
+            ctx.fillStyle = 'rgba(170,185,205,0.92)'
             ctx.fillText(String(yr), x, h - 3)
           }
         } else {
@@ -2691,9 +2691,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
               const x = toX(i, len)
               if (x > 16 && x < w - 16 && x - lastLabelX > 30) {
                 lastLabelX = x
-                ctx.fillStyle = 'rgba(140,155,170,0.1)'
+                ctx.fillStyle = 'rgba(150,165,185,0.3)'
                 ctx.fillRect(Math.round(x), 16, 1, h - 34)
-                ctx.fillStyle = 'rgba(140,155,170,0.55)'
+                ctx.fillStyle = 'rgba(170,185,205,0.92)'
                 ctx.fillText(label, x, h - 3)
               }
             }
@@ -3738,12 +3738,10 @@ function fmtRelTime(pubDate: string): string {
   return `${Math.floor(day / 30)}ヶ月前`
 }
 
-type NewsSort = 'date' | 'source'
-
 function NewsSection({ code, name }: { code: string; name: string }) {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [sort, setSort] = useState<NewsSort>('date')
+  const [media, setMedia] = useState<string>('') // '' = すべての媒体
 
   useEffect(() => {
     let cancelled = false
@@ -3770,16 +3768,19 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     })
   }, [articles])
 
+  // 媒体一覧（件数つき・多い順）。プルダウンの選択肢に使う。
+  const mediaList = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const a of recent) { const s = a.source || 'その他'; m.set(s, (m.get(s) ?? 0) + 1) }
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+  }, [recent])
+
+  // 常に新しい順。媒体フィルターが選択されていれば絞り込む。
   const sorted = useMemo(() => {
     const byDate = (a: NewsArticle, b: NewsArticle) =>
       new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-    if (sort === 'date') return [...recent].sort(byDate)
-    // メディア別: ソース名でグループ化し、各グループ内は新しい順
-    return [...recent].sort((a, b) => {
-      const s = (a.source || '').localeCompare(b.source || '', 'ja')
-      return s !== 0 ? s : byDate(a, b)
-    })
-  }, [recent, sort])
+    return recent.filter(a => !media || (a.source || 'その他') === media).sort(byDate)
+  }, [recent, media])
 
   if (err) return <div className={styles.newsEmpty}>ニュース取得に失敗しました（{err}）</div>
   if (articles === null) return <div className={styles.newsEmpty}>読み込み中…</div>
@@ -3788,17 +3789,11 @@ function NewsSection({ code, name }: { code: string; name: string }) {
   return (
     <>
       <div className={styles.newsSortRow}>
-        <span className={styles.newsCount}>直近3ヶ月・{recent.length}件</span>
-        <div className={styles.newsSortBtns}>
-          <button
-            className={`${styles.newsSortBtn} ${sort === 'date' ? styles.newsSortBtnActive : ''}`}
-            onClick={() => setSort('date')}
-          >新しい順</button>
-          <button
-            className={`${styles.newsSortBtn} ${sort === 'source' ? styles.newsSortBtnActive : ''}`}
-            onClick={() => setSort('source')}
-          >メディア別</button>
-        </div>
+        <span className={styles.newsCount}>新しい順・{sorted.length}件</span>
+        <select className={styles.newsMediaSelect} value={media} onChange={e => setMedia(e.target.value)} aria-label="媒体で絞り込み">
+          <option value="">すべての媒体（{recent.length}）</option>
+          {mediaList.map(([s, n]) => <option key={s} value={s}>{s}（{n}）</option>)}
+        </select>
       </div>
       <div className={styles.newsList}>
         {sorted.map((a, i) => {
@@ -4401,7 +4396,7 @@ function DetailPanel({
                   {diff !== null && diff < 0 && <span style={{fontSize:12, marginLeft:8, color:'rgba(100,100,100,0.7)'}}>終了</span>}
                 </div>
               )}
-              {!displayDate && !editingDate && <div style={{color:'#475569', fontSize:13}}>未設定（APIまたは手動入力）</div>}
+              {!displayDate && !editingDate && <div style={{color:'#94a3b8', fontSize:13}}>未設定（下のボタンから手動で入力できます）</div>}
               {editingDate ? (
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
                   <input type="date" autoFocus value={dateVal} min={new Date().toISOString().slice(0,10)} onChange={e => setDateVal(e.target.value)}
@@ -4424,7 +4419,7 @@ function DetailPanel({
                   {earningsDate ? '✏️ 編集' : '＋ 手動入力'}
                 </button>
               )}
-              {f?.nextAnnouncementDate && <div style={{fontSize:11, color:'#64748b'}}>APIから自動取得済み</div>}
+              {f?.nextAnnouncementDate && <div style={{fontSize:11, color:'#64748b'}}>自動取得（J-Quants）</div>}
             </div>
           )
         })()}

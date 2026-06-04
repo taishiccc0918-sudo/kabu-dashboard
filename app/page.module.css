@@ -1891,6 +1891,11 @@
 }
 .wlMemoInput:focus { outline: none; border-color: var(--accent); background: var(--accent-soft); }
 .wlMemoInput::placeholder { color: var(--text-3); }
+/* iOSは font-size<16px の入力にフォーカスすると画面を自動ズーム（＝「アップされる」）する。
+   SPでメモ系入力を16pxにしてズームを止め、キーボードだけが出るようにする（本人指摘 I9）。 */
+@media (max-width: 768px) {
+  .wlMemoInput, .detailMemo { font-size: 16px; }
+}
 
 /* ── 決算日入力 ────────────────────────────────────────────── */
 .wlEarningsInput {
@@ -2834,12 +2839,17 @@
 .rankSec { background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px 14px; box-shadow: var(--shadow-sm); }
 .rankTitle { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: baseline; gap: 8px; }
 .rankHint { font-size: 11px; font-weight: 500; color: var(--text-3); }
-.rankList { display: flex; flex-direction: column; }
+/* 上位だけでなく全件をボックス内スクロールで見られるように（本人指摘 I7）。
+   ボックス自体は広げず、中で7位・8位…と続きが見られる。 */
+.rankList { display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; }
 .rankRow {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   padding: 8px 4px; border: none; background: none; cursor: pointer;
   border-bottom: 1px solid var(--line); font-family: 'Noto Sans JP', sans-serif;
 }
+.rankNum { flex-shrink: 0; width: 20px; text-align: right; font-size: 11px; font-weight: 700; color: var(--text-3); font-family: 'JetBrains Mono', monospace; }
+/* PER／株価のグループ見出し（上2つ＝PER、下2つ＝株価 と分かるように） */
+.rankGroupTitle { font-size: 12px; font-weight: 700; color: var(--text-2); margin: 0 0 8px; padding-left: 2px; }
 .rankRow:last-child { border-bottom: none; }
 .rankRow:active { background: var(--surface-hover); }
 .rankName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; color: var(--text-1); }

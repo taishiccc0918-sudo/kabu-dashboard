@@ -4926,13 +4926,14 @@ function RankList({ title, hint, rows, kind, onClickCode }: {
     <div className={styles.rankSec}>
       <div className={styles.rankTitle}>{title}{hint && <span className={styles.rankHint}>{hint}</span>}</div>
       <div className={styles.rankList}>
-        {rows.map(r => {
+        {rows.map((r, i) => {
           let val = '—', color: string | undefined, cls = ''
           if (kind === 'per' && r.perBand?.position != null) {
             const z = perBandZone(r.perBand.position); val = `${fmtN(r.perBand.fwdPER)}倍 ${z.label}`; color = z.color
           } else { val = fmtPct(r.chg1m); cls = pctClass(r.chg1m) }
           return (
             <button key={r.code} className={styles.rankRow} onClick={() => onClickCode(r.code)}>
+              <span className={styles.rankNum}>{i + 1}</span>
               <span className={styles.rankName}>{r.name || '名称未取得'}</span>
               <span className={styles.rankCode}>{r.code}</span>
               <span className={`${styles.rankVal} ${cls ? styles[cls] : ''}`} style={color ? { color } : undefined}>{val}</span>
@@ -4995,10 +4996,10 @@ function WeeklyReport({
   // レポート内タブ（縦長スクロールを避け、ページを分ける＝Kabuアプリ風）
   const [repView, setRepView] = useState<'rank' | 'map' | 'karte'>('rank')
   const withPos = useMemo(() => scoped.filter(r => r.perBand?.position != null), [scoped])
-  const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 6), [withPos])
-  const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 6), [withPos])
-  const upRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => b.chg1m! - a.chg1m!).slice(0, 6), [scoped])
-  const downRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => a.chg1m! - b.chg1m!).slice(0, 6), [scoped])
+  const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 20), [withPos])
+  const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 20), [withPos])
+  const upRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => b.chg1m! - a.chg1m!).slice(0, 20), [scoped])
+  const downRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => a.chg1m! - b.chg1m!).slice(0, 20), [scoped])
 
   const today = new Date()
   const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`
@@ -5025,12 +5026,18 @@ function WeeklyReport({
 
       {/* ① 注目ランキング */}
       {repView === 'rank' && (
-        <div className={styles.rankGrid}>
-          <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
-          <RankList title="🔴 高値圏で警戒" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
-          <RankList title="📉 直近1ヶ月で下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
-          <RankList title="📈 直近1ヶ月で上昇" hint="" rows={upRank} kind="up" onClickCode={onClickCode} />
-        </div>
+        <>
+          <div className={styles.rankGroupTitle}>PER水準（直近1年レンジ内の位置）</div>
+          <div className={styles.rankGrid}>
+            <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
+            <RankList title="🔴 割高ゾーン" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
+          </div>
+          <div className={styles.rankGroupTitle} style={{ marginTop: 16 }}>株価の動き（直近1ヶ月）</div>
+          <div className={styles.rankGrid}>
+            <RankList title="📉 下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
+            <RankList title="📈 上昇" hint="上昇トレンド" rows={upRank} kind="up" onClickCode={onClickCode} />
+          </div>
+        </>
       )}
 
       {/* ② 俯瞰マップ */}

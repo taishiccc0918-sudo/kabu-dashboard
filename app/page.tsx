@@ -4502,12 +4502,15 @@ function PositionMap({ rows, hearts, onClickCode }: {
 }) {
   const logos = useLogoMap()
   const pts = rows.filter(r => r.perBand?.position != null && r.chg1m != null)
-  const W = 360, H = 240, L = 14, R = 14, T = 14, B = 24
+  const W = 360, H = 240, L = 30, R = 14, T = 16, B = 22
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.2
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   const y0 = y(0)
+  const cy = T + ph / 2
+  // ロゴが無い銘柄に出す短い社名（漢字/カナを4字程度）
+  const shortName = (n: string) => (n || '').replace(/[（(].*$/, '').slice(0, 5)
   return (
     <div className={styles.repMapWrap}>
       <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
@@ -4518,19 +4521,23 @@ function PositionMap({ rows, hearts, onClickCode }: {
         {/* 株価0%ライン */}
         <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
         <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-        {/* ロゴがあれば丸に収めたアイコン（枠なし）、無ければ1ヶ月の上下色の小ドット。太枠リングは廃止 */}
+        {/* 縦軸ラベル（株価1ヶ月・上=上昇/下=下落） */}
+        <text x={9} y={cy} fontSize="7" fontWeight="700" fill="var(--text-2)" textAnchor="middle" transform={`rotate(-90 9 ${cy})`}>株価 1ヶ月</text>
+        <text x={L - 3} y={T + 5} fontSize="6" fill="var(--up)" textAnchor="end">↑上昇</text>
+        <text x={L - 3} y={H - B} fontSize="6" fill="var(--down)" textAnchor="end">↓下落</text>
+        <text x={L - 3} y={y0 + 2} fontSize="5.5" fill="var(--text-3)" textAnchor="end">±0%</text>
+        {/* ロゴがあれば丸に収めたアイコン、無ければ社名テキスト（色＝1ヶ月の上下） */}
         {pts.map(r => {
           const px = x(r.perBand!.position!), py = y(r.chg1m!)
           const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
           const logo = logos?.[r.code]
           const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
           if (logo) {
-            const rad = 8.5, cid = `lgm-${r.code}`
+            const rad = 9.5, cid = `lgm-${r.code}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
                 <clipPath id={cid}><circle cx={px} cy={py} r={rad} /></clipPath>
                 <circle cx={px} cy={py} r={rad} fill="#fff" stroke="var(--line)" strokeWidth="0.6" />
-                {/* meet＝ロゴ全体が丸の中に収まる（切り取らない） */}
                 <image href={logo} x={px - rad + 1} y={py - rad + 1} width={(rad - 1) * 2} height={(rad - 1) * 2}
                   clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid meet" />
                 <title>{title}</title>
@@ -4539,15 +4546,17 @@ function PositionMap({ rows, hearts, onClickCode }: {
           }
           return (
             <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-              <circle cx={px} cy={py} r={4.5} fill={c} fillOpacity={0.7} stroke="var(--surface-0)" strokeWidth={0.6} />
+              <circle cx={px} cy={py} r={7} fill="transparent" />
+              <text x={px} y={py} fontSize="6" fontWeight="700" fill={c} textAnchor="middle" dominantBaseline="central"
+                stroke="var(--app-bg)" strokeWidth="1.6" paintOrder="stroke" style={{ pointerEvents: 'none' }}>{shortName(r.name)}</text>
               <title>{title}</title>
             </g>
           )
         })}
       </svg>
       <div className={styles.repMapXax}>
-        <span>← 安値圏</span>
-        <span>PER位置（自分の過去1年レンジ）</span>
+        <span>← PERが安値圏</span>
+        <span>横軸＝PER位置（自分の過去1年レンジ）</span>
         <span>高値圏 →</span>
       </div>
       <div className={styles.repMapLegend}>

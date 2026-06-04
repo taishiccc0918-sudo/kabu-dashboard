@@ -3226,6 +3226,12 @@ function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => vo
         <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
       </svg>
     ) },
+    { key: 'report', label: 'レポート', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="20" x2="20" y2="20"/><rect x="5" y="11" width="3.5" height="7" rx="0.8"/>
+        <rect x="10.2" y="6" width="3.5" height="12" rx="0.8"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.8"/>
+      </svg>
+    ) },
   ]
   const isActive = (k: TabKey) => k === 'card' ? (tab === 'card' || tab === 'dashboard') : tab === k
   return (
@@ -4514,60 +4520,66 @@ function PositionMap({ rows, hearts, onClickCode }: {
   const FS = 6       // ラベル文字サイズ（SVG単位）
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
-  const y0 = y(0)
-  const shortName = (n: string) => (n || '').replace(/[（(].*$/, '').slice(0, 6)
+  // 社名は株式会社/括弧/HD表記を省いてフル表示（途中で切らない）
+  const shortName = (n: string) => (n || '').replace(/株式会社/g, '').replace(/[（(].*$/, '').replace(/ホールディングス/g, 'HD').trim().slice(0, 9)
 
-  // 重要度順（♥→変動が大きい順）にラベルを置き、重なる場合は点にする＝文字を重ねない
+  // 全銘柄の社名を表示。重なる場合は上下に少しずらして配置（点で消さない）
   const ordered = [...rows.filter(r => r.perBand?.position != null && r.chg1m != null)]
     .sort((a, b) => (Number(hearts.has(b.code)) - Number(hearts.has(a.code))) || (Math.abs(b.chg1m!) - Math.abs(a.chg1m!)))
   const placed: { x1: number; y1: number; x2: number; y2: number }[] = []
+  const h = FS * 1.15
+  const offsets = [0, -(h + 0.5), h + 0.5, -2 * (h + 0.5), 2 * (h + 0.5), -3 * (h + 0.5), 3 * (h + 0.5), -4 * (h + 0.5), 4 * (h + 0.5)]
   const nodes = ordered.map(r => {
     const px = x(r.perBand!.position!), py = y(r.chg1m!)
     const name = shortName(r.name)
-    const w = name.length * (FS * 0.92), h = FS * 1.1
-    // 端で見切れないようアンカーを内側へ
-    let anchor: 'start' | 'middle' | 'end' = 'middle', tx = px, bx1 = px - w / 2, bx2 = px + w / 2
-    if (bx1 < L + 1) { anchor = 'start'; tx = Math.max(L + 1, px - w / 2); bx1 = tx; bx2 = tx + w }
-    else if (bx2 > W - R - 1) { anchor = 'end'; tx = Math.min(W - R - 1, px + w / 2); bx2 = tx; bx1 = tx - w }
-    const box = { x1: bx1 - 1, y1: py - h / 2 - 0.5, x2: bx2 + 1, y2: py + h / 2 + 0.5 }
-    const overlap = placed.some(p => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2))
-    const label = !overlap
-    if (label) placed.push(box)
-    return { r, px, py, name, anchor, tx, label }
+    const w = name.length * (FS * 0.92)
+    // 端は内側アンカー（枠から少しはみ出すのは許容）
+    let anchor: 'start' | 'middle' | 'end' = 'middle', tx = px
+    if (px - w / 2 < 2) { anchor = 'start'; tx = 2 }
+    else if (px + w / 2 > W - 2) { anchor = 'end'; tx = W - 2 }
+    const bx1 = anchor === 'start' ? tx : anchor === 'end' ? tx - w : tx - w / 2
+    const bx2 = bx1 + w
+    // 重なりを避ける縦オフセットを探す（全部出すのが目的）
+    let ny = py
+    for (const dy of offsets) {
+      const cand = Math.max(T + h / 2, Math.min(H - h / 2, py + dy))
+      const box = { x1: bx1 - 1, y1: cand - h / 2, x2: bx2 + 1, y2: cand + h / 2 }
+      if (!placed.some(p => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2))) { ny = cand; break }
+      ny = cand
+    }
+    placed.push({ x1: bx1 - 1, y1: ny - h / 2, x2: bx2 + 1, y2: ny + h / 2 })
+    return { r, px, py, ny, name, anchor, tx }
   })
 
   return (
     <div className={styles.repMapWrap}>
       <div className={styles.repMapPlot}>
         <div className={styles.repMapYax}>
-          <span className={styles.repMapAxArrow}>↑上昇</span>
+          <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>↑上昇</span>
           <span className={styles.repMapAxName}>株価 1ヶ月</span>
-          <span className={styles.repMapAxArrow}>↓下落</span>
+          <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>↓下落</span>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
-          {/* PER位置の3ゾーン背景 */}
           <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.06)" />
           <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.04)" />
           <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.06)" />
-          {/* 目盛り: +20% / 0 / -20% の横線＋ラベル */}
           {[0.2, 0, -0.2].map(g => (
             <g key={g}>
               <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="var(--line)" strokeWidth="0.6" strokeDasharray={g === 0 ? '4 3' : '2 4'} />
-              <text x={L - 2} y={y(g) + 2} fontSize="5" fill="var(--text-3)" textAnchor="end">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
+              <text x={L - 2} y={y(g) + 2} fontSize="5" fill="var(--text-2)" textAnchor="end">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
             </g>
           ))}
           <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-          {/* ラベルは重ならない分だけ。重なる銘柄は小さな点（タップで詳細） */}
-          {nodes.map(({ r, px, py, name, anchor, tx, label }) => {
+          {/* 全銘柄の社名を表示（色＝上昇緑/下落赤）。ずらした分は実位置へ細い引き出し線 */}
+          {nodes.map(({ r, px, py, ny, name, anchor, tx }) => {
+            const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--text-2)'
             const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-                {label ? (
-                  <text x={tx} y={py} fontSize={FS} fontWeight="700" fill="var(--text-1)" textAnchor={anchor} dominantBaseline="central"
-                    stroke="var(--app-bg)" strokeWidth="1.7" paintOrder="stroke">{name}</text>
-                ) : (
-                  <circle cx={px} cy={py} r={1.6} fill="var(--text-3)" />
-                )}
+                {Math.abs(ny - py) > 3 && <line x1={px} y1={py} x2={tx} y2={ny} stroke="var(--line-strong)" strokeWidth="0.4" />}
+                <circle cx={px} cy={py} r={1} fill={c} />
+                <text x={tx} y={ny} fontSize={FS} fontWeight="700" fill={c} textAnchor={anchor} dominantBaseline="central"
+                  stroke="var(--app-bg)" strokeWidth="1.6" paintOrder="stroke">{name}</text>
                 <title>{title}</title>
               </g>
             )
@@ -4575,11 +4587,10 @@ function PositionMap({ rows, hearts, onClickCode }: {
         </svg>
       </div>
       <div className={styles.repMapXax}>
-        <span className={styles.repMapAxArrow}>← 安値圏</span>
+        <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>← 安値圏</span>
         <span className={styles.repMapAxName}>PER位置（過去1年レンジ）</span>
-        <span className={styles.repMapAxArrow}>高値圏 →</span>
+        <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>高値圏 →</span>
       </div>
-      <div className={styles.repMapNoteSmall}>※ 名前が重なる銘柄は「・」で表示（タップで詳細）。「♥のみ」だと見やすいです。</div>
     </div>
   )
 }

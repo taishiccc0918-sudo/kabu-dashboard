@@ -432,14 +432,14 @@
 
 /* bulk add panel（銘柄管理 一括登録） */
 .bulkAddPanel {
-  background: rgba(22,27,34,0.9); border: 1px solid #30363d;
+  background: var(--surface-1); border: 1px solid var(--line);
   border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
 }
 .bulkAddLabel {
   font-size: 12px; color: #8b949e; margin-bottom: 10px;
 }
 .bulkAddTextarea {
-  width: 100%; background: #0d1117; border: 1px solid #30363d;
+  width: 100%; background: var(--surface-0); border: 1px solid var(--line-strong);
   border-radius: 6px; color: var(--text-1);
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px;
   padding: 8px 10px; resize: vertical; margin-bottom: 10px; outline: none;

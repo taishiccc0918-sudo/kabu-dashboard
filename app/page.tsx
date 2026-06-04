@@ -2394,7 +2394,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
               onClick={() => setDatePickerOpen(true)}
               title={localDate ? `決算日: ${localDate}` : '決算日を設定'}
             >
-              {localDate ? localDate.slice(5).replace('-', '/') : <span style={{color:'#2a3a52'}}>—</span>}
+              {localDate ? localDate.slice(5).replace('-', '/') : <span style={{color:'var(--text-3)'}}>—</span>}
             </button>
           )}
         </td>

@@ -3306,23 +3306,20 @@ function useLogoMap(): Record<string, string> | null {
   return _logoMap
 }
 
-// 企業ロゴ。段階フォールバック: ①登録ロゴ(Clearbit/Wikidata) → ②公式サイトのファビコン
-// （ドメインが分かる場合＝公式HPから取得） → ③ジャンル色のイニシャルチップ。誤ロゴにはならない。
+// 企業ロゴ。登録ロゴ(Clearbit/Wikidata)があれば表示、無い/読込失敗なら社名の頭文字チップ。
+// （※ファビコン代替は不明ドメインで「地球儀」アイコンを返してしまうため不採用）
 function CompanyLogo({ code, name, genre, size = 28, radius = 8 }: {
   code: string; name?: string; genre?: string; size?: number; radius?: number
 }) {
   const map = useLogoMap()
-  const [stage, setStage] = useState(0) // 0:登録ロゴ 1:ファビコン 2:チップ
+  const [failed, setFailed] = useState(false)
   const url = map?.[code]
-  // Clearbit URL なら公式ドメインが分かる → ②でその公式サイトのファビコンに切替できる
-  const host = url && url.includes('logo.clearbit.com/') ? url.split('logo.clearbit.com/')[1].split('?')[0] : null
-  const src = stage === 0 ? url : stage === 1 && host ? `https://www.google.com/s2/favicons?domain=${host}&sz=128` : null
-  if (src) {
+  if (url && !failed) {
     return (
       <span className={styles.coLogo} style={{ width: size, height: size, borderRadius: radius }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer"
-          onError={() => setStage(s => (s === 0 && host ? 1 : 2))}
+        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </span>
     )
@@ -4448,7 +4445,7 @@ function DetailPanel({
             { label: 'みんかぶ',   domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${r.code}` },
             { label: 'Buffett',    domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${r.code}` },
             { label: 'TradingView',domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${r.code}` },
-            { label: 'YouTube',    domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code + ' 決算 IR')}` },
+            { label: 'YouTube',    domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code)}` },
           ].map(l => (
             <a key={l.label} className={styles.detailLinkBtn} href={l.href} target="_blank" rel="noopener noreferrer">
               <img className={styles.detailLinkIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={18} height={18} loading="lazy" />
@@ -4511,64 +4508,51 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
-  const logos = useLogoMap()
   const pts = rows.filter(r => r.perBand?.position != null && r.chg1m != null)
-  const W = 360, H = 240, L = 30, R = 14, T = 16, B = 22
+  const W = 360, H = 240, L = 8, R = 10, T = 12, B = 14
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.2
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   const y0 = y(0)
-  const cy = T + ph / 2
-  // ロゴが無い銘柄に出す短い社名（漢字/カナを4字程度）
-  const shortName = (n: string) => (n || '').replace(/[（(].*$/, '').slice(0, 5)
+  // プロットに出す短い社名（漢字/カナを5字程度・括弧以降や英字社名後半を省く）
+  const shortName = (n: string) => (n || '').replace(/[（(].*$/, '').slice(0, 6)
   return (
     <div className={styles.repMapWrap}>
-      <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
-        {/* PER位置の3ゾーン背景（PER位置バーの配色と一致） */}
-        <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.07)" />
-        <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.05)" />
-        <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.07)" />
-        {/* 株価0%ライン */}
-        <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
-        <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-        {/* 縦軸ラベル（株価1ヶ月・上=上昇/下=下落） */}
-        <text x={9} y={cy} fontSize="7" fontWeight="700" fill="var(--text-2)" textAnchor="middle" transform={`rotate(-90 9 ${cy})`}>株価 1ヶ月</text>
-        <text x={L - 3} y={T + 5} fontSize="6" fill="var(--up)" textAnchor="end">↑上昇</text>
-        <text x={L - 3} y={H - B} fontSize="6" fill="var(--down)" textAnchor="end">↓下落</text>
-        <text x={L - 3} y={y0 + 2} fontSize="5.5" fill="var(--text-3)" textAnchor="end">±0%</text>
-        {/* ロゴがあれば丸に収めたアイコン、無ければ社名テキスト（色＝1ヶ月の上下） */}
-        {pts.map(r => {
-          const px = x(r.perBand!.position!), py = y(r.chg1m!)
-          const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
-          const logo = logos?.[r.code]
-          const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
-          if (logo) {
-            const rad = 9.5, cid = `lgm-${r.code}`
+      <div className={styles.repMapPlot}>
+        {/* 縦軸（X軸と同じ体裁） */}
+        <div className={styles.repMapYax}>
+          <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>↑上昇</span>
+          <span className={styles.repMapAxName}>株価 1ヶ月</span>
+          <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>↓下落</span>
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
+          {/* PER位置の3ゾーン背景 */}
+          <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.07)" />
+          <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.05)" />
+          <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.07)" />
+          <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
+          <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
+          {/* 全点を社名テキストで（アイコンは廃止＝重なって見にくいため）。色＝1ヶ月の上下 */}
+          {pts.map(r => {
+            const px = x(r.perBand!.position!), py = y(r.chg1m!)
+            const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
+            const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-                <clipPath id={cid}><circle cx={px} cy={py} r={rad} /></clipPath>
-                <circle cx={px} cy={py} r={rad} fill="#fff" stroke="var(--line)" strokeWidth="0.6" />
-                <image href={logo} x={px - rad + 1} y={py - rad + 1} width={(rad - 1) * 2} height={(rad - 1) * 2}
-                  clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid meet" />
+                <circle cx={px} cy={py} r={6} fill="transparent" />
+                <text x={px} y={py} fontSize="6" fontWeight="700" fill={c} textAnchor="middle" dominantBaseline="central"
+                  stroke="var(--app-bg)" strokeWidth="1.7" paintOrder="stroke" style={{ pointerEvents: 'none' }}>{shortName(r.name)}</text>
                 <title>{title}</title>
               </g>
             )
-          }
-          return (
-            <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-              <circle cx={px} cy={py} r={7} fill="transparent" />
-              <text x={px} y={py} fontSize="6" fontWeight="700" fill={c} textAnchor="middle" dominantBaseline="central"
-                stroke="var(--app-bg)" strokeWidth="1.6" paintOrder="stroke" style={{ pointerEvents: 'none' }}>{shortName(r.name)}</text>
-              <title>{title}</title>
-            </g>
-          )
-        })}
-      </svg>
+          })}
+        </svg>
+      </div>
       <div className={styles.repMapXax}>
-        <span>← PERが安値圏</span>
-        <span>横軸＝PER位置（自分の過去1年レンジ）</span>
-        <span>高値圏 →</span>
+        <span className={styles.repMapAxArrow}>← 安値圏</span>
+        <span className={styles.repMapAxName}>PER位置（過去1年レンジ）</span>
+        <span className={styles.repMapAxArrow}>高値圏 →</span>
       </div>
       <div className={styles.repMapLegend}>
         <span><span className={styles.repLegendDot} style={{ background: 'var(--up)' }} />1ヶ月 上昇</span>
@@ -4733,7 +4717,7 @@ function WeeklyReport({
       <div className={styles.repMapCard}>
         <div className={styles.repMapTitle}>俯瞰マップ</div>
         <div className={styles.repMapDesc}>
-          横＝PER位置（安値圏←→高値圏／各銘柄の過去1年レンジ内）、縦＝株価1ヶ月（上=上昇）。点をタップで詳細。
+          ウォッチ銘柄が「PERが割安か割高か（横）× 直近1ヶ月で上がったか下がったか（縦）」のどこにいるかの一覧地図。
         </div>
         {mapEligible.length === 0
           ? <div className={styles.rpEmpty}>マップに出せる銘柄がありません（PER位置の算出待ち）</div>

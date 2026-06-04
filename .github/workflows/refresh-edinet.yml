@@ -11,7 +11,7 @@ on:
 jobs:
   refresh-edinet:
     runs-on: ubuntu-latest
-    timeout-minutes: 55       # 日付走査(最大400日×約4秒)＋書類CSV取得の余裕
+    timeout-minutes: 90       # 日付走査(最大400日×約4秒)＋書類CSV取得＋初回のAI要約の余裕
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,5 +24,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EDINET_API_KEY: ${{ secrets.EDINET_API_KEY }}
-          # 事業内容のAI要約用（未設定なら原文抜粋にフォールバック）
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 事業内容のAI要約用（Gemini・無料枠。未設定なら原文抜粋に自動フォールバック）
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -29,8 +29,8 @@ function normalizeUrl(raw: string): string {
 const SUPABASE_URL = normalizeUrl(process.env.SUPABASE_URL ?? '')
 const SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
 const API_KEY = (process.env.EDINET_API_KEY ?? '').trim()
-const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY ?? '').trim()
-const ANTHROPIC_MODEL = (process.env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest').trim()
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY ?? '').trim()
+const GEMINI_MODEL = (process.env.GEMINI_MODEL ?? 'gemini-2.0-flash').trim()
 const FALLBACK_WATCHLIST = ['7203', '8306', '8058']
 const MAX_DAYS = Number(process.env.EDINET_MAX_DAYS ?? 400) // 有報1サイクル分を走査
 const LIST_INTERVAL_MS = 3800 // EDINETレート制限（仕様3〜5秒間隔）
@@ -42,11 +42,11 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: fal
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
 
-// 事業内容を中立な説明文に要約する。
+// 事業内容を中立な説明文に要約する（Gemini・無料枠で十分）。
 // 【捏造ゼロ】入力はEDINET原文「のみ」。記憶からの生成・推測・評価・将来予測・投資判断は禁止する指示。
 // 失敗時・キー未設定時は null（呼び出し側は原文抜粋にフォールバック）。
 async function summarizeBiz(raw: string): Promise<string | null> {
-  if (!ANTHROPIC_API_KEY || !raw) return null
+  if (!GEMINI_API_KEY || !raw) return null
   const prompt =
     '以下は、ある企業の有価証券報告書「事業の内容」の原文です。\n' +
     'この原文に【明記されている事実だけ】を使い、第三者がその会社を説明する中立な文体で要約してください。\n' +
@@ -57,23 +57,18 @@ async function summarizeBiz(raw: string): Promise<string | null> {
     '・100〜180字程度、日本語、出力は要約文のみ（前置き・引用符なし）。\n\n' +
     '【原文】\n' + raw
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 400,
-        temperature: 0,
-        messages: [{ role: 'user', content: prompt }],
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 400 },
       }),
     })
     if (!res.ok) { console.warn(`  要約API ${res.status}`); return null }
-    const json = await res.json() as { content?: { type: string; text?: string }[] }
-    const text = (json.content ?? []).filter(c => c.type === 'text').map(c => c.text ?? '').join('').trim()
+    const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+    const text = (json.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? '').join('').trim()
     return text || null
   } catch (e) {
     console.warn('  要約失敗:', (e as Error).message)
@@ -106,6 +101,17 @@ async function main() {
   for (const code of universe) { const e = secToEdi[code]; if (e) wantEdi.set(e, code) }
   console.log(`EDINETコードが判明した銘柄: ${wantEdi.size}`)
 
+  // 既存の蓄積（差分判定用）: 有報docIDが同じ＆要約済みなら再処理しない＝AI/取得を最小化
+  const existing = new Map<string, { doc_id: string | null; biz_desc: string | null }>()
+  try {
+    const { data } = await sb.from('company_factsheet').select('code,doc_id,biz_desc')
+    for (const r of (data ?? []) as { code: string; doc_id: string | null; biz_desc: string | null }[]) {
+      existing.set(r.code, { doc_id: r.doc_id, biz_desc: r.biz_desc })
+    }
+  } catch { /* テーブル未作成等は無視（全件新規扱い） */ }
+  // 原文抜粋（当社…）かどうかの判定。AI要約はこれらを主語にしない＝要約済みと見分けられる
+  const looksRaw = (s: string | null) => !s || /^(当社|当グループ|当連結|連結財務諸表提出会社|同社)/.test(s)
+
   // ② 新しい日付から過去へ走査して最新の有報を1件ずつ確定
   const foundByCode = new Map<string, Found>()
   const today = new Date()
@@ -123,9 +129,13 @@ async function main() {
   }
   console.log(`有報を発見: ${foundByCode.size} 銘柄。CSV取得＆抽出します`)
 
-  // ③ CSV取得→抽出→upsert
-  let ok = 0, fail = 0
+  // ③ CSV取得→抽出→upsert（有報が前回と同じ＆要約済みはスキップ＝AI/取得を最小化）
+  let ok = 0, fail = 0, skip = 0
   for (const f of foundByCode.values()) {
+    const ex0 = existing.get(f.code)
+    const docUnchanged = !!ex0 && ex0.doc_id === f.docID
+    const alreadySummarized = !!ex0 && !looksRaw(ex0.biz_desc)
+    if (docUnchanged && alreadySummarized) { skip++; continue } // 新規提出なし＆要約済み→何もしない
     try {
       const rows = await fetchDocCsv(f.docID, API_KEY)
       if (rows.length === 0) { fail++; await sleep(DOC_INTERVAL_MS); continue }
@@ -154,7 +164,7 @@ async function main() {
     }
     await sleep(DOC_INTERVAL_MS)
   }
-  console.log(`完了: 成功 ${ok} / 失敗 ${fail}`)
+  console.log(`完了: 成功 ${ok} / スキップ(変更なし) ${skip} / 失敗 ${fail}`)
 }
 
 main().catch(e => { console.error(e); process.exit(1) })

@@ -14,7 +14,7 @@ import { createClient } from './lib/supabase/client'
 
 // ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
 // （StockRow は genres:string[] のため、見出しクリックは「主ジャンル genres[0]」で並び替える）
-type SortKeyEx = keyof StockRow | 'genre' | 'perPos'
+type SortKeyEx = keyof StockRow | 'genre' | 'perPos' | 'earnings'
 
 interface DropdownResult {
   code: string
@@ -1020,6 +1020,15 @@ export default function Page() {
           const c = ag.localeCompare(bg, 'ja') * sortDir
           return c !== 0 ? c : a.code.localeCompare(b.code)
         }
+        // 決算が近い順。次回決算発表日（手動入力＞J-Quants自動取得）の昇順=近い順。未取得は末尾
+        if (sortKey === 'earnings') {
+          const ad = earningsDates[a.code] || finDB[a.code]?.nextAnnouncementDate || ''
+          const bd = earningsDates[b.code] || finDB[b.code]?.nextAnnouncementDate || ''
+          if (!ad && !bd) return a.code.localeCompare(b.code)
+          if (!ad) return 1
+          if (!bd) return -1
+          return ad.localeCompare(bd) * sortDir
+        }
         // PER位置（直近1年レンジ内の現在地）。算出不可は常に末尾。割安順=昇順
         if (sortKey === 'perPos') {
           const ap = a.perBand?.position
@@ -1038,7 +1047,7 @@ export default function Page() {
       })
     }
     return rows
-  }, [allRows, search, stockMeta, filterHeart, filterFav, superFavorites, favorites, mktFilter, genreFilters, mcapMin, perFMax, sortKey, sortDir])
+  }, [allRows, search, stockMeta, filterHeart, filterFav, superFavorites, favorites, mktFilter, genreFilters, mcapMin, perFMax, sortKey, sortDir, finDB, earningsDates])
 
   // ── 検索ドロップダウン候補生成（debounce 300ms）────────────────────
   useEffect(() => {
@@ -1577,6 +1586,7 @@ export default function Page() {
                 aria-label="並べ替え"
               >
                 <option value="">標準（コード順）</option>
+                <option value="earnings|asc">決算が近い順</option>
                 <option value="perPos|asc">PER：直近1年で低い水準の順</option>
                 <option value="perPos|desc">PER：直近1年で高い水準の順</option>
                 <option value="perF|asc">今期PER：低い順</option>
@@ -1597,6 +1607,7 @@ export default function Page() {
                     key={r.code}
                     row={r}
                     sortKey={sortKey}
+                    earnDate={earningsDates[r.code] || finDB[r.code]?.nextAnnouncementDate || ''}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
@@ -3178,8 +3189,8 @@ function sortMetricDisplay(r: StockRow, sortKey: SortKeyEx | null): { value: str
 }
 
 // ─── SpStockRow（SP専用・1銘柄1行。"いつ買うか"＝PER位置バーが主役）──────────
-function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
-  row: StockRow; sortKey: SortKeyEx | null
+function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow; sortKey: SortKeyEx | null; earnDate?: string
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
   onClick: () => void
@@ -3195,9 +3206,11 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
   const zoneText = hasPos ? `${fmtN(band!.fwdPER)}倍 ${zone!.label}`
     : hasBar ? '予想なし'
     : (band?.reason ? (PER_BAND_REASON_LABEL[band.reason] ?? '—') : '—')
-  // 右側の値: 並べ替え中はその指標値、未指定なら前日比
+  // 右側の値: 決算ソート中は決算日、その他並べ替え中はその指標値、未指定なら前日比
   const sm = sortMetricDisplay(r, sortKey)
-  const sub = sm ?? { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
+  const sub = sortKey === 'earnings'
+    ? { value: earnDate ? earnDate.replace(/^\d{4}[-/]/, '').replace(/-/g, '/') : '未取得', cls: '' }
+    : (sm ?? { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) })
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowTop}>

@@ -1021,11 +1021,11 @@
 .spList { display: flex; flex-direction: column; }
 /* 1行 = 上段(銘柄基本情報+株価) + 下段(PER位置バー＝主役) */
 .spRow {
-  display: flex; flex-direction: column; gap: 7px;
-  padding: 10px 12px 11px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 5px 10px 5px;
   background: var(--surface-0);
   border-bottom: 1px solid var(--line);
-  border-left: 4px solid var(--flat);   /* 当日の方向を左帯で表現 */
+  border-left: 3px solid var(--flat);   /* 当日の方向を左帯で表現 */
   cursor: pointer; box-sizing: border-box;
 }
 .spRow:active { background: var(--surface-hover); }
@@ -1033,34 +1033,24 @@
 .spBar_down { border-left-color: var(--down); }
 .spBar_flat { border-left-color: var(--flat); }
 
-.spRowHead { display: flex; align-items: center; gap: 8px; }
+.spRowHead { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.spRowSpacer { flex: 1; }
 
-/* ♥（超お気に入り）トグルのみ。★は一覧＝全部★なので非表示 */
-.spRowFavCol { display: flex; align-items: center; flex-shrink: 0; }
+/* ♥（超お気に入り）トグルのみ・コンパクト */
 .spRowFav {
-  background: none; border: none; cursor: pointer;
-  font-size: 20px; line-height: 1; width: 36px; height: 40px;
+  background: none; border: none; cursor: pointer; flex-shrink: 0;
+  font-size: 15px; line-height: 1; width: 24px; height: 22px;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-3); padding: 0;
 }
 .spRowFavHeart { color: #f43f5e; }
 
-/* 銘柄名 + コード/市場/ジャンル/時価総額（基本情報＝小さめ） */
-.spRowMain { flex: 1; min-width: 0; }
+/* 銘柄名＋コード＋市場を1行に */
 .spRowName {
-  font-size: 15px; font-weight: 700; color: var(--text-1); line-height: 1.25;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px; font-weight: 700; color: var(--text-1); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex-shrink: 1;
 }
-.spRowSub { display: flex; align-items: center; gap: 6px; margin-top: 2px; min-width: 0; }
-.spRowCode { font-size: 11.5px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
-.spRowGenre {
-  font-size: 11px; color: var(--text-3); flex-shrink: 1;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.spRowMcap {
-  font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace;
-  flex-shrink: 0;
-}
+.spRowCode { font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
 
 /* 現在値 + 前日比 */
 .spRowPriceCol { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
@@ -1071,15 +1061,15 @@
 }
 .spRowDay { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; line-height: 1.2; margin-top: 1px; }
 
-/* 並べ替え中の指標値（右上） */
+/* 並べ替え中の指標値（行右） */
 .spRowSortVal {
-  flex-shrink: 0; align-self: flex-start; text-align: right;
-  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+  flex-shrink: 0; text-align: right;
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700;
   color: var(--text-1); white-space: nowrap;
 }
 
-/* 主役: PER位置バー */
-.spRowBand { padding: 0 2px; }
+/* PER位置バー（コンパクト） */
+.spRowBand { padding: 0 1px; }
 
 /* 時価総額/PER数値絞り込みのまとめ（PCは元の並びを維持＝display:contents、SPはspHideで非表示） */
 .filterNumGroup { display: contents; }
@@ -2588,7 +2578,7 @@
 /* ── WEEKLY REPORT ──────────────────────────────────── */
 /* ── レポートタブ：全面トークン化（2026-06-02・ライト/ダーク両対応） ── */
 .reportRoot {
-  padding: 24px 28px; max-width: 900px; margin: 0 auto;
+  padding: 24px 28px; max-width: 1280px; margin: 0 auto;
 }
 .rpHdr {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;

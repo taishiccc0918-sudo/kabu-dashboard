@@ -1388,7 +1388,7 @@ export default function Page() {
               <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
                 <input
                   className={styles.wlHeaderSearch}
-                  placeholder="🔍 銘柄検索（複数は , 区切りで一括登録）"
+                  placeholder="🔍 銘柄検索（, で一括追加）"
                   value={wlSearch}
                   onChange={e => { setWlSearch(e.target.value); setWlShowDropdown(true); setWlPage(1) }}
                   onFocus={() => setWlShowDropdown(true)}
@@ -3180,26 +3180,20 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowHead}>
-        <div className={styles.spRowFavCol}>
-          <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
-            onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
-            {isSuperFav ? '♥' : '♡'}
-          </button>
-        </div>
-        <div className={styles.spRowMain}>
-          <div className={styles.spRowName}>{r.name || '—'}</div>
-          <div className={styles.spRowSub}>
-            <span className={styles.spRowCode}>{r.code}</span>
-            <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-            {r.genres[0] && <span className={styles.spRowGenre}>{r.genres[0]}</span>}
-            {r.mcap ? <span className={styles.spRowMcap}>{mcapShort(r.mcap)}</span> : null}
-          </div>
-        </div>
-        {sm && <div className={`${styles.spRowSortVal} ${sm.cls ? styles[sm.cls] : ''}`}>{sm.value}</div>}
+        <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
+          onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
+          {isSuperFav ? '♥' : '♡'}
+        </button>
+        {/* 1行に集約: 銘柄名＋コード＋市場（高さ半減） */}
+        <span className={styles.spRowName}>{r.name || '—'}</span>
+        <span className={styles.spRowCode}>{r.code}</span>
+        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+        <span className={styles.spRowSpacer} />
+        {sm && <span className={`${styles.spRowSortVal} ${sm.cls ? styles[sm.cls] : ''}`}>{sm.value}</span>}
       </div>
-      {/* 主役: PER位置バー（直近1年レンジ内の現在地＝買いタイミングの目安） */}
+      {/* PER位置バー（コンパクト） */}
       <div className={styles.spRowBand}>
-        <PerBandBar band={r.perBand} likePer={r.likePer} big />
+        <PerBandBar band={r.perBand} likePer={r.likePer} />
       </div>
     </div>
   )
@@ -4067,15 +4061,11 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         <div>
           <div className={styles.feedTitle}>お気に入り銘柄ニュース</div>
           <div className={styles.newsCount}>
-            {items !== null ? `${filtered.length} / ${items.length}件・直近3ヶ月・${feedSort === 'new' ? '新着順' : '重要度順'}` : '—'}
+            {items !== null ? `${filtered.length} / ${items.length}件・直近3ヶ月・新着順` : '—'}
             {fetchedAt && <span> ・ 取得 {fmtRelTime(new Date(fetchedAt).toISOString())}</span>}
           </div>
         </div>
         <div className={styles.feedActions}>
-          <div className={styles.newsSortBtns}>
-            <button className={`${styles.newsSortBtn} ${feedSort === 'new' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('new'); setVisible(FEED_DISPLAY_STEP) }} title="新しい順">新着</button>
-            <button className={`${styles.newsSortBtn} ${feedSort === 'important' ? styles.newsSortBtnActive : ''}`} onClick={() => { setFeedSort('important'); setVisible(FEED_DISPLAY_STEP) }} title="決算・適時開示・公式IRを上位に">重要度</button>
-          </div>
           <button
             className={`${styles.newsSortBtn} ${styles.newsHeartToggle} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`}
             onClick={() => { setScope(s => s === 'hearts' ? 'all' : 'hearts'); setVisible(FEED_DISPLAY_STEP) }}
@@ -4514,10 +4504,10 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
-  const W = 360, H = 240, L = 22, R = 10, T = 12, B = 12
+  const W = 480, H = 250, L = 24, R = 12, T = 12, B = 12
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
-  const FS = 6       // ラベル文字サイズ（SVG単位）
+  const FS = 7       // ラベル文字サイズ（SVG単位。viewBox拡大に合わせ可読性維持）
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   // 社名は株式会社/括弧/HD表記を省いてフル表示（途中で切らない）
@@ -4670,12 +4660,12 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
       {/* EPS実績ビジュアル */}
       <EpsBars fyEps={fin?.fyEps} />
 
-      {/* 気づき（事実のみ） */}
-      <div className={styles.repInsight}>
-        <span className={styles.repInsightDot} style={{ background: repZone(r.perBand?.position).color }} />
-        <span>{repInsight(r)}</span>
-        {newsN > 0 && <span className={styles.repNews}>📰 今週{newsN}件</span>}
-      </div>
+      {/* コメント（気づき文）は本人要望で廃止。今週のニュース件数のみ残す */}
+      {newsN > 0 && (
+        <div className={styles.repInsight}>
+          <span className={styles.repNews}>📰 今週{newsN}件</span>
+        </div>
+      )}
     </div>
   )
 }

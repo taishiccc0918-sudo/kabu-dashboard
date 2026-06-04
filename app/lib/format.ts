@@ -45,6 +45,14 @@ export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('グロース'))     return { label: 'グロース',     cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
+
+// 全角英数字・記号を半角に（例: Ｓｙｎｓｐｅｃｔｉｖｅ → Synspective）。
+// カタカナ・漢字(全角和文)はそのまま。英語名の銘柄が間延びして見えるのを防ぐ表示用正規化。
+export function halfWidthAscii(s: string): string {
+  return s
+    .replace(/[！-～]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/　/g, ' ')
+}
 // [旧ロジック: Step1で新エンジンに置換。緊急ロールバック用に残す]
 // export function getJudgment(perFChg1m: number | null | undefined): string {
 //   if (perFChg1m == null) return ''
@@ -96,7 +104,7 @@ export function buildStockRow(
 
   return {
     code,
-    name:       m?.name   ?? '',
+    name:       halfWidthAscii(m?.name ?? ''),
     market:     m?.market ?? '',
     genres,
     close,

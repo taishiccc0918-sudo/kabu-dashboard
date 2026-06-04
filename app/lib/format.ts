@@ -40,9 +40,9 @@ export function isDataStale(dateStr: string, days = 90): boolean {
   return daysSince(dateStr) >= days
 }
 export function marketShort(mkt: string): { label: string; cls: string } {
-  if (mkt.includes('プライム'))     return { label: 'Prime',    cls: 'prime' }
-  if (mkt.includes('スタンダード')) return { label: 'Standard', cls: 'standard' }
-  if (mkt.includes('グロース'))     return { label: 'Growth',   cls: 'growth' }
+  if (mkt.includes('プライム'))     return { label: 'プライム',     cls: 'prime' }
+  if (mkt.includes('スタンダード')) return { label: 'スタンダード', cls: 'standard' }
+  if (mkt.includes('グロース'))     return { label: 'グロース',     cls: 'growth' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
 }
 // [旧ロジック: Step1で新エンジンに置換。緊急ロールバック用に残す]

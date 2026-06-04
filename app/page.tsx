@@ -1441,7 +1441,7 @@ export default function Page() {
                   <button key={k}
                     className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
                     onClick={() => { setWlMktF(k); setWlPage(1) }}
-                  >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+                  >{{all:'全市場',prime:'プライム',standard:'スタンダード',growth:'グロース'}[k]}</button>
                 ))}
               </div>
               {/* SP: 市場プルダウン＋ジャンルプルダウン（横スクロールのチップ列を廃止して統合） */}
@@ -1452,9 +1452,9 @@ export default function Page() {
                 aria-label="市場で絞り込み"
               >
                 <option value="all">全市場</option>
-                <option value="prime">Prime</option>
-                <option value="standard">Standard</option>
-                <option value="growth">Growth</option>
+                <option value="prime">プライム</option>
+                <option value="standard">スタンダード</option>
+                <option value="growth">グロース</option>
               </select>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
               <button
@@ -1497,7 +1497,7 @@ export default function Page() {
                 <button key={k}
                   className={`${styles.filterBtn} ${styles['mktBtn_'+k]} ${mktFilter === k ? styles.filterBtnActive : ''}`}
                   onClick={() => setMktFilter(k)}
-                >{{all:'全市場',prime:'Prime',standard:'Standard',growth:'Growth'}[k]}</button>
+                >{{all:'全市場',prime:'プライム',standard:'スタンダード',growth:'グロース'}[k]}</button>
               ))}
             </div>
             <select
@@ -1507,9 +1507,9 @@ export default function Page() {
               aria-label="市場で絞り込み"
             >
               <option value="all">全市場</option>
-              <option value="prime">Prime</option>
-              <option value="standard">Standard</option>
-              <option value="growth">Growth</option>
+              <option value="prime">プライム</option>
+              <option value="standard">スタンダード</option>
+              <option value="growth">グロース</option>
             </select>
             <div className={styles.filterDivider} />
             <div className={styles.filterGenreWrap}>
@@ -4877,7 +4877,7 @@ function WeeklyReport({
 const USAGE_ITEMS = [
   { title: 'データ取得',   desc: 'ページを開くと株価・財務データを自動取得します。「再読込 ↺」ボタンで手動再取得も可能です。取得済みデータはブラウザに一時保存されます。' },
   { title: '銘柄検索',     desc: 'ツールバーの検索欄で銘柄名・コード・メモキーワードを入力するとドロップダウンが表示されます。選択するとその銘柄の行にジャンプしてハイライトします。' },
-  { title: '絞り込み',     desc: '「フィルター」ボタンでジャンル・時価総額・PER今期による絞り込みができます。ツールバーの市場ボタン（Prime/Standard/Growth）でも絞り込めます。' },
+  { title: '絞り込み',     desc: '「フィルター」ボタンでジャンル・時価総額・PER今期による絞り込みができます。ツールバーの市場ボタン（プライム/スタンダード/グロース）でも絞り込めます。' },
   { title: 'ソート',       desc: 'テーブルのヘッダーをクリックするとその列でソートされます。再クリックで昇順/降順が切り替わります。' },
   { title: '詳細パネル',   desc: '行をクリックすると右側から詳細パネルが開き、財務情報・チャート・メモを確認できます。パネル外クリックまたは×ボタンで閉じます。' },
   { title: '銘柄管理',     desc: '「銘柄管理」ボタンでウォッチリストの追加・削除、ジャンルタグ・メモの編集ができます。メモ内容からも銘柄を検索できます。' },

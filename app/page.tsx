@@ -312,8 +312,16 @@ export default function Page() {
     document.body.style.overflow = detailCode ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [detailCode])
+  // タブを切り替えたら開いている詳細パネルを閉じる（別画面に移ったのにパネルが残る違和感を解消）
+  useEffect(() => { setDetailCode(null) }, [tab])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
+  // html/body の最背面もテーマに追従（ライト時に最背面がダークのまま透けて、右端や余白が黒く見えるのを防ぐ）
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.body.classList.toggle('lightTheme', !darkMode)
+    document.documentElement.classList.toggle('lightTheme', !darkMode)
+  }, [darkMode])
   // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
   // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
   useEffect(() => {

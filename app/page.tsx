@@ -4704,6 +4704,33 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
   )
 }
 
+// 注目ランキングの1ブロック（割安/高値/上昇/下落）
+function RankList({ title, hint, rows, kind, onClickCode }: {
+  title: string; hint: string; rows: StockRow[]; kind: 'per' | 'up' | 'down'; onClickCode: (c: string) => void
+}) {
+  if (rows.length === 0) return null
+  return (
+    <div className={styles.rankSec}>
+      <div className={styles.rankTitle}>{title}{hint && <span className={styles.rankHint}>{hint}</span>}</div>
+      <div className={styles.rankList}>
+        {rows.map(r => {
+          let val = '—', color: string | undefined, cls = ''
+          if (kind === 'per' && r.perBand?.position != null) {
+            const z = perBandZone(r.perBand.position); val = `${fmtN(r.perBand.fwdPER)}倍 ${z.label}`; color = z.color
+          } else { val = fmtPct(r.chg1m); cls = pctClass(r.chg1m) }
+          return (
+            <button key={r.code} className={styles.rankRow} onClick={() => onClickCode(r.code)}>
+              <span className={styles.rankName}>{r.name || r.code}</span>
+              <span className={styles.rankCode}>{r.code}</span>
+              <span className={`${styles.rankVal} ${cls ? styles[cls] : ''}`} style={color ? { color } : undefined}>{val}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function WeeklyReport({
   allRows, finDB, favorites, superFavorites, onClickCode,
 }: {
@@ -4752,6 +4779,14 @@ function WeeklyReport({
   const mapEligible = useMemo(() =>
     scoped.filter(r => r.perBand?.position != null && r.chg1m != null), [scoped])
 
+  // 注目ランキング（スマホで指スクロールだけで"気づき"が得られる）
+  const [showMap, setShowMap] = useState(false)
+  const withPos = useMemo(() => scoped.filter(r => r.perBand?.position != null), [scoped])
+  const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 6), [withPos])
+  const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 6), [withPos])
+  const upRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => b.chg1m! - a.chg1m!).slice(0, 6), [scoped])
+  const downRank = useMemo(() => [...scoped].filter(r => r.chg1m != null).sort((a, b) => a.chg1m! - b.chg1m!).slice(0, 6), [scoped])
+
   const today = new Date()
   const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`
 
@@ -4770,18 +4805,22 @@ function WeeklyReport({
         </div>
       </div>
 
-      {/* 俯瞰マップ */}
+      {/* 注目ランキング（主役）。指スクロールだけで気づきが得られる */}
+      <div className={styles.rankGrid}>
+        <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
+        <RankList title="🔴 高値圏で警戒" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
+        <RankList title="📉 直近1ヶ月で下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
+        <RankList title="📈 直近1ヶ月で上昇" hint="" rows={upRank} kind="up" onClickCode={onClickCode} />
+      </div>
+
+      {/* 俯瞰マップ（補助・トグルで表示） */}
       <div className={styles.repMapCard}>
-        <div className={styles.repMapTitle}>俯瞰マップ</div>
-        <div className={styles.repMapDesc}>
-          ウォッチ銘柄が「PERが割安か割高か（横）× 直近1ヶ月で上がったか下がったか（縦）」のどこにいるかの一覧地図。
-        </div>
-        {mapEligible.length === 0
+        <button className={styles.repMapToggle} onClick={() => setShowMap(s => !s)}>
+          🗺 俯瞰マップ（PER位置×1ヶ月の動き）{showMap ? ' ▲ 隠す' : ' ▼ 見る'}
+        </button>
+        {showMap && (mapEligible.length === 0
           ? <div className={styles.rpEmpty}>マップに出せる銘柄がありません（PER位置の算出待ち）</div>
-          : <PositionMap rows={scoped} hearts={superFavorites} onClickCode={onClickCode} />}
-        {scoped.length - mapEligible.length > 0 && (
-          <div className={styles.repMapNote}>※ {scoped.length - mapEligible.length}銘柄はPER位置を算出できずマップ対象外（赤字・履歴待ち等）</div>
-        )}
+          : <PositionMap rows={scoped} hearts={superFavorites} onClickCode={onClickCode} />)}
       </div>
 
       {/* 銘柄カルテ（並べ替えはカルテ用なのでここに配置） */}

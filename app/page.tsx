@@ -2612,6 +2612,10 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
       const h = 210  // チャートを大きく。下部はX軸ラベル用に確保
       canvas.width = w; canvas.height = h
       ctx.clearRect(0, 0, w, h)
+      // テーマ対応色（ライト/ダークの設計トークンをcanvasから読む＝ライトで文字が消えない）
+      const cs = getComputedStyle(canvas)
+      const txtCol = cs.getPropertyValue('--text-2').trim() || 'rgba(170,185,205,0.92)'
+      const gridCol = cs.getPropertyValue('--line-strong').trim() || 'rgba(150,165,185,0.3)'
       const allValues = series.flatMap(s => s.prices).filter(v => v > 0)
       const min = Math.min(...allValues) * 0.98
       const max = Math.max(...allValues) * 1.02
@@ -2655,7 +2659,7 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
         // 凡例（右上に逆順で配置）。視認性のため濃く・大きく。
         const legX = w - 8 - maIdx * 56
         ctx.fillStyle = color; ctx.fillRect(legX - 46, 7, 14, 2.5)
-        ctx.fillStyle = 'rgba(220,232,248,0.95)'; ctx.font = 'bold 11px JetBrains Mono, monospace'
+        ctx.fillStyle = txtCol; ctx.font = 'bold 11px JetBrains Mono, monospace'
         ctx.fillText(label, legX - 30, 14)
       })
 
@@ -2675,9 +2679,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
             if (idx < 0) continue
             const x = toX(idx, len)
             if (x < 20 || x > w - 20) continue  // 端すぎる場合はスキップ
-            ctx.fillStyle = 'rgba(150,165,185,0.3)'
+            ctx.fillStyle = gridCol
             ctx.fillRect(Math.round(x), 16, 1, h - 34)
-            ctx.fillStyle = 'rgba(170,185,205,0.92)'
+            ctx.fillStyle = txtCol
             ctx.fillText(String(yr), x, h - 3)
           }
         } else {
@@ -2691,9 +2695,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
               const x = toX(i, len)
               if (x > 16 && x < w - 16 && x - lastLabelX > 30) {
                 lastLabelX = x
-                ctx.fillStyle = 'rgba(150,165,185,0.3)'
+                ctx.fillStyle = gridCol
                 ctx.fillRect(Math.round(x), 16, 1, h - 34)
-                ctx.fillStyle = 'rgba(170,185,205,0.92)'
+                ctx.fillStyle = txtCol
                 ctx.fillText(label, x, h - 3)
               }
             }
@@ -3742,6 +3746,13 @@ function NewsSection({ code, name }: { code: string; name: string }) {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [media, setMedia] = useState<string>('') // '' = すべての媒体
+  const [mediaOpen, setMediaOpen] = useState(false)
+  const mediaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onDown(e: MouseEvent) { if (mediaRef.current && !mediaRef.current.contains(e.target as Node)) setMediaOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -3768,12 +3779,18 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     })
   }, [articles])
 
-  // 媒体一覧（件数つき・多い順）。プルダウンの選択肢に使う。
+  // 媒体一覧（件数＋faviconのドメイン用URL・多い順）。
   const mediaList = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const a of recent) { const s = a.source || 'その他'; m.set(s, (m.get(s) ?? 0) + 1) }
-    return [...m.entries()].sort((a, b) => b[1] - a[1])
+    const m = new Map<string, { n: number; url: string }>()
+    for (const a of recent) {
+      const s = a.source || 'その他'
+      const cur = m.get(s) ?? { n: 0, url: a.sourceUrl || '' }
+      cur.n++; if (!cur.url && a.sourceUrl) cur.url = a.sourceUrl
+      m.set(s, cur)
+    }
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n)
   }, [recent])
+  const curUrl = mediaList.find(([s]) => s === media)?.[1].url ?? ''
 
   // 常に新しい順。媒体フィルターが選択されていれば絞り込む。
   const sorted = useMemo(() => {
@@ -3790,10 +3807,25 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     <>
       <div className={styles.newsSortRow}>
         <span className={styles.newsCount}>新しい順・{sorted.length}件</span>
-        <select className={styles.newsMediaSelect} value={media} onChange={e => setMedia(e.target.value)} aria-label="媒体で絞り込み">
-          <option value="">すべての媒体（{recent.length}）</option>
-          {mediaList.map(([s, n]) => <option key={s} value={s}>{s}（{n}）</option>)}
-        </select>
+        <div className={styles.newsMediaWrap} ref={mediaRef}>
+          <button className={styles.newsMediaBtn} onClick={() => setMediaOpen(o => !o)}>
+            {media && faviconUrl(curUrl) && <img className={styles.newsFavicon} src={faviconUrl(curUrl)} alt="" />}
+            {media ? media : 'すべての媒体'} ▾
+          </button>
+          {mediaOpen && (
+            <div className={styles.newsMediaPanel}>
+              <button className={`${styles.newsMediaItem} ${!media ? styles.newsMediaItemOn : ''}`} onClick={() => { setMedia(''); setMediaOpen(false) }}>
+                <span className={styles.newsMediaName}>すべての媒体</span><span className={styles.newsMediaCount}>{recent.length}</span>
+              </button>
+              {mediaList.map(([s, { n, url }]) => (
+                <button key={s} className={`${styles.newsMediaItem} ${media === s ? styles.newsMediaItemOn : ''}`} onClick={() => { setMedia(s); setMediaOpen(false) }}>
+                  {faviconUrl(url) && <img className={styles.newsFavicon} src={faviconUrl(url)} alt="" loading="lazy" />}
+                  <span className={styles.newsMediaName}>{s}</span><span className={styles.newsMediaCount}>{n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div className={styles.newsList}>
         {sorted.map((a, i) => {
@@ -4561,8 +4593,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
             const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-                {Math.abs(ny - py) > 3 && <line x1={px} y1={py} x2={tx} y2={ny} stroke="var(--line-strong)" strokeWidth="0.4" />}
-                <circle cx={px} cy={py} r={1} fill={c} />
+                {Math.abs(ny - py) > 3 && <circle cx={px} cy={py} r={1.4} fill={c} opacity={0.5} />}
                 <text x={tx} y={ny} fontSize={FS} fontWeight="700" fill={c} textAnchor={anchor} dominantBaseline="central"
                   stroke="var(--app-bg)" strokeWidth="1.6" paintOrder="stroke">{name}</text>
                 <title>{title}</title>
@@ -4749,7 +4780,7 @@ function WeeklyReport({
       <div className={styles.repCardsHead}>
         <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
         <div className={styles.repToggle}>
-          {(([['move', '動き順'], ['cheap', '割安順'], ['growth', '成長順'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
+          {(([['move', '1ヶ月の値動き'], ['cheap', 'PERが割安'], ['growth', '来期増収率'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
             <button key={k} className={sort === k ? styles.repTogActive : styles.repTog} onClick={() => setSort(k)}>{l}</button>
           ))}
         </div>

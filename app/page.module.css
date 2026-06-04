@@ -415,10 +415,10 @@
   border-radius: 3px; font-size: 10px; font-weight: 600;
   font-family: 'JetBrains Mono', 'Courier New', monospace; letter-spacing: 0.2px;
 }
-.mkt_prime    { background: rgba(59,130,246,.12);  color: #60a5fa; }
-.mkt_standard { background: rgba(16,185,129,.12);  color: #34d399; }
-.mkt_growth   { background: rgba(139,92,246,.12);  color: #a78bfa; }
-.mkt_other    { background: rgba(255,255,255,.05); color: #4e6280; }
+/* 市場タグは色を抑えてニュートラルに（ガチャガチャ感の解消。区別は文字で） */
+.mkt_prime, .mkt_standard, .mkt_growth, .mkt_other {
+  background: var(--surface-2); color: var(--text-2);
+}
 
 /* card genre badge (StockCard用) */
 .cardGenreBadge {
@@ -727,6 +727,30 @@
 }
 .newsMediaSelect:hover { border-color: var(--line-strong); }
 .newsMediaSelect:focus { outline: none; border-color: var(--accent); }
+/* メディア絞り込み: ファビコン付き独自ドロップダウン */
+.newsMediaWrap { position: relative; }
+.newsMediaBtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; padding: 5px 10px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--surface-1); color: var(--text-1);
+  cursor: pointer; font-weight: 600; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap;
+}
+.newsMediaPanel {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30;
+  min-width: 200px; max-height: 320px; overflow-y: auto;
+  background: var(--surface-0); border: 1px solid var(--line-strong);
+  border-radius: var(--r-btn); box-shadow: var(--shadow-md); padding: 4px;
+}
+.newsMediaItem {
+  display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+  padding: 7px 9px; border: none; background: none; cursor: pointer;
+  color: var(--text-1); font-size: 12.5px; border-radius: var(--r-chip);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.newsMediaItem:hover { background: var(--surface-hover); }
+.newsMediaItemOn { background: var(--accent-soft); color: var(--accent); }
+.newsMediaName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newsMediaCount { color: var(--text-3); font-family: 'JetBrains Mono', monospace; font-size: 11px; flex-shrink: 0; }
 .newsSortBtn {
   font-size: 11px; padding: 4px 11px; border-radius: var(--r-pill);
   border: 1px solid var(--line); background: var(--surface-1);
@@ -2874,9 +2898,7 @@
 .lightMode .wlChipCode { color: #475569 !important; }
 .lightMode .wlChipName { color: #64748b !important; }
 .lightMode .wlChipRemove { color: #94a3b8 !important; }
-.lightMode .mkt_prime    { background: rgba(37,99,235,0.15) !important; color: #1d4ed8 !important; border: 1px solid rgba(37,99,235,0.35) !important; }
-.lightMode .mkt_standard { background: rgba(5,150,105,0.15) !important; color: #047857 !important; border: 1px solid rgba(5,150,105,0.35) !important; }
-.lightMode .mkt_growth   { background: rgba(109,40,217,0.15) !important; color: #6d28d9 !important; border: 1px solid rgba(109,40,217,0.35) !important; }
+.lightMode .mkt_prime, .lightMode .mkt_standard, .lightMode .mkt_growth, .lightMode .mkt_other { background: var(--surface-2) !important; color: var(--text-2) !important; border: 1px solid var(--line) !important; }
 .lightMode .genreBadge   { background: rgba(0,0,0,0.07) !important; border: 1px solid rgba(0,0,0,0.18) !important; color: #334155 !important; }
 
 /* ── ライトモード: 銘柄管理画面コントラスト強化 ──────── */
@@ -3517,11 +3539,7 @@
   box-shadow: 4px 0 10px rgba(0,0,0,0.35) !important;
 }
 
-/* ── マーケットバッジ: 左カラーライン ────────── */
-.mkt_prime    { border-left: 2px solid #3b82f6 !important; }
-.mkt_standard { border-left: 2px solid #10b981 !important; }
-.mkt_growth   { border-left: 2px solid #8b5cf6 !important; }
-.mkt_other    { border-left: 1px solid #4e6280 !important; }
+/* マーケットバッジの左カラーラインは廃止（ニュートラル化） */
 
 /* ── ステータスバー: 読み込み中のリングパルス ── */
 .statusLoading {

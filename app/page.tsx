@@ -314,6 +314,17 @@ export default function Page() {
   }, [detailCode])
   // レポート・銘柄管理タブに切り替えたらフィルターバーを自動で閉じる
   useEffect(() => { if (tab === 'report' || tab === 'watchlist' || tab === 'news') setShowFilterBar(false) }, [tab])
+  // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
+  // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
+  useEffect(() => {
+    if (Object.keys(masterDB).length < 3000) return
+    const orphans = Array.from(new Set([...favorites, ...superFavorites])).filter(c => !masterDB[c])
+    if (orphans.length === 0) return
+    setFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('favorites', Array.from(n)); return n })
+    setSuperFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('superFavorites', Array.from(n)); return n })
+    orphans.forEach(c => { sbSyncFav(c, 'star', false); sbSyncFav(c, 'heart', false) })
+    console.log('[cleanup] JPX一覧に無いお気に入りを削除しました:', orphans)
+  }, [masterDB, favorites, superFavorites])
 
   // ── Ctrl+Z でタブ履歴を戻る ────────────────────────────────────────
   const [tabHistory, setTabHistory] = useState<TabKey[]>([])
@@ -4779,8 +4790,8 @@ function WeeklyReport({
   const mapEligible = useMemo(() =>
     scoped.filter(r => r.perBand?.position != null && r.chg1m != null), [scoped])
 
-  // 注目ランキング（スマホで指スクロールだけで"気づき"が得られる）
-  const [showMap, setShowMap] = useState(true)
+  // レポート内タブ（縦長スクロールを避け、ページを分ける＝Kabuアプリ風）
+  const [repView, setRepView] = useState<'rank' | 'map' | 'karte'>('rank')
   const withPos = useMemo(() => scoped.filter(r => r.perBand?.position != null), [scoped])
   const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 6), [withPos])
   const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 6), [withPos])
@@ -4797,56 +4808,66 @@ function WeeklyReport({
         <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{baseRows.length}銘柄</span>
       </div>
 
-      {/* スコープ（マップ＆カルテ共通） */}
+      {/* レポート内タブ＋スコープ（縦長スクロールを避け、1ページ1テーマ） */}
       <div className={styles.repControls}>
+        <div className={styles.repToggle}>
+          {(([['rank', '注目ランキング'], ['map', '俯瞰マップ'], ['karte', '銘柄カルテ']]) as [typeof repView, string][]).map(([k, l]) => (
+            <button key={k} className={repView === k ? styles.repTogActive : styles.repTog} onClick={() => setRepView(k)}>{l}</button>
+          ))}
+        </div>
         <div className={styles.repToggle}>
           <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
           <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
         </div>
       </div>
 
-      {/* 注目ランキング（主役）。指スクロールだけで気づきが得られる */}
-      <div className={styles.rankGrid}>
-        <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
-        <RankList title="🔴 高値圏で警戒" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
-        <RankList title="📉 直近1ヶ月で下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
-        <RankList title="📈 直近1ヶ月で上昇" hint="" rows={upRank} kind="up" onClickCode={onClickCode} />
-      </div>
+      {/* ① 注目ランキング */}
+      {repView === 'rank' && (
+        <div className={styles.rankGrid}>
+          <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
+          <RankList title="🔴 高値圏で警戒" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
+          <RankList title="📉 直近1ヶ月で下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
+          <RankList title="📈 直近1ヶ月で上昇" hint="" rows={upRank} kind="up" onClickCode={onClickCode} />
+        </div>
+      )}
 
-      {/* 俯瞰マップ（補助・トグルで表示） */}
-      <div className={styles.repMapCard}>
-        <button className={styles.repMapToggle} onClick={() => setShowMap(s => !s)}>
-          🗺 俯瞰マップ（PER位置×1ヶ月の動き）{showMap ? ' ▲ 隠す' : ' ▼ 見る'}
-        </button>
-        {showMap && (mapEligible.length === 0
-          ? <div className={styles.rpEmpty}>マップに出せる銘柄がありません（PER位置の算出待ち）</div>
-          : <PositionMap rows={scoped} hearts={superFavorites} onClickCode={onClickCode} />)}
-      </div>
+      {/* ② 俯瞰マップ */}
+      {repView === 'map' && (
+        <div className={styles.repMapCard}>
+          <div className={styles.repMapDesc}>PERが割安か割高か（横）× 直近1ヶ月の上下（縦）。点・名をタップで詳細。</div>
+          {mapEligible.length === 0
+            ? <div className={styles.rpEmpty}>マップに出せる銘柄がありません（PER位置の算出待ち）</div>
+            : <PositionMap rows={scoped} hearts={superFavorites} onClickCode={onClickCode} />}
+        </div>
+      )}
 
-      {/* 銘柄カルテ（並べ替えはカルテ用なのでここに配置） */}
-      <div className={styles.repCardsHead}>
-        <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
-        <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
-          <option value="move">1ヶ月の値動きが大きい順</option>
-          <option value="cheap">PERが割安な順</option>
-          <option value="growth">来期増収率が高い順</option>
-          <option value="code">コード順</option>
-        </select>
-      </div>
-      {sorted.length === 0
-        ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>
-        : (
-          <div className={styles.repCards}>
-            {sorted.map(r => (
-              <KarteCard key={r.code} r={r} fin={finDB[r.code]} newsN={newsCount[r.code] ?? 0}
-                heart={superFavorites.has(r.code)} onClick={() => onClickCode(r.code)} />
-            ))}
+      {/* ③ 銘柄カルテ */}
+      {repView === 'karte' && (
+        <>
+          <div className={styles.repCardsHead}>
+            <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
+            <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
+              <option value="move">1ヶ月の値動きが大きい順</option>
+              <option value="cheap">PERが割安な順</option>
+              <option value="growth">来期増収率が高い順</option>
+              <option value="code">コード順</option>
+            </select>
           </div>
-        )}
-
-      <div className={styles.rpSummaryNote} style={{ marginTop: 18 }}>
-        ※ 会社予想EPSベースの事実の提示です（買い／売りの判断ではありません）。PER位置・EPS推移はいずれも「その銘柄自身の過去」との比較で、銘柄間のEPS基準差の影響を受けません。
-      </div>
+          {sorted.length === 0
+            ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>
+            : (
+              <div className={styles.repCards}>
+                {sorted.map(r => (
+                  <KarteCard key={r.code} r={r} fin={finDB[r.code]} newsN={newsCount[r.code] ?? 0}
+                    heart={superFavorites.has(r.code)} onClick={() => onClickCode(r.code)} />
+                ))}
+              </div>
+            )}
+          <div className={styles.rpSummaryNote} style={{ marginTop: 18 }}>
+            ※ 会社予想EPSベースの事実の提示です（買い／売りの判断ではありません）。PER位置・EPS推移はその銘柄自身の過去との比較です。
+          </div>
+        </>
+      )}
     </div>
   )
 }

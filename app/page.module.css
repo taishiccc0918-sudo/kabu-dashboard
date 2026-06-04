@@ -3102,14 +3102,14 @@
   height: 100vh;
   background: #111827;
   border-left: 1px solid #2a3a52;
-  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+  /* 影は開いている時だけ（*Open）に付与。閉じている間は画面外パネルの影が右端に漏れて黒フェードになるのを防ぐ */
   z-index: 801;
   display: flex; flex-direction: column;
   transform: translateX(100%);
   transition: transform .22s cubic-bezier(.4,0,.2,1);
   overflow: hidden;
 }
-.judgmentPanelOpen { transform: translateX(0); }
+.judgmentPanelOpen { transform: translateX(0); box-shadow: -12px 0 40px rgba(0,0,0,0.6); }
 
 .judgmentPanelHead {
   display: flex; align-items: center; justify-content: space-between;
@@ -3285,14 +3285,14 @@
   height: 100vh;
   background: #111827;
   border-left: 1px solid #2a3a52;
-  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+  /* 影は開いている時だけ（*Open）に付与。閉じている間は画面外パネルの影が右端に漏れて黒フェードになるのを防ぐ */
   z-index: 801;
   display: flex; flex-direction: column;
   transform: translateX(100%);
   transition: transform .22s cubic-bezier(.4,0,.2,1);
   overflow: hidden;
 }
-.helpPanelOpen { transform: translateX(0); }
+.helpPanelOpen { transform: translateX(0); box-shadow: -12px 0 40px rgba(0,0,0,0.6); }
 
 .helpPanelHead {
   display: flex; align-items: center; justify-content: space-between;

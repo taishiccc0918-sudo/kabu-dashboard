@@ -1272,7 +1272,7 @@ export default function Page() {
             </button>
           )}
           {loading && <span className={styles.btnSecondary} style={{cursor:'default'}}>更新中…</span>}
-          <button className={`${styles.btnSecondary} ${styles.spHide} ${tab === 'watchlist' ? styles.btnSecondaryActive : ''}`} onClick={() => setTab(tab === 'watchlist' ? 'dashboard' : 'watchlist')}>銘柄管理</button>
+          {/* 銘柄管理はタブに統合（ヘッダーの専用ボタンは廃止） */}
           {/* ⋯ More Menu */}
           <div ref={moreMenuRef} style={{position:'relative'}}>
             <button
@@ -1470,13 +1470,13 @@ export default function Page() {
         )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
-          {(['dashboard','card','news','report'] as TabKey[]).map(t => (
+          {(['dashboard','news','report','watchlist'] as TabKey[]).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
               onClick={() => setTab(t)}
             >
-              {{ dashboard:'ダッシュボード', card:'カード', news:'ニュース', report:'レポート' }[t as 'dashboard'|'card'|'news'|'report']}
+              {{ dashboard:'ダッシュボード', news:'ニュース', report:'レポート', watchlist:'銘柄管理' }[t as 'dashboard'|'news'|'report'|'watchlist']}
             </button>
           ))}
         </div>
@@ -3727,7 +3727,7 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 // ─── NewsSection ─────────────────────────────────────────────────────
 // 銘柄別ニュース（GoogleニュースRSS / 無料・キー不要）。
 // 公開から3日以内の記事に「NEW」を付ける（何度開いても表示される）。
-type NewsArticle = { title: string; link: string; source: string; pubDate: string }
+type NewsArticle = { title: string; link: string; source: string; sourceUrl: string; pubDate: string }
 const NEWS_NEW_WINDOW_MS = 3 * 24 * 60 * 60 * 1000 // 直近3日以内をNEW扱い
 const NEWS_MAX_AGE_MS = 95 * 24 * 60 * 60 * 1000 // 直近約3ヶ月のみ表示（Yahoo常設ページ等の古い記事を除外）
 
@@ -3815,6 +3815,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
             <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
               <div className={styles.newsItemHead}>
                 {isNew && <span className={styles.newsBadge}>NEW</span>}
+                {faviconUrl(a.sourceUrl) && <img className={styles.newsFavicon} src={faviconUrl(a.sourceUrl)} alt="" loading="lazy" />}
                 <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
                 <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
               </div>

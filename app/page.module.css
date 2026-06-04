@@ -590,7 +590,7 @@
   z-index: 600; display: flex; align-items: flex-start; justify-content: flex-end;
 }
 .detailPanel {
-  background: var(--surface-0); width: 440px; height: 100vh;
+  background: var(--surface-0); width: clamp(460px, 50vw, 960px); height: 100vh;
   overflow-y: auto; border-left: 1px solid var(--line);
   padding: 0 24px 24px; animation: slideIn .18s ease; position: relative;
   box-shadow: var(--shadow-md);
@@ -627,10 +627,11 @@
   letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 1px solid var(--line); font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
-.detailGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+/* 幅に応じて自動で列数が増える（パネルを広げると株価変化率などが横1行に並ぶ）。狭い画面は2列。 */
+.detailGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .detailItem { background: var(--surface-1); border-radius: var(--r-chip); padding: 10px 12px; border: 1px solid var(--line); }
-.detailItemLabel { font-size: 11px; color: var(--text-2); margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 18px; font-weight: 700; color: var(--text-1); line-height: 1.2; }
+.detailItemLabel { font-size: 12.5px; color: var(--text-2); margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 19px; font-weight: 700; color: var(--text-1); line-height: 1.2; overflow-wrap: anywhere; }
 .detailMemo {
   width: 100%; background: var(--surface-1);
   border: 1px solid var(--line);
@@ -658,30 +659,30 @@
 .factSheet { display: flex; flex-direction: column; gap: 14px; }
 .factGroup { display: flex; flex-direction: column; gap: 7px; }
 .factGroupHead {
-  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-size: 13.5px; font-weight: 700; color: var(--text-2);
   letter-spacing: 0.2px;
 }
-.factDescBlock { display: flex; flex-direction: column; gap: 4px; }
+.factDescBlock { display: flex; flex-direction: column; gap: 5px; }
 .factDesc {
-  font-size: 12.5px; color: var(--text-1); font-weight: 400;
-  text-align: left; line-height: 1.7;
-  padding: 8px 10px; border-radius: var(--r-chip);
+  font-size: 14px; color: var(--text-1); font-weight: 400;
+  text-align: left; line-height: 1.85;
+  padding: 10px 12px; border-radius: var(--r-chip);
   border: 1px solid var(--line); background: var(--surface-1);
 }
 .factRows { display: flex; flex-direction: column; gap: 5px; }
 .factRow {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-  padding: 6px 9px; border-radius: var(--r-chip);
+  padding: 8px 11px; border-radius: var(--r-chip);
   border: 1px solid var(--line); background: var(--surface-1);
 }
-.factLabel { font-size: 12.5px; color: var(--text-2); flex-shrink: 0; }
-.factVal { font-size: 13px; font-weight: 600; color: var(--text-1); text-align: right; }
-.factNa { font-size: 12.5px; color: var(--text-3); }
+.factLabel { font-size: 13.5px; color: var(--text-2); flex-shrink: 0; }
+.factVal { font-size: 15px; font-weight: 600; color: var(--text-1); text-align: right; }
+.factNa { font-size: 13.5px; color: var(--text-3); }
 .factSegHead {
-  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-size: 13.5px; font-weight: 700; color: var(--text-2);
   margin-top: 3px;
 }
-.factSrc { font-size: 11.5px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
+.factSrc { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.5; }
 .factLink { color: var(--accent); text-decoration: underline; }
 .factLink:hover { color: var(--accent-line); }
 
@@ -700,10 +701,11 @@
   color: #fff; background: var(--down); border-radius: 4px;
   padding: 1px 5px; font-family: 'JetBrains Mono', monospace;
 }
+.newsFavicon { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; object-fit: contain; background: #fff; }
 .newsSource {
-  font-size: 12.5px; color: var(--accent); font-weight: 600;
+  font-size: 13px; color: var(--accent); font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%;
 }
 .newsTime {
   font-size: 12.5px; color: var(--text-3); margin-left: auto;

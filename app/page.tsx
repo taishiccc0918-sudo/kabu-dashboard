@@ -2249,14 +2249,22 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
       >🔗</button>
       {open && (
         <div className={styles.linkDropMenu}>
-          <a href={`https://shikiho.toyokeizai.net/stocks/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>四季報</a>
-          <a href={`https://kabutan.jp/stock/?code=${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>かぶたん</a>
-          <a href={`https://x.com/search?q=${encodeURIComponent(code + ' ' + name)}&f=live`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>X検索</a>
-          <a href={`https://finance.yahoo.co.jp/quote/${code}.T`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>Yahoo Finance</a>
-          <a href={`https://irbank.net/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>IRBank</a>
-          <a href={`https://minkabu.jp/stock/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>みんかぶ</a>
-          <a href={`https://www.buffett-code.com/company/${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>Buffett Code</a>
-          <a href={`https://jp.tradingview.com/chart/?symbol=TSE:${code}`} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>TradingView</a>
+          {[
+            { label: '四季報',      domain: 'shikiho.toyokeizai.net', href: `https://shikiho.toyokeizai.net/stocks/${code}` },
+            { label: 'かぶたん',    domain: 'kabutan.jp',             href: `https://kabutan.jp/stock/?code=${code}` },
+            { label: 'X検索',       domain: 'x.com',                  href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + name)}&f=live` },
+            { label: 'Yahoo Finance', domain: 'finance.yahoo.co.jp',  href: `https://finance.yahoo.co.jp/quote/${code}.T` },
+            { label: 'IRBank',      domain: 'irbank.net',            href: `https://irbank.net/${code}` },
+            { label: 'みんかぶ',    domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${code}` },
+            { label: 'Buffett Code',domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${code}` },
+            { label: 'TradingView', domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
+            { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code + ' 決算 IR')}` },
+          ].map(l => (
+            <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>
+              <img className={styles.linkDropIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={16} height={16} loading="lazy" />
+              <span>{l.label}</span>
+            </a>
+          ))}
         </div>
       )}
     </div>
@@ -4261,8 +4269,11 @@ function FactSheet({ code, fin: f }: { code: string; fin: FinRecord | null | und
       {/* 会社概要ブロック: EDINET 有価証券報告書 */}
       <div className={styles.factGroup}>
         <div className={styles.factGroupHead}>会社概要（EDINET 有価証券報告書）</div>
+        <div className={styles.factDescBlock}>
+          <div className={styles.factLabel}>事業内容</div>
+          <div className={styles.factDesc}>{edi(edinet?.bizDesc)}</div>
+        </div>
         <div className={styles.factRows}>
-          <div className={styles.factRow}><span className={styles.factLabel}>事業内容</span><span className={styles.factVal}>{edi(edinet?.bizDesc)}</span></div>
           <div className={styles.factRow}><span className={styles.factLabel}>代表者</span><span className={styles.factVal}>{edi(edinet?.ceo)}</span></div>
           <div className={styles.factRow}>
             <span className={styles.factLabel}>従業員数(連結)</span>

@@ -661,6 +661,13 @@
   font-size: 12.5px; font-weight: 700; color: var(--text-2);
   letter-spacing: 0.2px;
 }
+.factDescBlock { display: flex; flex-direction: column; gap: 4px; }
+.factDesc {
+  font-size: 12.5px; color: var(--text-1); font-weight: 400;
+  text-align: left; line-height: 1.7;
+  padding: 8px 10px; border-radius: var(--r-chip);
+  border: 1px solid var(--line); background: var(--surface-1);
+}
 .factRows { display: flex; flex-direction: column; gap: 5px; }
 .factRow {
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -1835,11 +1842,12 @@
   display: flex; flex-direction: column;
 }
 .linkDropItem {
-  display: block; padding: 8px 14px;
+  display: flex; align-items: center; gap: 9px; padding: 8px 14px;
   color: #94a3b8; font-size: 12px; text-decoration: none;
   transition: background .1s, color .1s; white-space: nowrap;
 }
 .linkDropItem:hover { background: rgba(59,130,246,0.12); color: #93c5fd; }
+.linkDropIcon { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: block; object-fit: contain; }
 
 /* ── カスタムメモツールチップ ──────────────────────────────── */
 .memoTooltipWrap { width: 100%; }

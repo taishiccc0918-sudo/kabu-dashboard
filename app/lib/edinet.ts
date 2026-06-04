@@ -227,8 +227,10 @@ export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
   let bizDesc = val(rows, r => r.elementId === 'jpcrp_cor:DescriptionOfBusinessTextBlock')
   if (bizDesc) {
     const t = stripHtml(bizDesc)
-      .replace(/^[\s　]*[0-9０-９]+\s*【事業の内容】/, '')
       .replace(/[\s　]+/g, ' ')
+      .replace(/^[\s　]*[（(]?\s*[0-9０-９]{1,2}\s*[)）.．、]?\s*/, '')   // 先頭の番号（(1) / １. 等）
+      .replace(/^【?\s*事業の(内容|概要)\s*】?[\s　]*/, '')               // 「【事業の内容】」見出し
+      .replace(/^[^。]{0,25}?事業[^。]{0,10}?について(?=\S)/, '')         // 「…当社グループの事業内容について」型の見出し
       .trim()
     const MAX = 180
     let out = ''

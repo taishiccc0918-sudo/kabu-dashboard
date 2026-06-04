@@ -267,6 +267,7 @@ export default function Page() {
   const autoFetchedRef = useRef(false)
   const themeLoaded = useRef(false)  // localStorageからテーマを読むまで保存を抑止（既定値での上書き防止）
   const chartPrefetchedRef = useRef(false)  // ♥お気に入りのチャート先読みを一度だけ実行
+  const sortLoaded = useRef(false)  // localStorageから並べ替えを読むまで保存を抑止
   const bandFetchingRef = useRef(false)
   const perBandDBRef = useRef<Record<string, PerBand | null>>({})
   const priceDBRef = useRef<Record<string, PriceRecord>>({})
@@ -308,6 +309,8 @@ export default function Page() {
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
   useEffect(() => { if (!themeLoaded.current) return; localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
+  // 並べ替えを永続化（最後に選んだ順を次回も維持）。読込完了後のみ保存し既定値での上書きを防ぐ
+  useEffect(() => { if (!sortLoaded.current) return; lsSet('sortKey', sortKey); lsSet('sortDir', sortDir) }, [sortKey, sortDir])
   // 詳細パネル表示中は背景のスクロールをロック（開いた時に背景がずれる/動くのを防ぐ）
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -581,6 +584,10 @@ export default function Page() {
     const savedDark = localStorage.getItem('darkMode')
     if (savedDark !== null) setDarkMode(savedDark !== 'false')
     themeLoaded.current = true  // 読込完了後のみ保存を許可（以後のトグルは永続化）
+    // 並べ替えの復元（最後に選んだ順を維持）
+    const savedSortKey = ls<SortKeyEx | null>('sortKey', null)
+    if (savedSortKey) { setSortKey(savedSortKey); setSortDir(ls<1 | -1>('sortDir', -1) === 1 ? 1 : -1) }
+    sortLoaded.current = true
     setFavorites(initFavorites())
     setApiKey(ls('apiKey', ''))
     setLastUpdate(ls('lastUpdate', ''))
@@ -1340,9 +1347,6 @@ export default function Page() {
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
                   <span className={styles.helpBadge}>?</span> ヘルプ
-                </button>
-                <button className={styles.moreMenuItem} onClick={() => { setShowSettings(s => !s); setShowMoreMenu(false) }}>
-                  <span>⚙️</span> APIキー設定
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { toggleTheme(); setShowMoreMenu(false) }}>
                   <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}

@@ -2463,8 +2463,8 @@
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; gap: 5px;
   padding: 5px 8px;
-  background: #0d1723; border-bottom: 2px solid var(--line-strong);
-  font-size: 10px; font-weight: 700; color: #4e6280;
+  background: var(--surface-2); border-bottom: 2px solid var(--line-strong);
+  font-size: 10px; font-weight: 700; color: var(--text-2);
   font-family: 'JetBrains Mono', monospace; letter-spacing: 0.03em;
   user-select: none;
 }

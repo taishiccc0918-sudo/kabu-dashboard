@@ -4686,9 +4686,10 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
         </div>
       </div>
 
-      {/* 騰落チップ */}
+      {/* 騰落チップ（株価の値動き） */}
+      <div className={styles.repChipsLabel}>株価の値動き</div>
       <div className={styles.repChips}>
-        {(([['1W', r.chg1w], ['1M', r.chg1m], ['3M', r.chg3m], ['1Y', r.chg1y]]) as [string, number | null][]).map(([k, v]) => (
+        {(([['1週間', r.chg1w], ['1ヶ月', r.chg1m], ['3ヶ月', r.chg3m], ['1年', r.chg1y]]) as [string, number | null][]).map(([k, v]) => (
           <div key={k} className={styles.repChip}>
             <span className={styles.repChipK}>{k}</span>
             <span className={styles.repChipV} style={{ color: pctCellColor(v) }}>{fmtPct(v)}</span>
@@ -4885,13 +4886,13 @@ const USAGE_ITEMS = [
 ]
 const INDICATOR_ITEMS = [
   { label: '株価',        desc: '直近営業日の終値（円）' },
-  { label: '1D / 1W',    desc: '前日・前週比の株価変化率' },
-  { label: '3M / 1Y',    desc: '3ヶ月前・1年前比の株価変化率' },
+  { label: '前日 / 1週間', desc: '前日・前週比の株価変化率' },
+  { label: '3ヶ月 / 1年',  desc: '3ヶ月前・1年前比の株価変化率' },
   { label: '時価総額',    desc: '発行済み株数 × 株価（億円単位）。会社全体の市場評価額' },
   { label: 'PER実績',     desc: '株価 ÷ 実績EPS。過去の利益ベースの割安度。低いほど割安' },
   { label: 'PER今期',     desc: '株価 ÷ 今期予想EPS。今年度の利益ベースの割安度' },
   { label: 'PER来期',     desc: '株価 ÷ 来期予想EPS。翌年度の利益ベースの割安度' },
-  { label: 'PER変化',     desc: '1週・1ヶ月・3ヶ月・1年前の株価で計算したPER今期の変化率（現在PER ÷ 過去PER − 1）。「設定・判定条件」で閾値や判定ロジックを自由にカスタマイズできます。' },
+  { label: 'PER変化',     desc: '1週・1ヶ月・3ヶ月・1年前の株価で計算したPER今期の変化率（現在PER ÷ 過去PER − 1）。マイナスは割安方向、プラスは割高方向への変化を表します。' },
   { label: 'PBR',         desc: '株価 ÷ BPS（1株純資産）。1倍以下は理論上の解散価値以下で割安とみなされやすい' },
   { label: 'ROE',         desc: '自己資本利益率（純利益 ÷ 自己資本）。株主資本の効率性。一般的に10%以上が優良' },
   { label: '配当利回り',  desc: '年間配当 ÷ 株価。高いほど配当が多い。ただし株価下落で高くなることに注意' },

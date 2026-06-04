@@ -2872,7 +2872,8 @@
 .repYen { font-size: 11px; color: var(--text-2); font-weight: 600; margin-left: 1px; }
 .repChg1d { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
 
-.repChips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
+.repChipsLabel { font-size: 10.5px; font-weight: 600; color: var(--text-3); margin: 12px 0 4px; }
+.repChips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 12px; }
 .repChip {
   background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-chip);
   padding: 5px 4px; text-align: center;

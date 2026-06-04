@@ -2258,7 +2258,7 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
             { label: 'みんかぶ',    domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${code}` },
             { label: 'Buffett Code',domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${code}` },
             { label: 'TradingView', domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
-            { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code + ' 決算 IR')}` },
+            { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code)}` },
           ].map(l => (
             <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>
               <img className={styles.linkDropIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={16} height={16} loading="lazy" />

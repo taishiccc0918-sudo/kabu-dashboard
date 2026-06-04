@@ -2169,8 +2169,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
     { label: 'Yahoo',       href: `https://finance.yahoo.co.jp/quote/${code}.T` },
     { label: 'IRBank',      href: `https://irbank.net/${code}` },
     { label: 'みんかぶ',   href: `https://minkabu.jp/stock/${code}` },
-    { label: 'Buffett',     href: `https://www.buffett-code.com/company/${code}` },
-    { label: 'TV',          href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
+    { label: 'バフェットコード', href: `https://www.buffett-code.com/company/${code}` },
+    { label: 'TradingView', href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
     { label: 'X検索',       href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + rec.name)}&f=live` },
     { label: '公式IR',      href: `https://www.google.com/search?q=${encodeURIComponent(code + ' ' + rec.name + ' IR 投資家情報')}` },
   ]
@@ -2253,7 +2253,7 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
             { label: 'Yahoo Finance', domain: 'finance.yahoo.co.jp',  href: `https://finance.yahoo.co.jp/quote/${code}.T` },
             { label: 'IRBank',      domain: 'irbank.net',            href: `https://irbank.net/${code}` },
             { label: 'みんかぶ',    domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${code}` },
-            { label: 'Buffett Code',domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${code}` },
+            { label: 'バフェットコード', domain: 'buffett-code.com', href: `https://www.buffett-code.com/company/${code}` },
             { label: 'TradingView', domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
             { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code)}` },
           ].map(l => (
@@ -3410,8 +3410,8 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
         <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
         <a className={styles.cardLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
         <a className={styles.cardLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
-        <a className={styles.cardLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">Buffett</a>
-        <a className={styles.cardLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TV</a>
+        <a className={styles.cardLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">バフェットコード</a>
+        <a className={styles.cardLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TradingView</a>
       </div>
     </div>
   )
@@ -4485,7 +4485,7 @@ function DetailPanel({
             { label: 'Yahoo',      domain: 'finance.yahoo.co.jp',    href: `https://finance.yahoo.co.jp/quote/${r.code}.T` },
             { label: 'IRBank',     domain: 'irbank.net',            href: `https://irbank.net/${r.code}` },
             { label: 'みんかぶ',   domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${r.code}` },
-            { label: 'Buffett',    domain: 'buffett-code.com',      href: `https://www.buffett-code.com/company/${r.code}` },
+            { label: 'バフェットコード', domain: 'buffett-code.com', href: `https://www.buffett-code.com/company/${r.code}` },
             { label: 'TradingView',domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${r.code}` },
             { label: 'YouTube',    domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code)}` },
           ].map(l => (

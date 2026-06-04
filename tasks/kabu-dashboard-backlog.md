@@ -15,7 +15,7 @@
 - [✅ A4] PER位置バー（big表示）に**「安値○○」「高値○○」を明示**＝両端の数字が何か一目で分かる（PerBandBar）。中央の「割安/中立/割高」と合わせ凡例なしで意味が伝わる
 - [ A4] 「PER位置」「PER今期」等の指標名：初見でも意味が分かる短い添え書き or 凡例を常設
 - [✅ A5-1] 市場名 `Prime/Standard/Growth` → `プライム/スタンダード/グロース`（バッジ・絞り込みボタン・SPプルダウン・ヘルプを一括。marketShort/page.tsx）
-- [ A5-2] 残りの略語・英語まじり箇所の総点検（各トグル・並べ替え文言等）は継続
+- [✅ A5-2] 外部リンクの紛らわしい英語表記を統一：`Buffett`→`バフェットコード`（人物と誤解）、`TV`→`TradingView`（テレビと誤解）。カード/詳細パネルの全リンク配列で統一
 
 ## カテゴリB：スマホ省スペース・情報密度
 - [ B1] スマホで無駄に幅/文字を使っている箇所の棚卸し（要・本人スクショ）
@@ -40,10 +40,10 @@
 - [ E5] 企業ロゴ網羅率の上限（小型株は色チップ容認済み）
 
 ## カテゴリF：セキュリティ（docs/security-audit-2026-05-28.md 由来）
-- [ F1] S1: 旧ルート app/app/api/jquants/route.ts の削除（env を読まず x-api-key を信頼）
+- [✅ F1] S1: 旧ルート app/app/api/jquants/route.ts → **既に存在せず解消済み**（残るは正規の app/api/jquants/route.ts のみ）
 - [ F2] S4: localStorage への API キー保存をやめサーバー env 一本化
-- [ F3] S5: next@14.2.5 → 14.2.35+ へ bump（advisory 複数）
-- [ F4] S6: xlsx の High（Prototype Pollution/ReDoS）対応検討
+- [✅ F3] S5: next は **既に 14.2.35（パッチ済み）**。残る npm audit 指摘は next@16 への破壊的メジャーが必要で不要と判断。postcss moderate も同様
+- [ F4] S6: xlsx の High（Prototype Pollution/ReDoS）。公式fixなし＝SheetJS CDN版差し替えが要だが、Excel出力の実画面検証が必要なため**専用セッションで対応**（現状ペンディング）
 
 ---
 ※ B1/C1/C2/C3 など見た目系は、本番がGoogleログイン背後にあり Claude から実画面を直接見られない。本人のスマホ/ライトのスクショ提供で精度が上がる。

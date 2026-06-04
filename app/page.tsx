@@ -2890,9 +2890,9 @@ function PerBandBar({ band, likePer, big = false }: { band?: PerBand | null; lik
         )}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: big ? 11 : 10, lineHeight: 1, color: 'var(--text-2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-        <span title="直近1年のPER安値">{fmtN(band.lowPER, 0)}</span>
+        <span title="直近1年のPER安値">{big ? `安値 ${fmtN(band.lowPER, 0)}` : fmtN(band.lowPER, 0)}</span>
         <span style={{ color: zone.color, fontWeight: 800, fontSize: big ? 13 : 11.5, whiteSpace: 'nowrap' }}>{hasPos ? `${fmtN(band.fwdPER)}倍 ${zone.label}` : zone.label}</span>
-        <span title="直近1年のPER高値">{fmtN(band.highPER, 0)}</span>
+        <span title="直近1年のPER高値">{big ? `高値 ${fmtN(band.highPER, 0)}` : fmtN(band.highPER, 0)}</span>
       </div>
     </div>
   )
@@ -4527,6 +4527,28 @@ const GLOSSARY: Record<string, string> = {
   '自己資本比率': '総資産のうち、返済不要の自己資本が占める割合。高いほど財務が健全です。',
   '営業利益率':   '売上に対する本業の利益の割合。高いほど稼ぐ力が強いです。',
   '配当予想':     '会社が予想する、1株あたりの年間配当額です。',
+  'PER位置':      '棒の左ほど割安・右ほど割高で、●が今の予想PERの位置です。両端は直近1年のPER安値・高値。その銘柄自身の過去レンジの中で、今が高いか安いかを見ます。',
+  '株価の値動き': '1週間・1ヶ月・3ヶ月・1年前の株価と比べた、現在株価の変化率です。',
+}
+
+// 用語の横に置くタップ式「?」（広めの場所で使う汎用版。狭いセルはGrid2側の実装を使う）
+function InfoDot({ term }: { term: string }) {
+  const [open, setOpen] = useState(false)
+  const def = GLOSSARY[term]
+  if (!def) return null
+  return (
+    <span className={styles.infoWrap}>
+      <button
+        type="button"
+        className={styles.infoDot}
+        aria-label={`${term}とは`}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+      >?</button>
+      {open && (
+        <span className={styles.infoPopFloat} onClick={e => { e.stopPropagation(); setOpen(false) }}>{def}</span>
+      )}
+    </span>
+  )
 }
 
 function Grid2({ items }: { items: [string, unknown, string, string][] }) {
@@ -4724,7 +4746,7 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
       </div>
 
       {/* 騰落チップ（株価の値動き） */}
-      <div className={styles.repChipsLabel}>株価の値動き</div>
+      <div className={styles.repChipsLabel}>株価の値動き<InfoDot term="株価の値動き" /></div>
       <div className={styles.repChips}>
         {(([['1週間', r.chg1w], ['1ヶ月', r.chg1m], ['3ヶ月', r.chg3m], ['1年', r.chg1y]]) as [string, number | null][]).map(([k, v]) => (
           <div key={k} className={styles.repChip}>
@@ -4736,7 +4758,7 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
 
       {/* PER位置バー（ヒーロー要素・既存コンポーネント再利用） */}
       <div className={styles.repBandRow}>
-        <div className={styles.repBandLabel}>PER位置（過去1年レンジ内）</div>
+        <div className={styles.repBandLabel}>PER位置（過去1年レンジ内）<InfoDot term="PER位置" /></div>
         <div className={styles.repBandBar}><PerBandBar band={r.perBand} likePer={r.likePer} big /></div>
       </div>
 

@@ -638,6 +638,15 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 .infoDot:hover { color: var(--text-1); border-color: var(--accent); }
+.infoWrap { position: relative; display: inline-flex; vertical-align: middle; }
+.infoPopFloat {
+  position: absolute; top: 100%; left: 0; z-index: 60; margin-top: 4px;
+  width: 240px; max-width: 72vw;
+  background: var(--surface-0); border: 1px solid var(--line-strong); border-radius: 8px;
+  padding: 8px 10px; box-shadow: var(--shadow-md);
+  font-family: 'Noto Sans JP', sans-serif; font-size: 11.5px; line-height: 1.55; font-weight: 500;
+  color: var(--text-1); white-space: normal; text-align: left; cursor: pointer;
+}
 .infoPop {
   position: absolute; top: 100%; left: 0; right: 0; z-index: 50; margin-top: 4px;
   background: var(--surface-0); border: 1px solid var(--line-strong); border-radius: 8px;
@@ -2886,7 +2895,7 @@
 .repYen { font-size: 11px; color: var(--text-2); font-weight: 600; margin-left: 1px; }
 .repChg1d { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
 
-.repChipsLabel { font-size: 10.5px; font-weight: 600; color: var(--text-3); margin: 12px 0 4px; }
+.repChipsLabel { display: flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--text-3); margin: 12px 0 4px; }
 .repChips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 12px; }
 .repChip {
   background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-chip);
@@ -2896,7 +2905,7 @@
 .repChipV { display: block; font-size: 12.5px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; color: var(--text-1); white-space: nowrap; letter-spacing: -0.3px; }
 
 .repBandRow { margin: 6px 0 12px; }
-.repBandLabel { font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }
+.repBandLabel { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-2); font-weight: 600; margin-bottom: 5px; }
 .repBandBar { width: 100%; }
 
 .repEps { margin: 10px 0 12px; }

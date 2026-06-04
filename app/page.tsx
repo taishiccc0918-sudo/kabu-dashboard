@@ -4661,7 +4661,7 @@ function KarteCard({ r, fin, newsN, heart, onClick }: {
         <div className={styles.repCardId}>
           <div className={styles.repCardName}>
             {heart && <span className={styles.repHeart}>♥</span>}
-            {r.name || r.code}
+            {r.name || '名称未取得'}
           </div>
           <div className={styles.repCardMeta}>
             <span className={styles.repCardCode}>{r.code}</span>
@@ -4720,7 +4720,7 @@ function RankList({ title, hint, rows, kind, onClickCode }: {
           } else { val = fmtPct(r.chg1m); cls = pctClass(r.chg1m) }
           return (
             <button key={r.code} className={styles.rankRow} onClick={() => onClickCode(r.code)}>
-              <span className={styles.rankName}>{r.name || r.code}</span>
+              <span className={styles.rankName}>{r.name || '名称未取得'}</span>
               <span className={styles.rankCode}>{r.code}</span>
               <span className={`${styles.rankVal} ${cls ? styles[cls] : ''}`} style={color ? { color } : undefined}>{val}</span>
             </button>
@@ -4780,7 +4780,7 @@ function WeeklyReport({
     scoped.filter(r => r.perBand?.position != null && r.chg1m != null), [scoped])
 
   // 注目ランキング（スマホで指スクロールだけで"気づき"が得られる）
-  const [showMap, setShowMap] = useState(false)
+  const [showMap, setShowMap] = useState(true)
   const withPos = useMemo(() => scoped.filter(r => r.perBand?.position != null), [scoped])
   const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 6), [withPos])
   const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 6), [withPos])
@@ -4826,11 +4826,12 @@ function WeeklyReport({
       {/* 銘柄カルテ（並べ替えはカルテ用なのでここに配置） */}
       <div className={styles.repCardsHead}>
         <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
-        <div className={styles.repToggle}>
-          {(([['move', '1ヶ月の値動き'], ['cheap', 'PERが割安'], ['growth', '来期増収率'], ['code', 'コード順']]) as [RepSort, string][]).map(([k, l]) => (
-            <button key={k} className={sort === k ? styles.repTogActive : styles.repTog} onClick={() => setSort(k)}>{l}</button>
-          ))}
-        </div>
+        <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
+          <option value="move">1ヶ月の値動きが大きい順</option>
+          <option value="cheap">PERが割安な順</option>
+          <option value="growth">来期増収率が高い順</option>
+          <option value="code">コード順</option>
+        </select>
       </div>
       {sorted.length === 0
         ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>

@@ -1323,12 +1323,14 @@
   }
   .root { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 
-  /* SP: レポート/俯瞰マップを画面いっぱいに使う */
-  .reportRoot { padding: 12px 6px; }
-  .repMapCard { padding: 10px 4px; }
+  /* SP: レポート/俯瞰マップを画面いっぱいに使う（左右の余白を詰める） */
+  .reportRoot { padding: 10px 3px; }
+  .repMapCard { padding: 8px 2px; }
   .repMapSvg { max-height: none; }
-  .repMapPlot { gap: 3px; }
+  .repMapPlot { gap: 2px; }
+  .repMapYax { padding: 2px 0; }
   .repMapYax .repMapAxName { font-size: 10px; }
+  .repMapYax .repMapAxArrow { font-size: 10px; }
 
   /* 「↑TOP」を下部固定ナビの上に重ねない位置へ（文字切れ防止） */
   .scrollTopBtn { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px; }

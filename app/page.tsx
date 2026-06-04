@@ -265,6 +265,7 @@ export default function Page() {
   const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
+  const themeLoaded = useRef(false)  // localStorageからテーマを読むまで保存を抑止（既定値での上書き防止）
   const bandFetchingRef = useRef(false)
   const perBandDBRef = useRef<Record<string, PerBand | null>>({})
   const priceDBRef = useRef<Record<string, PriceRecord>>({})
@@ -304,7 +305,7 @@ export default function Page() {
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
   useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
-  useEffect(() => { localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
+  useEffect(() => { if (!themeLoaded.current) return; localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   // 詳細パネル表示中は背景のスクロールをロック（開いた時に背景がずれる/動くのを防ぐ）
   useEffect(() => {
@@ -556,6 +557,7 @@ export default function Page() {
   useEffect(() => {
     const savedDark = localStorage.getItem('darkMode')
     if (savedDark !== null) setDarkMode(savedDark !== 'false')
+    themeLoaded.current = true  // 読込完了後のみ保存を許可（以後のトグルは永続化）
     setFavorites(initFavorites())
     setApiKey(ls('apiKey', ''))
     setLastUpdate(ls('lastUpdate', ''))

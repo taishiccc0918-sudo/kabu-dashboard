@@ -8,7 +8,7 @@ import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars, fetchFyEpsForCode,
 } from './lib/api'
 import { buildPerBand, PerBand, FyEps } from './lib/perBand'
-import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale } from './lib/format'
+import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii } from './lib/format'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
@@ -640,7 +640,8 @@ export default function Page() {
         .then((data: Record<string, { name: string; market: string }>) => {
           const db: Record<string, MasterRecord> = {}
           for (const [code, rec] of Object.entries(data)) {
-            if (rec.name && rec.market) db[code] = rec
+            // 全角英数字の社名を半角化（銘柄管理など rec.name 直接表示の間延びを解消）
+            if (rec.name && rec.market) db[code] = { ...rec, name: halfWidthAscii(rec.name) }
           }
           setMasterDB(db)
         })

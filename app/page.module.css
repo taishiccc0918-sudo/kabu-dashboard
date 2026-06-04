@@ -570,11 +570,11 @@
 
 /* ── WATCHLIST ───────────────────────────────────── */
 
-.wlTitle { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: #e8eef8; }
+.wlTitle { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text-1); }
 .wlAddRow { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .wlInput {
   background: rgba(255,255,255,0.04); border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 6px 10px;
+  color: var(--text-1); padding: 6px 10px;
   border-radius: 6px; font-size: 12px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; width: 120px;
 }
@@ -995,7 +995,7 @@
   cursor: pointer; white-space: nowrap;
   transition: all .12s;
 }
-.pcToggleBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.pcToggleBtn:hover { color: var(--text-1); border-color: #3b82f6; }
 .pcModeBtn {
   font-size: 11px; padding: 4px 10px; border-radius: 5px;
   border: 1px solid #2a3a52; background: rgba(255,255,255,0.04);
@@ -1003,7 +1003,7 @@
   font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
   align-items: center;
 }
-.pcModeBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.pcModeBtn:hover { color: var(--text-1); border-color: #3b82f6; }
 .lightMode .pcModeBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
 
 /* ── MOBILE LIST ─────────────────────────────────── */
@@ -1029,7 +1029,7 @@
   font-size: 11px; color: #4e6280; font-weight: 600;
 }
 .mobileName {
-  font-size: 14px; font-weight: 700; color: #e8eef8;
+  font-size: 14px; font-weight: 700; color: var(--text-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .mobileMetaRow { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1044,7 +1044,7 @@
 }
 .mobilePrice {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px; font-weight: 700; color: #e8eef8;
+  font-size: 18px; font-weight: 700; color: var(--text-1);
   white-space: nowrap;
 }
 .mobileChg {
@@ -1507,7 +1507,7 @@
   transform: translateX(-50%);
   background: #1a2235;
   border: 1px solid #2a3a52;
-  color: #e8eef8;
+  color: var(--text-1);
   font-size: 11px;
   font-weight: 400;
   white-space: nowrap;
@@ -1554,7 +1554,7 @@
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s; white-space: nowrap;
 }
-.filterToggleBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.filterToggleBtn:hover { color: var(--text-1); border-color: #3b82f6; }
 .filterToggleBtnActive {
   border-color: #3b82f6; color: #60a5fa;
   background: rgba(59,130,246,0.1);
@@ -1597,7 +1597,7 @@
 .filterPanelInput {
   background: rgba(255,255,255,0.04);
   border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 5px 9px;
+  color: var(--text-1); padding: 5px 9px;
   border-radius: 6px; font-size: 12px; width: 110px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -1684,7 +1684,7 @@
   cursor: pointer; transition: all .12s; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.wlIconFilterBtn:hover { color: #e8eef8; border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.wlIconFilterBtn:hover { color: var(--text-1); border-color: #3b82f6; background: rgba(59,130,246,0.1); }
 .wlIconFilterBtnActive {
   border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.15);
 }
@@ -1710,7 +1710,7 @@
 .wlHeaderSearch {
   width: 100%;
   background: rgba(255,255,255,0.05);
-  border: 1px solid #2a3a52; color: #e8eef8;
+  border: 1px solid #2a3a52; color: var(--text-1);
   padding: 5px 10px; border-radius: 6px;
   font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
   box-sizing: border-box; transition: border-color .15s;
@@ -1733,7 +1733,7 @@
 }
 .wlMktBtn:first-child { border-left: none; }
 .wlMktBtn:hover { color: #8fa3be; background: rgba(255,255,255,0.06); }
-.wlMktBtnActive { color: #e8eef8 !important; background: rgba(59,130,246,0.2) !important; }
+.wlMktBtnActive { color: var(--text-1) !important; background: rgba(59,130,246,0.2) !important; }
 .wlMktBtn_prime.wlMktBtnActive   { background: rgba(59,130,246,0.2) !important; color: #60a5fa !important; }
 .wlMktBtn_standard.wlMktBtnActive { background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
 .wlMktBtn_growth.wlMktBtnActive  { background: rgba(139,92,246,0.2) !important; color: #a78bfa !important; }
@@ -1755,7 +1755,7 @@
   font-size: 11px; color: #6a8096; white-space: nowrap; flex-shrink: 0;
 }
 .wlTitle {
-  font-size: 15px; font-weight: 700; color: #e8eef8;
+  font-size: 15px; font-weight: 700; color: var(--text-1);
   font-family: 'JetBrains Mono', monospace;
   display: flex; align-items: center; gap: 10px;
 }
@@ -1787,7 +1787,7 @@
 .genreNewInput {
   background: rgba(255,255,255,0.05);
   border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 3px 8px; border-radius: 4px;
+  color: var(--text-1); padding: 3px 8px; border-radius: 4px;
   font-size: 11px; width: 90px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -1811,7 +1811,7 @@
 }
 .wlSearchInput {
   width: 100%; background: rgba(255,255,255,0.05);
-  border: 1px solid #2a3a52; color: #e8eef8;
+  border: 1px solid #2a3a52; color: var(--text-1);
   padding: 8px 12px; border-radius: 8px;
   font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
   box-sizing: border-box;
@@ -1837,7 +1837,7 @@
   min-width: 44px;
 }
 .searchItemName {
-  flex: 1; font-size: 13px; color: #e8eef8;
+  flex: 1; font-size: 13px; color: var(--text-1);
 }
 .searchItemAdded {
   font-size: 10px; color: #34d399;
@@ -2075,7 +2075,7 @@
   padding: 1px 6px; border-radius: 3px;
   border: 1px solid #3b82f6;
   background: rgba(59,130,246,0.12);
-  color: #e8eef8; outline: none;
+  color: var(--text-1); outline: none;
   width: 90px;
 }
 
@@ -2253,7 +2253,7 @@
   width: 100%; box-sizing: border-box;
   background: rgba(255,255,255,0.05); border: none;
   border-bottom: 1px solid #2a3a52;
-  color: #e8eef8; padding: 8px 12px;
+  color: var(--text-1); padding: 8px 12px;
   font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
   border-radius: 8px 8px 0 0; outline: none;
 }
@@ -2305,7 +2305,7 @@
   font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;
   border: 1px solid #2a3a52; color: #aebccd; margin-left: 0;
 }
-.filterGenreWrap .genreFilterBtn:hover { color: #e8eef8; border-color: #3b82f6; }
+.filterGenreWrap .genreFilterBtn:hover { color: var(--text-1); border-color: #3b82f6; }
 .filterGenreChips { display: flex; gap: 5px; flex-wrap: wrap; }
 .filterGenreActiveChip {
   display: inline-flex; align-items: center; gap: 5px;
@@ -2328,7 +2328,7 @@
   width: 100%; box-sizing: border-box;
   background: rgba(255,255,255,0.05); border: none;
   border-bottom: 1px solid #2a3a52;
-  color: #e8eef8; padding: 7px 10px;
+  color: var(--text-1); padding: 7px 10px;
   font-size: 11px; font-family: 'Noto Sans JP', sans-serif;
   border-radius: 8px 8px 0 0; outline: none;
 }
@@ -2393,7 +2393,7 @@
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s;
 }
-.genreFilterClearBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.07); }
+.genreFilterClearBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.07); }
 
 /* ── 行内ジャンルチップ（リネームボタン付き）─────────────── */
 .genreChipWrap { display: inline-flex; align-items: center; }
@@ -2500,7 +2500,7 @@
   font-size: 11px; color: #4e6280; flex-shrink: 0; width: 38px;
 }
 .wlMobileName {
-  font-size: 13px; font-weight: 600; color: #e8eef8;
+  font-size: 13px; font-weight: 600; color: var(--text-1);
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wlMobileGenre {
@@ -2521,7 +2521,7 @@
 }
 .wlMobileMemoTextarea {
   width: 100%; background: #0f1923; border: 1px solid #2a3a52;
-  border-radius: 6px; padding: 8px; color: #e8eef8;
+  border-radius: 6px; padding: 8px; color: var(--text-1);
   font-size: 12px; line-height: 1.5; resize: none;
   font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box;
   outline: none;
@@ -3088,7 +3088,7 @@
   line-height: 1; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.settingsBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.settingsBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: #3b82f6; }
 
 /* ── SETTINGS OVERLAY ────────────────────────────────── */
 .settingsOverlay {
@@ -3126,7 +3126,7 @@
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .judgmentPanelTitle {
-  font-size: 14px; font-weight: 700; color: #e8eef8;
+  font-size: 14px; font-weight: 700; color: var(--text-1);
   font-family: 'JetBrains Mono', monospace;
 }
 .judgmentClose {
@@ -3136,7 +3136,7 @@
   cursor: pointer; border-radius: 6px;
   padding: 4px 8px; transition: all .15s;
 }
-.judgmentClose:hover { color: #e8eef8; background: rgba(255,255,255,0.09); }
+.judgmentClose:hover { color: var(--text-1); background: rgba(255,255,255,0.09); }
 
 .judgmentLogicRow {
   display: flex; align-items: center; gap: 12px;
@@ -3152,7 +3152,7 @@
   flex: 1;
   background: rgba(255,255,255,0.04);
   border: 1px solid #2a3a52;
-  color: #e8eef8; padding: 5px 10px;
+  color: var(--text-1); padding: 5px 10px;
   border-radius: 6px; font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer;
@@ -3179,7 +3179,7 @@
   transition: all .15s; flex-shrink: 0;
   font-family: 'Noto Sans JP', sans-serif;
 }
-.judgmentDupBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); }
+.judgmentDupBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); }
 
 .judgmentDeleteBtn {
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4);
@@ -3203,7 +3203,7 @@
 .logicNameInput {
   flex: 1; background: rgba(255,255,255,0.05);
   border: 1px solid #2a3a52; border-radius: 6px;
-  color: #e8eef8; font-size: 13px; font-weight: 600;
+  color: var(--text-1); font-size: 13px; font-weight: 600;
   padding: 6px 10px; font-family: 'Noto Sans JP', sans-serif;
 }
 .logicNameInput:focus { outline: none; border-color: #3b82f6; }
@@ -3233,7 +3233,7 @@
 .rangeInput {
   width: 56px; flex-shrink: 0;
   background: rgba(255,255,255,0.06); border: 1px solid #2a3a52;
-  color: #e8eef8; font-size: 12px;
+  color: var(--text-1); font-size: 12px;
   border-radius: 5px; padding: 3px 6px; text-align: right;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -3271,7 +3271,7 @@
   line-height: 1; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.helpBtn:hover { color: #e8eef8; background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.helpBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: #3b82f6; }
 
 /* ── HELP OVERLAY ─────────────────────────────────────── */
 .helpOverlay {
@@ -3308,7 +3308,7 @@
   flex-shrink: 0;
 }
 .helpPanelTitle {
-  font-size: 15px; font-weight: 700; color: #e8eef8;
+  font-size: 15px; font-weight: 700; color: var(--text-1);
   font-family: 'Noto Sans JP', sans-serif;
 }
 .helpClose {
@@ -3318,7 +3318,7 @@
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
 }
-.helpClose:hover { color: #e8eef8; background: rgba(255,255,255,0.09); }
+.helpClose:hover { color: var(--text-1); background: rgba(255,255,255,0.09); }
 
 .helpTabs {
   display: flex; gap: 0;
@@ -3353,7 +3353,7 @@
 .helpItem:hover { background: rgba(255,255,255,0.03); border-color: #1f2d40; }
 .helpItemTitle {
   font-size: 13px; font-weight: 700;
-  color: #e8eef8; font-family: 'Noto Sans JP', sans-serif;
+  color: var(--text-1); font-family: 'Noto Sans JP', sans-serif;
 }
 .helpItemDesc {
   font-size: 12px; color: #9ca3af; line-height: 1.65;

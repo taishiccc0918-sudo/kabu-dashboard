@@ -192,7 +192,8 @@ function splitCsvLine(line: string): string[] {
 //   すべて一次情報の機械抽出。判定不能は null（＝UIで「データなし」）。値の生成・推測はしない。
 // ============================================================
 export type FactsheetExtract = {
-  bizDesc: string | null
+  bizDesc: string | null     // 原文抜粋（AI要約が使えない場合のフォールバック）
+  bizDescRaw: string | null  // 整形済みの原文フル（AI要約の入力用。記憶からの生成はしない）
   ceo: string | null
   founded: string | null
   employees: number | null
@@ -223,8 +224,10 @@ function segmentNameFromCtx(ctx: string): string {
 
 // type=5 CSV の行群から会社概要を抽出。検証済みの要素ID・コンテキストに厳密一致させる。
 export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
-  // 事業内容（原文テキストブロックの抜粋）。途中で切らず、必ず句点「。」で文を完結させる（約5行・最大約180字）。
+  // 事業内容（原文テキストブロック）。先頭の番号・見出しを除去して整形。
+  // bizDescRaw = AI要約の入力用（整形済み原文フル）／bizDesc = 要約不可時のフォールバック抜粋。
   let bizDesc = val(rows, r => r.elementId === 'jpcrp_cor:DescriptionOfBusinessTextBlock')
+  let bizDescRaw: string | null = null
   if (bizDesc) {
     const t = stripHtml(bizDesc)
       .replace(/[\s　]+/g, ' ')
@@ -232,13 +235,15 @@ export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
       .replace(/^【?\s*事業の(内容|概要)\s*】?[\s　]*/, '')               // 「【事業の内容】」見出し
       .replace(/^[^。]{0,25}?事業[^。]{0,10}?について(?=\S)/, '')         // 「…当社グループの事業内容について」型の見出し
       .trim()
+    bizDescRaw = t.length > 1200 ? t.slice(0, 1200) : t
+    // フォールバック抜粋: 句点で必ず文を完結（約180字）
     const MAX = 180
     let out = ''
     for (const s of t.split('。')) {
       const seg = s.trim()
       if (!seg) continue
       const cand = out + seg + '。'
-      if (out && cand.length > MAX) break // 1文目は長くても必ず入れる（完結優先）
+      if (out && cand.length > MAX) break
       out = cand
     }
     bizDesc = out || (t.length > MAX ? t.slice(0, MAX) + '…' : t)
@@ -308,6 +313,7 @@ export function extractFactsheet(rows: CsvRow[]): FactsheetExtract {
 
   return {
     bizDesc: bizDesc || null,
+    bizDescRaw: bizDescRaw || null,
     ceo: ceo || null,
     founded,
     employees,

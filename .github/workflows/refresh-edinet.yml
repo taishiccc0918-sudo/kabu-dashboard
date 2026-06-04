@@ -24,3 +24,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EDINET_API_KEY: ${{ secrets.EDINET_API_KEY }}
+          # 事業内容のAI要約用（未設定なら原文抜粋にフォールバック）
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

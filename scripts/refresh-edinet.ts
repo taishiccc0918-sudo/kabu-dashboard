@@ -29,6 +29,8 @@ function normalizeUrl(raw: string): string {
 const SUPABASE_URL = normalizeUrl(process.env.SUPABASE_URL ?? '')
 const SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
 const API_KEY = (process.env.EDINET_API_KEY ?? '').trim()
+const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY ?? '').trim()
+const ANTHROPIC_MODEL = (process.env.ANTHROPIC_MODEL ?? 'claude-3-5-haiku-latest').trim()
 const FALLBACK_WATCHLIST = ['7203', '8306', '8058']
 const MAX_DAYS = Number(process.env.EDINET_MAX_DAYS ?? 400) // 有報1サイクル分を走査
 const LIST_INTERVAL_MS = 3800 // EDINETレート制限（仕様3〜5秒間隔）
@@ -39,6 +41,45 @@ if (!API_KEY) { console.error('EDINET_API_KEY が未設定'); process.exit(1) }
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
+
+// 事業内容を中立な説明文に要約する。
+// 【捏造ゼロ】入力はEDINET原文「のみ」。記憶からの生成・推測・評価・将来予測・投資判断は禁止する指示。
+// 失敗時・キー未設定時は null（呼び出し側は原文抜粋にフォールバック）。
+async function summarizeBiz(raw: string): Promise<string | null> {
+  if (!ANTHROPIC_API_KEY || !raw) return null
+  const prompt =
+    '以下は、ある企業の有価証券報告書「事業の内容」の原文です。\n' +
+    'この原文に【明記されている事実だけ】を使い、第三者がその会社を説明する中立な文体で要約してください。\n' +
+    '制約:\n' +
+    '・原文にない情報・推測・評価・将来予測・宣伝表現は一切加えない。\n' +
+    '・「当社」「同社」を主語にせず、何をしている会社か（事業内容そのもの）を説明する。\n' +
+    '・「買い」「売り」「割安」等の投資判断は書かない。\n' +
+    '・100〜180字程度、日本語、出力は要約文のみ（前置き・引用符なし）。\n\n' +
+    '【原文】\n' + raw
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 400,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) { console.warn(`  要約API ${res.status}`); return null }
+    const json = await res.json() as { content?: { type: string; text?: string }[] }
+    const text = (json.content ?? []).filter(c => c.type === 'text').map(c => c.text ?? '').join('').trim()
+    return text || null
+  } catch (e) {
+    console.warn('  要約失敗:', (e as Error).message)
+    return null
+  }
+}
 
 async function getUniverse(): Promise<string[]> {
   try {
@@ -89,10 +130,13 @@ async function main() {
       const rows = await fetchDocCsv(f.docID, API_KEY)
       if (rows.length === 0) { fail++; await sleep(DOC_INTERVAL_MS); continue }
       const ex = extractFactsheet(rows)
+      // 事業内容: EDINET原文のみをAIで中立要約（キー未設定時は原文抜粋にフォールバック）
+      const summarized = await summarizeBiz(ex.bizDescRaw ?? '')
+      const bizFinal = summarized ?? ex.bizDesc
       const { error } = await sb.from('company_factsheet').upsert({
         code: f.code,
         edinet_code: secToEdi[f.code] ?? null,
-        biz_desc: ex.bizDesc,
+        biz_desc: bizFinal,
         ceo: ex.ceo,
         founded: ex.founded,
         employees: ex.employees,

@@ -1104,6 +1104,8 @@
 .spRowPriceCol { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
 .spRowPrice { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--text-1); letter-spacing: -0.3px; }
 .spRowSub { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text-2); }
+/* 並べ替え中に右上へ出す「選んだ指標」だけの主役表示（株価の代わり） */
+.spRowMetricMain { font-size: 14px; font-weight: 700; color: var(--text-1); text-align: right; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* ♥（超お気に入り）トグルのみ・コンパクト */
 .spRowFav {

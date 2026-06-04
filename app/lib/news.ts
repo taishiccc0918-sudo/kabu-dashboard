@@ -14,6 +14,8 @@ const BIZ_KEYWORDS =
   '買収 OR M&A OR TOB OR 出資 OR 資本提携 OR 業務提携 OR 子会社 OR 増産 OR 新工場 OR 設備投資 OR 公募 OR 自社株買い OR 株主還元 OR 新サービス OR 値上げ OR リコール OR 訴訟 OR 不祥事 OR 業績予想 OR 中期経営計画'
 // 同名の一般消費財ニュース（自動車レビュー等）を除外（例: 「IMV」がトヨタIMVを拾う問題対策）
 const EXCLUDE = '-試乗 -新車 -中古車 -ランクル -ランドクルーザー -ハイラックス -ピックアップ'
+// 媒体ブロックリスト（小文字・部分一致）: 記事品質が低く本人NGの媒体は取得・表示しない
+export const BLOCKED_SOURCES = ['limo', '暮らしとお金']
 
 // 信頼できる主要メディア（ソース名の部分一致・大小無視）。
 // 「重要ニュースは本文で銘柄が出るものも拾う」ため、これら主要メディアは
@@ -102,6 +104,8 @@ function collectFromXml(xml: string, name: string, code: string, articles: Artic
     const source = pick(item, 'source')
     const sourceUrl = pickSourceUrl(item)
     if (!rawTitle || !link) continue
+    // 媒体ブロックリスト（記事品質が低く本人NG）: LIMO（暮らしとお金の経済メディア）
+    if (BLOCKED_SOURCES.some(b => (source || '').toLowerCase().includes(b))) continue
 
     // Googleニュースのtitleは「記事タイトル - メディア名」形式。末尾のメディア名を落とす
     const title = source && rawTitle.endsWith(` - ${source}`)

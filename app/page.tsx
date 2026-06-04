@@ -3295,11 +3295,11 @@ function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav,
   const zoneText = hasPos ? `${fmtN(band!.fwdPER)}倍 ${zone!.label}`
     : hasBar ? '予想なし'
     : (band?.reason ? (PER_BAND_REASON_LABEL[band.reason] ?? '—') : '—')
-  // 右側の値: 決算ソート中は決算日、その他並べ替え中はその指標値、未指定なら前日比
-  const sm = sortMetricDisplay(r, sortKey)
-  const sub = sortKey === 'earnings'
+  // 右上の値: 並べ替え中は「選んだ指標」だけを主役表示（株価は出さない）。
+  // 標準（並べ替えなし）のときのみ 現在値＋前日比 を表示。PER水準のバーは常に下段に出す。
+  const metric = sortKey === 'earnings'
     ? { value: earnDate ? earnDate.replace(/^\d{4}[-/]/, '').replace(/-/g, '/') : '未取得', cls: '' }
-    : (sm ?? { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) })
+    : sortMetricDisplay(r, sortKey)
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowTop}>
@@ -3315,8 +3315,14 @@ function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav,
           </span>
         </span>
         <span className={styles.spRowPriceCol}>
-          <span className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
-          <span className={`${styles.spRowSub} ${sub.cls ? styles[sub.cls] : ''}`}>{sub.value}</span>
+          {metric ? (
+            <span className={`${styles.spRowMetricMain} ${metric.cls ? styles[metric.cls] : ''}`}>{metric.value}</span>
+          ) : (
+            <>
+              <span className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
+              <span className={`${styles.spRowSub} ${styles[pctClass(r.chg1d)]}`}>{fmtPct(r.chg1d)}</span>
+            </>
+          )}
         </span>
       </div>
       <div className={styles.spBarRow}>
@@ -4101,6 +4107,9 @@ function feedKey(it: FeedItem): string {
 function cleanFeed(items: FeedItem[]): FeedItem[] {
   const seen = new Set<string>(); const out: FeedItem[] = []
   for (const it of items) {
+    // 媒体ブロック（LIMO/暮らしとお金）= 蓄積DBに残る既存分も表示時に除外
+    const src = (it.source || '')
+    if (src.toLowerCase().includes('limo') || src.includes('暮らしとお金')) continue
     const k = feedKey(it)
     if (seen.has(k)) continue
     seen.add(k); out.push(it)

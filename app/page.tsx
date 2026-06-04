@@ -330,7 +330,10 @@ export default function Page() {
     if (chartPrefetchedRef.current) return
     if (!dataLoaded || !(apiKey || serverHasKey)) return
     const mode = globalChartMode
-    const codes = Array.from(superFavorites).filter(c => getChartCache(c, mode) === null)
+    // ♥（よく見る）を優先し、続けて★も先読み。未キャッシュのみ。
+    const heart = Array.from(superFavorites)
+    const star = Array.from(favorites).filter(c => !superFavorites.has(c))
+    const codes = [...heart, ...star].filter(c => getChartCache(c, mode) === null)
     if (codes.length === 0) return  // お気に入り未ロードなら次の更新を待つ
     chartPrefetchedRef.current = true
     let stopped = false
@@ -342,7 +345,7 @@ export default function Page() {
       }
     })()
     return () => { stopped = true }
-  }, [dataLoaded, apiKey, serverHasKey, superFavorites, globalChartMode])
+  }, [dataLoaded, apiKey, serverHasKey, superFavorites, favorites, globalChartMode])
   // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
   // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
   useEffect(() => {
@@ -2639,55 +2642,53 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
     const idxInterval: 'd'|'w' = mode === '3years' ? 'w' : 'd'
     const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
     const url = `/api/jquants?path=${path}`
-    Promise.all([
-      fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
-      fetchIndexCached('n225.jp', fromStr, toStr, idxInterval),
-      fetchIndexCached('ixic', fromStr, toStr, idxInterval),
-    ]).then(([json, nkPrices, ndqPrices]) => {
-      if (cancelled) return
-      // fromStr は '20230521' 形式 → ISO形式 '2023-05-21' に変換して日付フィルタに使用
+    // 自社株の日足をパース（3ヶ月/1年=日次、3年=週次サンプリング）
+    const parseStock = (json: unknown): { prices: number[]; dates: string[] } => {
       const fromISO = `${fromStr.slice(0,4)}-${fromStr.slice(4,6)}-${fromStr.slice(6,8)}`
-      const rawData = ((json?.data ?? []) as Record<string,unknown>[])
-        .filter(d => (d.Date as string) >= fromISO)  // APIが余分な過去データを返す場合に備えてフィルタ
-
-      let stockPrices: number[]
-      let stockDates: string[]
+      const rawData = (((json as { data?: unknown })?.data ?? []) as Record<string, unknown>[])
+        .filter(d => (d.Date as string) >= fromISO)
       if (mode === '3months' || mode === '1year') {
         const pairs = rawData
           .map(d => ({ date: d.Date as string, price: (d.AdjC ?? d.C ?? 0) as number }))
           .filter(p => p.price > 0)
-        stockPrices = pairs.map(p => p.price)
-        stockDates  = pairs.map(p => p.date)
-      } else {
-        // '3years': 週次サンプリング（各週の最終日の終値）
-        const weekMap: Record<string, {date:string; price:number}> = {}
-        for (const d of rawData) {
-          const date = (d.Date as string) ?? ''
-          const price = (d.AdjC ?? d.C ?? 0) as number
-          if (date && price > 0) weekMap[getWeekKey(date)] = { date, price }
-        }
-        const entries = Object.values(weekMap)
-        stockPrices = entries.map(e => e.price)
-        stockDates  = entries.map(e => e.date)
+        return { prices: pairs.map(p => p.price), dates: pairs.map(p => p.date) }
       }
-      // データが2点未満の場合はキャッシュしないでエラー扱い
-      if (stockPrices.length < 2) {
-        setErrored(prev => ({ ...prev, [mode]: true }))
+      const weekMap: Record<string, { date: string; price: number }> = {}
+      for (const d of rawData) {
+        const date = (d.Date as string) ?? ''
+        const price = (d.AdjC ?? d.C ?? 0) as number
+        if (date && price > 0) weekMap[getWeekKey(date)] = { date, price }
+      }
+      const entries = Object.values(weekMap)
+      return { prices: entries.map(e => e.price), dates: entries.map(e => e.date) }
+    }
+    // 指数（日経/NASDAQ）は並行取得。失敗しても自社株ラインの描画は止めない。
+    const nkP = fetchIndexCached('n225.jp', fromStr, toStr, idxInterval).catch(() => [] as number[])
+    const ndqP = fetchIndexCached('ixic', fromStr, toStr, idxInterval).catch(() => [] as number[])
+    ;(async () => {
+      let stockSeries: SeriesData
+      try {
+        const json = await fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json())
+        if (cancelled) return
+        const { prices, dates } = parseStock(json)
+        if (prices.length < 2) { setErrored(prev => ({ ...prev, [mode]: true })); setChartLoading(false); return }
+        stockSeries = { prices: normalizeSeries(prices), label: code, color: '#34d399', dates }
+        // ① まず自社株ラインだけ即描画（日経/NASDAQの取得完了を待たない＝体感が速い）
+        setCachedData(prev => ({ ...prev, [mode]: [stockSeries] }))
+        setChartLoading(false)
+      } catch {
+        if (!cancelled) { setErrored(prev => ({ ...prev, [mode]: true })); setChartLoading(false) }
         return
       }
-      const series: SeriesData[] = [
-        { prices: normalizeSeries(stockPrices), label: code, color: '#34d399', dates: stockDates },
-        { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
-        { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
-      ]
+      // ② 指数が揃ったら合流して3本に差し替え＋キャッシュ（指数ゼロなら自社株のみでキャッシュ）
+      const [nkPrices, ndqPrices] = await Promise.all([nkP, ndqP])
+      if (cancelled) return
+      const series: SeriesData[] = [stockSeries]
+      if (nkPrices.length) series.push({ prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' })
+      if (ndqPrices.length) series.push({ prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' })
       setChartCache(code, mode, series)
       setCachedData(prev => ({ ...prev, [mode]: series }))
-    }).catch(() => {
-      if (cancelled) return
-      setErrored(prev => ({ ...prev, [mode]: true }))
-    }).finally(() => {
-      if (!cancelled) setChartLoading(false)
-    })
+    })()
     return () => { cancelled = true }
   }, [code, apiKey, canFetch, mode, visible, refreshKey, retryCount])
 

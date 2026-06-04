@@ -4509,15 +4509,52 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+// 指標の用語辞書（タップで出る一行解説の正本。ヘルプの「指標の意味」と思想を統一）
+const GLOSSARY: Record<string, string> = {
+  'PER実績':      '株価 ÷ 過去1年の実績利益（1株あたり）。低いほど、稼いだ利益に対して株価が割安です。',
+  'PER今期':      '株価 ÷ 今期の予想利益（1株あたり）。会社予想ベースで見た割安度です。',
+  'PER来期':      '株価 ÷ 来期の予想利益（1株あたり）。来年度の利益で見た割安度です。',
+  'PBR':          '株価 ÷ 1株あたり純資産。1倍を下回ると、資産価値より株価が安い目安です。',
+  'ROE':          '自己資本利益率。株主のお金をどれだけ効率よく利益にできたか。一般に10%超で優良とされます。',
+  '配当利回り':   '年間配当 ÷ 株価。高いほど配当は多めですが、株価が下がっても上がる点に注意です。',
+  'EPS今期成長率':'今期の予想利益（1株）が前年からどれだけ伸びるか。マイナスは減益予想です。',
+  'PEGレシオ':    'PER ÷ 利益成長率。成長を加味した割安度で、1倍未満が割安の目安です。',
+  '時価総額(億)': '株価 × 発行株数。会社全体の市場価値（規模）です。',
+  '来期売上成長': '来期に売上がどれだけ伸びる予想か。事業の伸びしろの目安です。',
+  'EPS実績':      '1株あたりの実績利益。1株でどれだけ稼いだかを表します。',
+  'EPS今期予想':  '1株あたりの今期予想利益。会社自身が出した予想値です。',
+  'BPS':          '1株あたりの純資産。会社の解散価値の目安です。',
+  '自己資本比率': '総資産のうち、返済不要の自己資本が占める割合。高いほど財務が健全です。',
+  '営業利益率':   '売上に対する本業の利益の割合。高いほど稼ぐ力が強いです。',
+  '配当予想':     '会社が予想する、1株あたりの年間配当額です。',
+}
+
 function Grid2({ items }: { items: [string, unknown, string, string][] }) {
+  const [open, setOpen] = useState<string | null>(null)
   return (
     <div className={styles.detailGrid}>
-      {items.map(([label, , val, cls]) => (
-        <div key={label} className={styles.detailItem}>
-          <div className={styles.detailItemLabel}>{label}</div>
-          <div className={`${styles.detailItemValue} ${cls ? styles[cls] : ''}`}>{val}</div>
-        </div>
-      ))}
+      {items.map(([label, , val, cls]) => {
+        const def = GLOSSARY[label]
+        return (
+          <div key={label} className={styles.detailItem}>
+            <div className={styles.detailItemLabel}>
+              <span>{label}</span>
+              {def && (
+                <button
+                  type="button"
+                  className={styles.infoDot}
+                  aria-label={`${label}とは`}
+                  onClick={e => { e.stopPropagation(); setOpen(open === label ? null : label) }}
+                >?</button>
+              )}
+            </div>
+            <div className={`${styles.detailItemValue} ${cls ? styles[cls] : ''}`}>{val}</div>
+            {def && open === label && (
+              <div className={styles.infoPop} onClick={e => { e.stopPropagation(); setOpen(null) }}>{def}</div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

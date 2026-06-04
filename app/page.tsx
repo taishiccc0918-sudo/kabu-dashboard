@@ -547,10 +547,9 @@ export default function Page() {
     setStockMeta(initStockMeta())
     // 表示モード: 保存済み優先、なければ画面幅で自動判定
     const savedTab = ls<string>('preferredTab', '')
-    if (savedTab === 'card' || savedTab === 'dashboard') {
-      setTab(savedTab as TabKey)
-    } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setTab('card')
+    // カードタブは廃止。旧 'card' 保存は 'dashboard' に読み替え
+    if (savedTab === 'dashboard' || savedTab === 'card') {
+      setTab('dashboard')
     }
     setForcePc(ls('forcePc', false))
     setIsMobileView(typeof window !== 'undefined' && window.innerWidth < 768)
@@ -1383,7 +1382,7 @@ export default function Page() {
             <div className={styles.wlTbRow1}>
               <button
                 className={`${styles.btnSecondary} ${styles.spOnly}`}
-                onClick={() => setTab('card')}
+                onClick={() => setTab('dashboard')}
                 style={{flexShrink:0, whiteSpace:'nowrap'}}
               >← 一覧</button>
               <div className={styles.wlToolbarSearch} ref={wlSearchWrapRef}>
@@ -1555,7 +1554,7 @@ export default function Page() {
 
       <main className={styles.main} style={{ visibility: mounted ? 'visible' : 'hidden' }}>
         {/* SP専用リスト（"いつ買うか"を助ける＝PER位置バーが主役。基本情報は小さく） */}
-        {tab !== 'watchlist' && tab !== 'news' && (
+        {(tab === 'dashboard' || tab === 'card') && (
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
               <span className={styles.spListHeaderCount}>{filteredRows.length}{filteredRows.length !== allRows.length ? `/${allRows.length}` : ''}</span>
@@ -3209,7 +3208,7 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
 // ─── BottomNav（SP専用・固定ボトムナビ）──────────────────────────────
 function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => void }) {
   const items: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: 'card', label: 'ダッシュ', icon: (
+    { key: 'dashboard', label: 'ダッシュ', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
         <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
@@ -3221,19 +3220,19 @@ function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => vo
         <line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/>
       </svg>
     ) },
-    { key: 'watchlist', label: 'ウォッチ', icon: (
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
-      </svg>
-    ) },
     { key: 'report', label: 'レポート', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="4" y1="20" x2="20" y2="20"/><rect x="5" y="11" width="3.5" height="7" rx="0.8"/>
         <rect x="10.2" y="6" width="3.5" height="12" rx="0.8"/><rect x="15.5" y="13" width="3.5" height="5" rx="0.8"/>
       </svg>
     ) },
+    { key: 'watchlist', label: '銘柄管理', icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2.5 15 9 22 9.7 16.7 14.2 18.3 21 12 17.3 5.7 21 7.3 14.2 2 9.7 9 9"/>
+      </svg>
+    ) },
   ]
-  const isActive = (k: TabKey) => k === 'card' ? (tab === 'card' || tab === 'dashboard') : tab === k
+  const isActive = (k: TabKey) => tab === k || (k === 'dashboard' && tab === 'card')
   return (
     <nav className={styles.bottomNav} aria-label="メインナビゲーション">
       {items.map(it => (

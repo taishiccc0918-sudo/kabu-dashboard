@@ -2746,6 +2746,7 @@
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 6px; padding: 0 2px 0 26px;
 }
+.repMapNoteSmall { margin-top: 8px; font-size: 11px; color: var(--text-3); text-align: center; }
 .repMapLegend {
   display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
   margin-top: 8px; font-size: 12px; color: var(--text-2); font-weight: 600;

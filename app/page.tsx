@@ -4508,41 +4508,66 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
-  const pts = rows.filter(r => r.perBand?.position != null && r.chg1m != null)
-  const W = 360, H = 240, L = 8, R = 10, T = 12, B = 14
+  const W = 360, H = 240, L = 22, R = 10, T = 12, B = 12
   const pw = W - L - R, ph = H - T - B
-  const CAP = 0.2
+  const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
+  const FS = 6       // ラベル文字サイズ（SVG単位）
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   const y0 = y(0)
-  // プロットに出す短い社名（漢字/カナを5字程度・括弧以降や英字社名後半を省く）
   const shortName = (n: string) => (n || '').replace(/[（(].*$/, '').slice(0, 6)
+
+  // 重要度順（♥→変動が大きい順）にラベルを置き、重なる場合は点にする＝文字を重ねない
+  const ordered = [...rows.filter(r => r.perBand?.position != null && r.chg1m != null)]
+    .sort((a, b) => (Number(hearts.has(b.code)) - Number(hearts.has(a.code))) || (Math.abs(b.chg1m!) - Math.abs(a.chg1m!)))
+  const placed: { x1: number; y1: number; x2: number; y2: number }[] = []
+  const nodes = ordered.map(r => {
+    const px = x(r.perBand!.position!), py = y(r.chg1m!)
+    const name = shortName(r.name)
+    const w = name.length * (FS * 0.92), h = FS * 1.1
+    // 端で見切れないようアンカーを内側へ
+    let anchor: 'start' | 'middle' | 'end' = 'middle', tx = px, bx1 = px - w / 2, bx2 = px + w / 2
+    if (bx1 < L + 1) { anchor = 'start'; tx = Math.max(L + 1, px - w / 2); bx1 = tx; bx2 = tx + w }
+    else if (bx2 > W - R - 1) { anchor = 'end'; tx = Math.min(W - R - 1, px + w / 2); bx2 = tx; bx1 = tx - w }
+    const box = { x1: bx1 - 1, y1: py - h / 2 - 0.5, x2: bx2 + 1, y2: py + h / 2 + 0.5 }
+    const overlap = placed.some(p => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2))
+    const label = !overlap
+    if (label) placed.push(box)
+    return { r, px, py, name, anchor, tx, label }
+  })
+
   return (
     <div className={styles.repMapWrap}>
       <div className={styles.repMapPlot}>
-        {/* 縦軸（X軸と同じ体裁） */}
         <div className={styles.repMapYax}>
-          <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>↑上昇</span>
+          <span className={styles.repMapAxArrow}>↑上昇</span>
           <span className={styles.repMapAxName}>株価 1ヶ月</span>
-          <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>↓下落</span>
+          <span className={styles.repMapAxArrow}>↓下落</span>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
           {/* PER位置の3ゾーン背景 */}
-          <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.07)" />
-          <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.05)" />
-          <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.07)" />
-          <line x1={L} y1={y0} x2={W - R} y2={y0} stroke="var(--line-strong)" strokeWidth="1" strokeDasharray="4 4" />
+          <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.06)" />
+          <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.04)" />
+          <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.06)" />
+          {/* 目盛り: +20% / 0 / -20% の横線＋ラベル */}
+          {[0.2, 0, -0.2].map(g => (
+            <g key={g}>
+              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="var(--line)" strokeWidth="0.6" strokeDasharray={g === 0 ? '4 3' : '2 4'} />
+              <text x={L - 2} y={y(g) + 2} fontSize="5" fill="var(--text-3)" textAnchor="end">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
+            </g>
+          ))}
           <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-          {/* 全点を社名テキストで（アイコンは廃止＝重なって見にくいため）。色＝1ヶ月の上下 */}
-          {pts.map(r => {
-            const px = x(r.perBand!.position!), py = y(r.chg1m!)
-            const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--flat)'
+          {/* ラベルは重ならない分だけ。重なる銘柄は小さな点（タップで詳細） */}
+          {nodes.map(({ r, px, py, name, anchor, tx, label }) => {
             const title = `${r.name}（${r.code}）\nPER位置 ${Math.round(r.perBand!.position! * 100)}%（${repZone(r.perBand!.position!).label}）\n株価1ヶ月 ${fmtPct(r.chg1m)}`
             return (
               <g key={r.code} className={styles.repDot} onClick={() => onClickCode(r.code)}>
-                <circle cx={px} cy={py} r={6} fill="transparent" />
-                <text x={px} y={py} fontSize="6" fontWeight="700" fill={c} textAnchor="middle" dominantBaseline="central"
-                  stroke="var(--app-bg)" strokeWidth="1.7" paintOrder="stroke" style={{ pointerEvents: 'none' }}>{shortName(r.name)}</text>
+                {label ? (
+                  <text x={tx} y={py} fontSize={FS} fontWeight="700" fill="var(--text-1)" textAnchor={anchor} dominantBaseline="central"
+                    stroke="var(--app-bg)" strokeWidth="1.7" paintOrder="stroke">{name}</text>
+                ) : (
+                  <circle cx={px} cy={py} r={1.6} fill="var(--text-3)" />
+                )}
                 <title>{title}</title>
               </g>
             )
@@ -4554,10 +4579,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
         <span className={styles.repMapAxName}>PER位置（過去1年レンジ）</span>
         <span className={styles.repMapAxArrow}>高値圏 →</span>
       </div>
-      <div className={styles.repMapLegend}>
-        <span><span className={styles.repLegendDot} style={{ background: 'var(--up)' }} />1ヶ月 上昇</span>
-        <span><span className={styles.repLegendDot} style={{ background: 'var(--down)' }} />1ヶ月 下落</span>
-      </div>
+      <div className={styles.repMapNoteSmall}>※ 名前が重なる銘柄は「・」で表示（タップで詳細）。「♥のみ」だと見やすいです。</div>
     </div>
   )
 }

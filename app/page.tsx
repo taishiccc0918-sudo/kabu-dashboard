@@ -3197,10 +3197,13 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
           {isSuperFav ? '♥' : '♡'}
         </button>
-        <span className={styles.spRowName}>{r.name || '—'}</span>
-        <span className={styles.spRowCode}>{r.code}</span>
-        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        <span className={styles.spRowSpacer} />
+        <span className={styles.spRowId}>
+          <span className={styles.spRowName}>{r.name || '—'}</span>
+          <span className={styles.spRowMeta}>
+            <span className={styles.spRowCode}>{r.code}</span>
+            <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+          </span>
+        </span>
         <span className={styles.spRowPriceCol}>
           <span className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
           <span className={`${styles.spRowSub} ${sub.cls ? styles[sub.cls] : ''}`}>{sub.value}</span>

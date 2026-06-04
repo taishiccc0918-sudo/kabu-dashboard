@@ -266,6 +266,7 @@ export default function Page() {
   const abortSignalRef = useRef({ aborted: false })
   const autoFetchedRef = useRef(false)
   const themeLoaded = useRef(false)  // localStorageからテーマを読むまで保存を抑止（既定値での上書き防止）
+  const chartPrefetchedRef = useRef(false)  // ♥お気に入りのチャート先読みを一度だけ実行
   const bandFetchingRef = useRef(false)
   const perBandDBRef = useRef<Record<string, PerBand | null>>({})
   const priceDBRef = useRef<Record<string, PriceRecord>>({})
@@ -323,6 +324,25 @@ export default function Page() {
     document.body.classList.toggle('lightTheme', !darkMode)
     document.documentElement.classList.toggle('lightTheme', !darkMode)
   }, [darkMode])
+  // ♥お気に入りのチャートを読み込み後にバックグラウンドで先読みキャッシュ。
+  // よく開く銘柄は詳細を開いた瞬間に0秒表示になる。プロキシのレート制限(60/分)に余裕を持たせ約40件/分で実行。
+  useEffect(() => {
+    if (chartPrefetchedRef.current) return
+    if (!dataLoaded || !(apiKey || serverHasKey)) return
+    const mode = globalChartMode
+    const codes = Array.from(superFavorites).filter(c => getChartCache(c, mode) === null)
+    if (codes.length === 0) return  // お気に入り未ロードなら次の更新を待つ
+    chartPrefetchedRef.current = true
+    let stopped = false
+    ;(async () => {
+      for (const code of codes) {
+        if (stopped) return
+        await prefetchChartSeries(code, mode, apiKey || '')
+        await new Promise(res => setTimeout(res, 1500))
+      }
+    })()
+    return () => { stopped = true }
+  }, [dataLoaded, apiKey, serverHasKey, superFavorites, globalChartMode])
   // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
   // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
   useEffect(() => {
@@ -2503,6 +2523,59 @@ function normalizeSeries(prices: number[]): number[] {
   if (prices.length === 0) return []
   const base = prices[0]
   return prices.map(v => v / base)
+}
+
+// チャート系列をJ-Quantsから取得し localStorage キャッシュへ保存する「先読み」関数。
+// MiniChart の取得と同じキー/同じ系列形式で保存するので、後で詳細を開くと getChartCache が即ヒット＝0秒表示。
+// 既にキャッシュ済みなら何もしない。失敗は無視（先読みは best-effort）。
+async function prefetchChartSeries(code: string, mode: ChartMode, apiKey: string): Promise<void> {
+  if (getChartCache(code, mode) !== null) return
+  const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '')
+  const today = new Date()
+  const from = new Date(today)
+  if (mode === '3months') from.setMonth(from.getMonth() - 3)
+  else if (mode === '1year') from.setFullYear(from.getFullYear() - 1)
+  else from.setFullYear(from.getFullYear() - 3)
+  const fromStr = fmt(from)
+  const toStr = fmt(today)
+  const idxInterval: 'd' | 'w' = mode === '3years' ? 'w' : 'd'
+  const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
+  const url = `/api/jquants?path=${path}`
+  try {
+    const [json, nkPrices, ndqPrices] = await Promise.all([
+      fetch(url, { headers: { 'x-api-key': apiKey } }).then(r => r.json()),
+      fetchIndexCached('n225.jp', fromStr, toStr, idxInterval),
+      fetchIndexCached('ixic', fromStr, toStr, idxInterval),
+    ])
+    const fromISO = `${fromStr.slice(0, 4)}-${fromStr.slice(4, 6)}-${fromStr.slice(6, 8)}`
+    const rawData = ((json?.data ?? []) as Record<string, unknown>[]).filter(d => (d.Date as string) >= fromISO)
+    let stockPrices: number[]
+    let stockDates: string[]
+    if (mode === '3months' || mode === '1year') {
+      const pairs = rawData
+        .map(d => ({ date: d.Date as string, price: (d.AdjC ?? d.C ?? 0) as number }))
+        .filter(p => p.price > 0)
+      stockPrices = pairs.map(p => p.price)
+      stockDates = pairs.map(p => p.date)
+    } else {
+      const weekMap: Record<string, { date: string; price: number }> = {}
+      for (const d of rawData) {
+        const date = (d.Date as string) ?? ''
+        const price = (d.AdjC ?? d.C ?? 0) as number
+        if (date && price > 0) weekMap[getWeekKey(date)] = { date, price }
+      }
+      const entries = Object.values(weekMap)
+      stockPrices = entries.map(e => e.price)
+      stockDates = entries.map(e => e.date)
+    }
+    if (stockPrices.length < 2) return
+    const series: SeriesData[] = [
+      { prices: normalizeSeries(stockPrices), label: code, color: '#34d399', dates: stockDates },
+      { prices: normalizeSeries(nkPrices), label: '日経', color: 'rgba(251,191,36,0.7)' },
+      { prices: normalizeSeries(ndqPrices), label: 'NASDAQ', color: 'rgba(139,92,246,0.7)' },
+    ]
+    setChartCache(code, mode, series)
+  } catch { /* 先読みは失敗しても無視 */ }
 }
 
 function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, onModeChange }: {

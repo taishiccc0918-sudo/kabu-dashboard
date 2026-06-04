@@ -3176,9 +3176,12 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
   const zoneText = hasPos ? `${fmtN(band!.fwdPER)}倍 ${zone!.label}`
     : hasBar ? '予想なし'
     : (band?.reason ? (PER_BAND_REASON_LABEL[band.reason] ?? '—') : '—')
+  // 右側の値: 並べ替え中はその指標値、未指定なら前日比
+  const sm = sortMetricDisplay(r, sortKey)
+  const sub = sm ?? { value: fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
   return (
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
-      <div className={styles.spRowHead}>
+      <div className={styles.spRowTop}>
         <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
           {isSuperFav ? '♥' : '♡'}
@@ -3187,17 +3190,23 @@ function SpStockRow({ row: r, sortKey, isFav, isSuperFav, onToggleFav, onToggleS
         <span className={styles.spRowCode}>{r.code}</span>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         <span className={styles.spRowSpacer} />
+        <span className={styles.spRowPriceCol}>
+          <span className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>
+          <span className={`${styles.spRowSub} ${sub.cls ? styles[sub.cls] : ''}`}>{sub.value}</span>
+        </span>
+      </div>
+      <div className={styles.spBarRow}>
+        {hasBar ? (
+          <>
+            <span className={styles.spBarEnd}>{fmtN(band!.lowPER, 0)}</span>
+            <div className={styles.spBarTrack}>
+              {hasPos && <span className={styles.spBarMarker} style={{ left: `${pos * 100}%`, background: zone!.color }} />}
+            </div>
+            <span className={styles.spBarEnd}>{fmtN(band!.highPER, 0)}</span>
+          </>
+        ) : <span className={styles.spBarSpace} />}
         <span className={styles.spRowZone} style={{ color: zone?.color ?? 'var(--text-3)' }}>{zoneText}</span>
       </div>
-      {hasBar && (
-        <div className={styles.spBarRow}>
-          <span className={styles.spBarEnd}>{fmtN(band!.lowPER, 0)}</span>
-          <div className={styles.spBarTrack}>
-            {hasPos && <span className={styles.spBarMarker} style={{ left: `${pos * 100}%`, background: zone!.color }} />}
-          </div>
-          <span className={styles.spBarEnd}>{fmtN(band!.highPER, 0)}</span>
-        </div>
-      )}
     </div>
   )
 }

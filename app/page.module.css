@@ -475,6 +475,14 @@
   border-radius: var(--r-card); padding: 18px; cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  position: relative;
+}
+/* カード内の用語解説（タップ式・カード幅に収める＝横はみ出しなし） */
+.cardMetricPop {
+  margin-top: 8px; padding: 8px 10px;
+  background: var(--surface-1); border: 1px solid var(--line-strong); border-radius: 8px;
+  font-family: 'Noto Sans JP', sans-serif; font-size: 11.5px; line-height: 1.55; color: var(--text-1);
+  cursor: pointer;
 }
 .card:hover {
   border-color: var(--accent-line);
@@ -529,7 +537,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-chip); padding: 9px 10px;
 }
-.cardMetricLabel { font-size: 10px; color: var(--text-3); margin-bottom: 4px; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
+.cardMetricLabel { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--text-3); margin-bottom: 4px; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
 .cardMetricValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px; font-weight: 700; color: var(--text-1); }
 
 /* chart */

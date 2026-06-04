@@ -3177,8 +3177,16 @@ function mcapShort(v: number): string {
 // 並べ替え中の指標を各行の右上に出す（例: 値上がり1年なら +123%、配当なら 3.2% 等）
 function sortMetricDisplay(r: StockRow, sortKey: SortKeyEx | null): { value: string; cls: string } | null {
   switch (sortKey) {
-    case 'perF': case 'perPos':
+    case 'perF':
       return r.perF != null ? { value: 'PER ' + fmtN(r.perF) + '倍', cls: '' } : null
+    case 'perPos': {
+      // 並べ替えの意味（直近1年レンジでの水準）に合わせ、割安/中立/割高を出す
+      const pos = r.perBand?.position
+      if (pos == null) return r.perF != null ? { value: 'PER ' + fmtN(r.perF) + '倍', cls: '' } : null
+      const z = perBandZone(pos)
+      const per = r.perBand?.fwdPER
+      return { value: (per != null ? fmtN(per) + '倍 ' : '') + z.label, cls: '' }
+    }
     case 'divY':
       return r.divY != null ? { value: '配当 ' + fmtPct(r.divY), cls: '' } : null
     case 'chg1d': return { value: '前日 ' + fmtPct(r.chg1d), cls: pctClass(r.chg1d) }
@@ -3386,6 +3394,7 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
 }) {
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+  const [openMetric, setOpenMetric] = useState<string | null>(null)
   return (
     <div className={styles.card} onClick={onClick}>
       <div className={styles.cardHeader}>
@@ -3417,13 +3426,26 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
           ['来期売上%', r.nySalesGr != null ? fmtPct(r.nySalesGr) : '—', r.nySalesGr != null ? pctClass(r.nySalesGr) : ''],
           ['ROE',      r.roe   != null ? fmtPct(r.roe)    : '—',   r.roe != null && r.roe > 0.1 ? 'up' : ''],
           ['営業利益率', r.opMgn != null ? fmtPct(r.opMgn) : '—',  r.opMgn != null && r.opMgn > 0.15 ? 'up' : ''],
-        ].map(([l, v, c]) => (
+        ].map(([l, v, c]) => {
+          const def = GLOSSARY[l as string]
+          return (
           <div key={l} className={styles.cardMetric}>
-            <div className={styles.cardMetricLabel}>{l}</div>
+            <div className={styles.cardMetricLabel}>
+              <span>{l}</span>
+              {def && (
+                <button type="button" className={styles.infoDot} aria-label={`${l}とは`}
+                  onClick={e => { e.stopPropagation(); setOpenMetric(openMetric === l ? null : (l as string)) }}>?</button>
+              )}
+            </div>
             <div className={`${styles.cardMetricValue} ${c ? styles[c] : ''}`}>{v}</div>
           </div>
-        ))}
+        )})}
       </div>
+      {openMetric && GLOSSARY[openMetric] && (
+        <div className={styles.cardMetricPop} onClick={e => { e.stopPropagation(); setOpenMetric(null) }}>
+          <b>{openMetric}</b>：{GLOSSARY[openMetric]}
+        </div>
+      )}
       {(apiKey || serverHasKey) && (
         <div onClick={e => e.stopPropagation()}>
           <MiniChart code={r.code} apiKey={apiKey} serverHasKey={serverHasKey} refreshKey={refreshKey} mode={chartMode} onModeChange={onChartModeChange} />
@@ -4555,6 +4577,10 @@ const GLOSSARY: Record<string, string> = {
   '配当予想':     '会社が予想する、1株あたりの年間配当額です。',
   'PER位置':      '棒の左ほど割安・右ほど割高で、●が今の予想PERの位置です。両端は直近1年のPER安値・高値。その銘柄自身の過去レンジの中で、今が高いか安いかを見ます。',
   '株価の値動き': '1週間・1ヶ月・3ヶ月・1年前の株価と比べた、現在株価の変化率です。',
+  // カードビュー用の別ラベル
+  'PEG':          'PER ÷ 利益成長率。成長を加味した割安度で、1倍未満が割安の目安です。',
+  '1ヶ月%':       '1ヶ月前の株価と比べた、現在株価の変化率です。',
+  '来期売上%':    '来期に売上がどれだけ伸びる予想か。事業の伸びしろの目安です。',
 }
 
 // 用語の横に置くタップ式「?」（広めの場所で使う汎用版。狭いセルはGrid2側の実装を使う）

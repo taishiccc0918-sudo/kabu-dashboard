@@ -103,6 +103,12 @@
   display: none;
 }
 .logo span { color: var(--accent); }
+.logoWrap { display: flex; flex-direction: column; gap: 1px; }
+.dataAsOf {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 10px; color: var(--text-3); letter-spacing: -0.2px;
+  line-height: 1; padding-left: 30px; white-space: nowrap;
+}
 .lastUpdate {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 11px; color: var(--text-3);

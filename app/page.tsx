@@ -1335,6 +1335,7 @@ export default function Page() {
     <div className={`${styles.root}${darkMode ? '' : ' ' + styles.lightMode}`}>
       <header className={styles.header}>
         <div className={styles.headerLeft}>
+          <div className={styles.logoWrap}>
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>
             <svg width="24" height="24" viewBox="0 0 64 64" style={{flexShrink:0}} aria-hidden="true">
               <defs>
@@ -1351,7 +1352,9 @@ export default function Page() {
             </svg>
             かぶ<span>ノート</span>
           </div>
-          <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && (
+          {maxDiscDate && <div className={styles.dataAsOf}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')} 時点</div>}
+          </div>
+          <div className={styles.lastUpdate}>{stats.total > 0 && (
             <button className={styles.favLegendBtn} onClick={() => setShowFavLegend(s => !s)} title="♥（超お気に入り）と目印（ウォッチ）の違い">
               <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
               <span style={{color:'#f59e0b',marginLeft:7,display:'inline-flex',alignItems:'center',gap:3}}><EyeIcon on size={13} />{favorites.size}</span>
@@ -1867,12 +1870,12 @@ export default function Page() {
         <div className={styles.favLegendOverlay} onClick={e => { if (e.target === e.currentTarget) setShowFavLegend(false) }}>
           <div className={styles.favLegendCard}>
             <div className={styles.favLegendRow}>
-              <span style={{ color: '#f59e0b', display: 'inline-flex', flexShrink: 0 }}><EyeIcon on size={22} /></span>
-              <div><b>目印（ウォッチリスト）</b><br />気になった銘柄を加えて見守る一覧。<b>ダッシュ・ニュース・レポートはこのウォッチリストが土台</b>です。</div>
-            </div>
-            <div className={styles.favLegendRow}>
               <span style={{ color: '#f43f5e', fontSize: 22, flexShrink: 0, lineHeight: 1 }}>♥</span>
               <div><b>♥ 超お気に入り</b><br />毎日チェックしたい、<b>特に注目</b>の銘柄。各画面で「♥のみ」に絞り込めます。</div>
+            </div>
+            <div className={styles.favLegendRow}>
+              <span style={{ color: '#f59e0b', display: 'inline-flex', flexShrink: 0 }}><EyeIcon on size={22} /></span>
+              <div><b>目印（ウォッチリスト）</b><br />気になった銘柄を加えて見守る一覧。<b>ダッシュ・ニュース・レポートはこのウォッチリストが土台</b>です。</div>
             </div>
             <button className={styles.favLegendClose} onClick={() => setShowFavLegend(false)}>とじる</button>
           </div>

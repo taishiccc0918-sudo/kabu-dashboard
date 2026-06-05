@@ -5231,6 +5231,8 @@ const NOTICES: Notice[] = [
 const LATEST_NOTICE = NOTICES[0]?.date ?? ''
 
 function NoticesPanel({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  // 既定で最新だけ開く。各お知らせはボックス、タップで本文が開閉（長文でも一覧がすっきり）。
+  const [openKey, setOpenKey] = useState<string>(NOTICES[0] ? NOTICES[0].date + NOTICES[0].title : '')
   return (
     <>
       <div className={`${styles.helpOverlay} ${visible ? styles.helpOverlayVisible : ''}`} onClick={onClose} />
@@ -5240,13 +5242,27 @@ function NoticesPanel({ visible, onClose }: { visible: boolean; onClose: () => v
           <button className={styles.helpClose} onClick={onClose}>×</button>
         </div>
         <div className={styles.helpBody}>
-          {NOTICES.map(n => (
-            <div key={n.date + n.title} className={styles.noticeItem}>
-              <div className={styles.noticeDate}>{n.date.replace(/-/g, '/')}</div>
-              <div className={styles.noticeTitle}>{n.title}</div>
-              <div className={styles.noticeBody}>{n.body}</div>
-            </div>
-          ))}
+          {NOTICES.map(n => {
+            const key = n.date + n.title
+            const isOpen = openKey === key
+            return (
+              <button
+                key={key}
+                className={`${styles.noticeItem} ${isOpen ? styles.noticeItemOpen : ''}`}
+                onClick={() => setOpenKey(isOpen ? '' : key)}
+                aria-expanded={isOpen}
+              >
+                <div className={styles.noticeHead}>
+                  <div className={styles.noticeHeadText}>
+                    <div className={styles.noticeDate}>{n.date.replace(/-/g, '/')}</div>
+                    <div className={styles.noticeTitle}>{n.title}</div>
+                  </div>
+                  <span className={styles.noticeChevron}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+                {isOpen && <div className={styles.noticeBody}>{n.body}</div>}
+              </button>
+            )
+          })}
         </div>
       </div>
     </>

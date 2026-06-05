@@ -3337,8 +3337,11 @@ function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav,
           </span>
         </span>
         <span className={styles.spRowPriceCol}>
-          {metric ? (
-            <span className={`${styles.spRowMetricMain} ${metric.cls ? styles[metric.cls] : ''}`}>{metric.value}</span>
+          {sortKey ? (
+            // 並べ替え中＝選んだ指標だけ。値が無い(例:配当なし)ときは株価でなく空白(—)にする
+            metric
+              ? <span className={`${styles.spRowMetricMain} ${metric.cls ? styles[metric.cls] : ''}`}>{metric.value}</span>
+              : <span className={styles.spRowMetricNone}>—</span>
           ) : (
             <>
               <span className={styles.spRowPrice}>{r.close ? r.close.toLocaleString() : '—'}</span>

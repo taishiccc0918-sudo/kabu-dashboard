@@ -1129,6 +1129,8 @@
 .spRowSub { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text-2); }
 /* 並べ替え中に右上へ出す「選んだ指標」だけの主役表示（株価の代わり） */
 .spRowMetricMain { font-size: 14px; font-weight: 700; color: var(--text-1); text-align: right; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* 並べ替え中で値が無い銘柄（例: 無配で配当順）は株価を出さず控えめな — のみ */
+.spRowMetricNone { font-size: 14px; font-weight: 700; color: var(--text-3); }
 
 /* ♥（超お気に入り）トグルのみ・コンパクト */
 .spRowFav {

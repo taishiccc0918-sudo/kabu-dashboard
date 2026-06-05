@@ -2428,7 +2428,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
         <td className={styles.wlTd}>
           <div className={styles.wlGenreCell}>
             {genres.length === 0
-              ? <span className={styles.genreTag} style={{color:'#4e6280',borderStyle:'dashed'}}>未設定</span>
+              ? <span className={styles.genreTag} style={{color:'var(--text-3)',borderStyle:'dashed'}}>未設定</span>
               : <>
                   {displayGenres.map(g => <span key={g} className={`${styles.genreTag} ${styles.genreTagOn}`}>{g}</span>)}
                   {extraGenreCount > 0 && (

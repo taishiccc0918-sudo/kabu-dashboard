@@ -461,7 +461,7 @@
   font-family: 'JetBrains Mono', 'Courier New', monospace; letter-spacing: 0.5px;
 }
 .jBuy  { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
-.jNone { color: #4e6280; }
+.jNone { color: var(--text-3); }
 
 /* ── CARD VIEW ───────────────────────────────────── */
 .cardGrid {
@@ -579,7 +579,7 @@
   font-family: 'JetBrains Mono', 'Courier New', monospace; width: 120px;
 }
 .wlInput:focus { outline: none; border-color: var(--accent); }
-.wlCount { font-size: 11px; color: #4e6280; margin-bottom: 12px; font-family: 'JetBrains Mono', 'Courier New', monospace; }
+.wlCount { font-size: 11px; color: var(--text-3); margin-bottom: 12px; font-family: 'JetBrains Mono', 'Courier New', monospace; }
 .wlChips { display: flex; flex-wrap: wrap; gap: 5px; }
 .wlChip {
   display: flex; align-items: center; gap: 5px;
@@ -589,8 +589,8 @@
 }
 .wlChip:hover { border-color: var(--line-strong); }
 .wlChipCode { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 11px; color: #8fa3be; }
-.wlChipName { color: #4e6280; font-size: 10px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wlChipRemove { color: #4e6280; cursor: pointer; font-size: 14px; line-height: 1; transition: color .1s; }
+.wlChipName { color: var(--text-3); font-size: 10px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wlChipRemove { color: var(--text-3); cursor: pointer; font-size: 14px; line-height: 1; transition: color .1s; }
 .wlChipRemove:hover { color: #f87171; }
 
 /* ── DETAIL PANEL ────────────────────────────────── */
@@ -957,7 +957,7 @@
   height: 28px;
   background: rgba(8,12,18,0.95); border-top: 1px solid #1f2d40;
   padding: 0 20px; display: flex; align-items: center;
-  gap: 10px; font-size: 10px; color: #4e6280; z-index: 400;
+  gap: 10px; font-size: 10px; color: var(--text-3); z-index: 400;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   backdrop-filter: blur(10px);
 }
@@ -1027,7 +1027,7 @@
 .mobileRowTop { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .mobileCode {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #4e6280; font-weight: 600;
+  font-size: 11px; color: var(--text-3); font-weight: 600;
 }
 .mobileName {
   font-size: 14px; font-weight: 700; color: var(--text-1);
@@ -1036,7 +1036,7 @@
 .mobileMetaRow { display: flex; gap: 8px; flex-wrap: wrap; }
 .mobileMetaItem {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #4e6280;
+  font-size: 10px; color: var(--text-3);
 }
 .mobileRowRight {
   display: flex; flex-direction: column;
@@ -1055,7 +1055,7 @@
 .mobileSubChg {
   display: flex; gap: 8px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px; color: #4e6280;
+  font-size: 10px; color: var(--text-3);
 }
 
 /* SP専用非表示クラス（PC時は通常表示） */
@@ -1461,7 +1461,7 @@
 /* stat utils */
 .statCard { flex: 1; background: #111827; padding: 14px 20px; transition: background .12s; }
 .statCard:hover { background: var(--surface-hover); }
-.statLabel { font-size: 10px; color: #4e6280; margin-bottom: 6px; font-family: 'JetBrains Mono', 'Courier New', monospace; }
+.statLabel { font-size: 10px; color: var(--text-3); margin-bottom: 6px; font-family: 'JetBrains Mono', 'Courier New', monospace; }
 .statValue { font-size: 26px; font-weight: 700; font-family: 'JetBrains Mono', 'Courier New', monospace; line-height: 1; }
 .statsBar { display: flex; gap: 1px; background: #1f2d40; border-bottom: 1px solid #1f2d40; }
 
@@ -1648,7 +1648,7 @@
   display: flex; flex-direction: column; gap: 6px;
 }
 .filterPanelLabel {
-  font-size: 10px; color: #4e6280;
+  font-size: 10px; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.5px; text-transform: uppercase;
 }
@@ -1659,7 +1659,7 @@
   padding: 3px 10px; border-radius: 4px;
   border: 1px solid #1f2d40;
   background: rgba(255,255,255,0.03);
-  color: #4e6280; font-size: 11px;
+  color: var(--text-3); font-size: 11px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s;
 }
@@ -1754,7 +1754,7 @@
   width: 28px; height: 28px;
   border-radius: 5px; border: 1px solid var(--line-strong);
   background: rgba(255,255,255,0.03);
-  color: #4e6280; font-size: 13px;
+  color: var(--text-3); font-size: 13px;
   cursor: pointer; transition: all .12s; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
@@ -1790,7 +1790,7 @@
   box-sizing: border-box; transition: border-color .15s;
 }
 .wlHeaderSearch:focus { outline: none; border-color: var(--accent); background: rgba(20,184,166,0.06); }
-.wlHeaderSearch::placeholder { color: #4e6280; }
+.wlHeaderSearch::placeholder { color: var(--text-3); }
 
 /* セグメンテッド市場フィルター */
 .wlMktSegment {
@@ -1801,7 +1801,7 @@
   padding: 4px 9px; border: none;
   border-left: 1px solid var(--line-strong);
   background: rgba(255,255,255,0.02);
-  color: #4e6280; font-size: 11px;
+  color: var(--text-3); font-size: 11px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .1s; white-space: nowrap;
 }
@@ -1834,7 +1834,7 @@
   display: flex; align-items: center; gap: 10px;
 }
 .wlCount {
-  font-size: 11px; color: #4e6280; font-weight: 400;
+  font-size: 11px; color: var(--text-3); font-weight: 400;
   background: rgba(255,255,255,0.05);
   border: 1px solid #1f2d40;
   border-radius: 10px; padding: 2px 8px;
@@ -1848,7 +1848,7 @@
   border-bottom: 1px solid #1f2d40;
 }
 .wlGenreLabel {
-  font-size: 10px; color: #4e6280;
+  font-size: 10px; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap; margin-right: 4px;
 }
@@ -2056,7 +2056,7 @@
   padding: 2px 8px; border-radius: 3px;
   border: 1px solid #1f2d40;
   background: rgba(255,255,255,0.03);
-  color: #4e6280; font-size: 11px; cursor: pointer;
+  color: var(--text-3); font-size: 11px; cursor: pointer;
   transition: all .1s; white-space: nowrap;
 }
 .genreTag:hover { border-color: var(--accent); color: #8fa3be; }
@@ -2068,14 +2068,14 @@
 .genreResetBtn {
   padding: 2px 6px; border-radius: 3px;
   border: 1px solid var(--line-strong);
-  background: none; color: #4e6280;
+  background: none; color: var(--text-3);
   font-size: 11px; cursor: pointer;
   transition: all .1s;
 }
 .genreResetBtn:hover { border-color: #f87171; color: #f87171; }
 .wlRemoveBtn {
   background: none; border: none; cursor: pointer;
-  color: #4e6280; font-size: 13px;
+  color: var(--text-3); font-size: 13px;
   padding: 3px 6px; border-radius: 4px;
   transition: all .1s;
 }
@@ -2085,7 +2085,7 @@
 .genreEditToggleBtn {
   padding: 2px 8px; border-radius: 3px;
   border: 1px dashed #2a3a52;
-  background: none; color: #4e6280;
+  background: none; color: var(--text-3);
   font-size: 10px; cursor: pointer;
   transition: all .1s; white-space: nowrap;
 }
@@ -2274,7 +2274,7 @@
 }
 .wlResultCount {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #4e6280;
+  font-size: 11px; color: var(--text-3);
   margin-left: auto;
 }
 
@@ -2286,14 +2286,14 @@
   flex-shrink: 0;
 }
 .wlGenreFilterLabel {
-  font-size: 10px; color: #4e6280;
+  font-size: 10px; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   flex-shrink: 0;
 }
 .wlGenreFilterChip {
   padding: 3px 10px; border-radius: 99px;
   border: 1px solid var(--line-strong); background: transparent;
-  color: #4e6280; font-size: 11px; cursor: pointer;
+  color: var(--text-3); font-size: 11px; cursor: pointer;
   font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
 }
 .wlGenreFilterChip:hover { color: #8fa3be; border-color: var(--accent); }
@@ -2315,7 +2315,7 @@
   padding: 4px 10px; border-radius: 5px;
   border: 1px solid var(--line-strong);
   background: rgba(255,255,255,0.03);
-  color: #4e6280; font-size: 11px;
+  color: var(--text-3); font-size: 11px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s; white-space: nowrap; flex-shrink: 0;
 }
@@ -2336,7 +2336,7 @@
   font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
   border-radius: 8px 8px 0 0; outline: none;
 }
-.genrePanelSearch::placeholder { color: #4e6280; }
+.genrePanelSearch::placeholder { color: var(--text-3); }
 .genrePanelList { flex: 1; overflow-y: auto; padding: 4px 0; }
 .genrePanelItem {
   display: flex; align-items: center; padding: 5px 12px; gap: 6px;
@@ -2354,7 +2354,7 @@
 .genrePanelItem:hover .genrePanelActions { opacity: 1; }
 .genrePanelRenameBtn {
   background: none; border: none; cursor: pointer;
-  font-size: 11px; padding: 2px 5px; color: #4e6280;
+  font-size: 11px; padding: 2px 5px; color: var(--text-3);
   border-radius: 3px; transition: background .1s; line-height: 1;
 }
 .genrePanelRenameBtn:hover { background: rgba(20,184,166,0.15); color: var(--accent); }
@@ -2371,7 +2371,7 @@
 /* ── ジャンルフィルタードロップダウン（B） ─────────────────── */
 .genreFilterBtn {
   background: none; border: 1px solid transparent; cursor: pointer;
-  font-size: 9px; color: #4e6280; padding: 1px 3px;
+  font-size: 9px; color: var(--text-3); padding: 1px 3px;
   border-radius: 3px; transition: all .12s; line-height: 1;
   margin-left: 4px; vertical-align: middle;
 }
@@ -2411,7 +2411,7 @@
   font-size: 11px; font-family: 'Noto Sans JP', sans-serif;
   border-radius: 8px 8px 0 0; outline: none;
 }
-.genreFilterSearch::placeholder { color: #4e6280; }
+.genreFilterSearch::placeholder { color: var(--text-3); }
 .genreFilterSelectAll {
   display: flex; align-items: center; gap: 7px;
   padding: 6px 10px; cursor: pointer;
@@ -2479,14 +2479,14 @@
 .genreChipRenameBtn {
   background: none; border: none; cursor: pointer;
   font-size: 9px; padding: 0 1px; line-height: 1;
-  opacity: 0; transition: opacity .12s; color: #4e6280;
+  opacity: 0; transition: opacity .12s; color: var(--text-3);
 }
 .genreChipWrap:hover .genreChipRenameBtn { opacity: 0.8; }
 .genreChipRenameBtn:hover { opacity: 1 !important; }
 
 /* メモ最終更新日 */
 .memoTimestamp {
-  font-size: 11px; color: #4e6280;
+  font-size: 11px; color: var(--text-3);
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap; flex-shrink: 0;
 }
@@ -2526,7 +2526,7 @@
 }
 .pageInfo {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #4e6280;
+  font-size: 11px; color: var(--text-3);
   margin-left: 8px;
 }
 
@@ -2566,29 +2566,29 @@
   font-size: 14px; line-height: 1; padding: 2px;
   min-width: 24px; min-height: 24px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 3px; flex-shrink: 0; color: #4e6280;
+  border-radius: 3px; flex-shrink: 0; color: var(--text-3);
 }
 .wlMobileIconBtn:active { background: rgba(255,255,255,0.06); }
-/* ♥/★ボタンの色: wlMobileIconBtnのデフォルトcolor(#4e6280)が上書きしないよう明示 */
+/* ♥/★ボタンの色: wlMobileIconBtnのデフォルトcolor(var(--text-3))が上書きしないよう明示 */
 .wlMobileIconBtn.heartBtnOn { color: #f43f5e !important; filter: drop-shadow(0 0 4px rgba(244,63,94,0.45)); }
 .wlMobileIconBtn.heartBtn   { color: rgba(156,163,175,0.3) !important; }
 .wlMobileIconBtn.favBtnOn   { color: #fbbf24 !important; filter: drop-shadow(0 0 4px rgba(251,191,36,0.5)); }
 .wlMobileIconBtn.favBtn     { color: rgba(156,163,175,0.35) !important; }
 .wlMobileCode {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: #4e6280; flex-shrink: 0; width: 38px;
+  font-size: 11px; color: var(--text-3); flex-shrink: 0; width: 38px;
 }
 .wlMobileName {
   font-size: 13px; font-weight: 600; color: var(--text-1);
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wlMobileGenre {
-  font-size: 9px; color: #4e6280; background: rgba(255,255,255,0.04);
+  font-size: 9px; color: var(--text-3); background: rgba(255,255,255,0.04);
   border: 1px solid var(--line-strong); border-radius: 3px; padding: 1px 4px; flex-shrink: 0;
 }
 .wlMobileEditBtn {
   background: none; border: none; cursor: pointer;
-  font-size: 13px; color: #4e6280; padding: 2px 5px; flex-shrink: 0;
+  font-size: 13px; color: var(--text-3); padding: 2px 5px; flex-shrink: 0;
   border-radius: 4px; min-width: 26px; min-height: 26px;
   display: flex; align-items: center; justify-content: center;
 }
@@ -2615,7 +2615,7 @@
 }
 .wlMobileNameTap:active { opacity: 0.65; }
 .wlMobileNameCaret {
-  font-size: 9px; color: #4e6280; font-weight: 400;
+  font-size: 9px; color: var(--text-3); font-weight: 400;
   flex-shrink: 0;
 }
 .wlMobileLinkRow {
@@ -2664,7 +2664,7 @@
   .wlSpGenreBar { display: flex; }
 }
 .wlSpGenreBarLabel {
-  font-size: 11px; font-weight: 600; color: #4e6280;
+  font-size: 11px; font-weight: 600; color: var(--text-3);
   white-space: nowrap; flex-shrink: 0;
 }
 .wlSpGenreChips {
@@ -3252,7 +3252,7 @@
   flex-shrink: 0;
 }
 .judgmentLogicLabel {
-  font-size: 11px; color: #4e6280; white-space: nowrap;
+  font-size: 11px; color: var(--text-3); white-space: nowrap;
   font-family: 'JetBrains Mono', monospace;
 }
 .judgmentLogicSelect {
@@ -3317,7 +3317,7 @@
 
 .rangesSection { display: flex; flex-direction: column; gap: 6px; }
 .rangesSectionLabel {
-  font-size: 10px; color: #4e6280; letter-spacing: 0.06em;
+  font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;
   font-family: 'JetBrains Mono', monospace;
   margin-bottom: 2px;
 }
@@ -3345,13 +3345,13 @@
   font-family: 'JetBrains Mono', monospace;
 }
 .rangeInput:focus { outline: none; border-color: var(--accent); }
-.rangeInput::placeholder { color: #4e6280; }
+.rangeInput::placeholder { color: var(--text-3); }
 
-.rangeLabel { font-size: 11px; color: #4e6280; flex-shrink: 0; }
-.rangeUnit { font-size: 10px; color: #4e6280; flex-shrink: 0; min-width: 14px; }
+.rangeLabel { font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+.rangeUnit { font-size: 10px; color: var(--text-3); flex-shrink: 0; min-width: 14px; }
 
 .rangeDeleteBtn {
-  background: none; border: none; color: #4e6280;
+  background: none; border: none; color: var(--text-3);
   font-size: 14px; line-height: 1; cursor: pointer;
   padding: 2px 4px; border-radius: 4px; margin-left: auto;
   transition: color .15s;
@@ -3361,7 +3361,7 @@
 .addRangeBtn {
   align-self: flex-start;
   background: rgba(255,255,255,0.04); border: 1px dashed #2a3a52;
-  color: #4e6280; font-size: 11px;
+  color: var(--text-3); font-size: 11px;
   cursor: pointer; border-radius: 6px; padding: 5px 12px;
   transition: all .15s; margin-top: 2px;
   font-family: 'Noto Sans JP', sans-serif;
@@ -3421,7 +3421,7 @@
 }
 .helpClose {
   background: rgba(255,255,255,0.05); border: 1px solid #1f2d40;
-  color: #4e6280; width: 28px; height: 28px;
+  color: var(--text-3); width: 28px; height: 28px;
   border-radius: 6px; cursor: pointer; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   transition: all .12s;
@@ -3437,7 +3437,7 @@
 .helpTab {
   padding: 6px 14px; font-size: 12px;
   font-family: 'Noto Sans JP', sans-serif;
-  color: #4e6280; background: transparent;
+  color: var(--text-3); background: transparent;
   border: none; border-bottom: 2px solid transparent;
   cursor: pointer; transition: all .12s;
   margin-bottom: -1px;
@@ -3952,7 +3952,7 @@
   font-size: 11px; font-weight: 800; line-height: 1; flex-shrink: 0;
 }
 .todayLabel {
-  font-size: 9px; color: #4e6280; margin-right: 4px;
+  font-size: 9px; color: var(--text-3); margin-right: 4px;
   text-transform: uppercase; letter-spacing: 0.06em;
   font-family: 'JetBrains Mono', monospace;
 }

@@ -1352,7 +1352,7 @@ export default function Page() {
           </div>
           <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
             <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
-            <span style={{color:'#f59e0b',marginLeft:8}}>★{favorites.size}</span>
+            <span style={{color:'#f59e0b',marginLeft:8,display:'inline-flex',alignItems:'center',gap:3,verticalAlign:'middle'}}><EyeIcon on size={13} />{favorites.size}</span>
           </span>}</div>
         </div>
         <div className={styles.headerRight}>
@@ -1400,7 +1400,7 @@ export default function Page() {
                 )}
                 <button className={styles.moreMenuItem} onClick={() => { exportToExcel(); setShowMoreMenu(false) }}>
                   <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M5 20h14"/></svg>
-                  ★リストをExcel保存
+                  ウォッチリストをExcel保存
                 </button>
               </div>
             )}
@@ -1522,8 +1522,8 @@ export default function Page() {
               <button
                 className={`${styles.wlIconFilterBtn} ${wlShowFavOnly ? styles.wlIconFilterBtnActive : ''}`}
                 onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
-                title="お気に入りのみ表示"
-              >★</button>
+                title="ウォッチ（目印）の銘柄だけ表示"
+              ><EyeIcon on={wlShowFavOnly} size={16} /></button>
               {/* PC: 市場ボタン群 */}
               <div className={`${styles.wlMktSegment} ${styles.spHide}`}>
                 {(['all','prime','standard','growth'] as const).map(k => (
@@ -2148,7 +2148,7 @@ function StockManager({
         {/* SP: 固定列ヘッダー */}
         <div className={styles.wlSpStickyHeader}>
           <span className={styles.wlSpHdrHeart}>♥</span>
-          <span className={styles.wlSpHdrStar}>★</span>
+          <span className={styles.wlSpHdrStar} title="ウォッチ"><EyeIcon on size={13} /></span>
           <span className={styles.wlSpHdrCode}>コード</span>
           <span className={styles.wlSpHdrName}>銘柄名</span>
           <span className={styles.wlSpHdrGenre}>ジャンル</span>
@@ -2255,6 +2255,16 @@ function MemoTooltip({ text, updatedAt, children }: { text: string; updatedAt?: 
 }
 
 // ─── WlMobileRow（銘柄管理 SP 用コンパクト1行） ─────────────────────
+// ウォッチ(★)を表す目アイコン。on=ウォッチ中（瞳を塗る）。色は currentColor を継承。
+function EyeIcon({ on, size = 17 }: { on: boolean; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>
+      <circle cx="12" cy="12" r="2.9" fill={on ? 'currentColor' : 'none'}/>
+    </svg>
+  )
+}
+
 function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted }: {
   code: string
   rec: MasterRecord
@@ -2303,7 +2313,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
         <button onClick={onToggleSuperFav}
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>
         <button onClick={onToggleFav}
-          className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}>{isFav ? '★' : '☆'}</button>
+          className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}><EyeIcon on={isFav} size={16} /></button>
         <span className={styles.wlMobileCode}>{code}</span>
         {/* 銘柄名タップでリンク展開 */}
         <span
@@ -2460,7 +2470,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
             onClick={onToggleFav}
             className={isFav ? styles.favBtnOn : styles.favBtn}
             title={isFav ? 'お気に入り解除' : 'お気に入りに追加'}
-          >{isFav ? '★' : '☆'}</button>
+          ><EyeIcon on={isFav} size={16} /></button>
         </td>
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
         <td className={styles.wlTd}><span className={styles.wlTdName}>{rec.name}</span></td>
@@ -3222,7 +3232,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
           onClick={e => { e.stopPropagation(); onToggleSuperFav() }}
           title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
         >♥</button>
-        <span className={styles.starSymbol}>★</span>
+        <span className={styles.starSymbol}><EyeIcon on size={13} /></span>
       </td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>
       <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
@@ -3495,7 +3505,7 @@ function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () =
           <p>このアプリは、<b>あなたが選んだ銘柄</b>の「いつ買うか」を助けるツールです。はじめに、気になる銘柄を登録してください。</p>
           <ol className={styles.welcomeSteps}>
             <li><b>「銘柄管理」</b>を開く</li>
-            <li>気になる銘柄に <span style={{ color: '#f43f5e', fontWeight: 700 }}>♥</span> 超お気に入り／<span style={{ color: '#f59e0b', fontWeight: 700 }}>★</span> ウォッチ を付ける</li>
+            <li>気になる銘柄に <span style={{ color: '#f43f5e', fontWeight: 700 }}>♥</span> 超お気に入り／<span style={{ color: '#f59e0b', display: 'inline-flex', verticalAlign: 'middle' }}><EyeIcon on size={15} /></span> ウォッチ を付ける</li>
             <li>必要ならジャンルやメモも付けられます</li>
           </ol>
           <p className={styles.welcomeNote}>登録すると、<b>ダッシュ・ニュース・レポート</b>があなたの銘柄で動き出します。</p>
@@ -5269,7 +5279,7 @@ function WeeklyReport({
     <div className={styles.reportRoot}>
       <div className={styles.rpHdr}>
         <span className={styles.rpTitle}>レポート</span>
-        <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{baseRows.length}銘柄</span>
+        <span className={styles.rpDate} style={{display:'inline-flex',alignItems:'center',gap:4}}>{dateStr} ·<EyeIcon on size={12} />{baseRows.length}銘柄</span>
       </div>
 
       {/* レポート内タブ＋スコープ（縦長スクロールを避け、1ページ1テーマ） */}
@@ -5576,7 +5586,7 @@ function SearchDropdown({
                         transition: 'color .1s',
                         flexShrink: 0,
                       }}
-                    >★</button>
+                    ><EyeIcon on={!!favorites?.has(r.code)} size={14} /></button>
                   )}
                 </div>
               ))}
@@ -5606,7 +5616,7 @@ function SearchDropdown({
                         transition: 'color .1s',
                         flexShrink: 0,
                       }}
-                    >★</button>
+                    ><EyeIcon on={!!favorites?.has(r.code)} size={14} /></button>
                   )}
                 </div>
               ))}

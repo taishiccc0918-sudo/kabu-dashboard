@@ -4868,10 +4868,11 @@ function repInsight(r: StockRow): string {
 function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
-  const W = 420, H = 340, L = 24, R = 12, T = 12, B = 12
+  // 縦を大きく取り、余っていた縦スペースを使って図を拡大（本人指摘 I8）。横は width:100% で画面幅いっぱい。
+  const W = 420, H = 520, L = 22, R = 10, T = 14, B = 14
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
-  const FS = 7       // ラベル文字サイズ（SVG単位。viewBox拡大に合わせ可読性維持）
+  const FS = 8.5     // ラベル文字サイズ（SVG単位。図の拡大に合わせ大きく＝読みやすく）
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   // 社名は株式会社/括弧/HD表記を省いてフル表示（途中で切らない）

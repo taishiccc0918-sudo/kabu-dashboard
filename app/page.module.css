@@ -3351,7 +3351,8 @@
 
 .helpPanelHead {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px 0;
+  /* PWA全画面時にステータスバー(時計/電波)と重なって×が押せなくなるのを防ぐ＝上に safe-area 分の余白 */
+  padding: calc(16px + env(safe-area-inset-top)) 20px 0;
   flex-shrink: 0;
 }
 .helpPanelTitle {

@@ -2571,6 +2571,80 @@
 .wlMobileItem {
   border-bottom: 1px solid #1f2d40;
 }
+/* J5: 並べ替えモードの行 */
+.wlMobileItemReorder { background: var(--surface-1); }
+.wlMobileItemDragging {
+  background: var(--accent-soft);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+  border-radius: 8px; position: relative; z-index: 5;
+  opacity: 0.96;
+}
+.wlReorderGrip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  color: var(--accent); cursor: grab; touch-action: none;
+  border-radius: 7px; background: var(--surface-2);
+}
+.wlReorderGrip:active { cursor: grabbing; }
+.wlReorderHeart { color: #f43f5e; font-size: 13px; flex-shrink: 0; }
+/* J5: 並べ替えモード切替バー */
+.wlReorderBar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; flex-wrap: wrap;
+}
+.wlReorderToggle {
+  background: var(--surface-1); border: 1px solid var(--line);
+  color: var(--text-2); border-radius: 7px;
+  padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.wlReorderToggleOn {
+  background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent);
+}
+.wlReorderHint { font-size: 11px; color: var(--text-3); }
+/* J4: ジャンルの並べ替え・編集パネル */
+.genreMgrWrap { padding: 4px 8px 0; }
+.genreMgrToggle {
+  background: none; border: 1px dashed var(--line); color: var(--text-3);
+  border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: 100%;
+  text-align: left;
+}
+.genreMgrPanel {
+  margin-top: 6px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface-0); overflow: hidden;
+}
+.genreMgrEmpty { padding: 12px; color: var(--text-3); font-size: 12px; }
+.genreMgrRow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-bottom: 1px solid var(--line);
+  background: var(--surface-0);
+}
+.genreMgrRow:last-of-type { border-bottom: none; }
+.genreMgrRowDragging {
+  background: var(--accent-soft);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35); position: relative; z-index: 5;
+}
+.genreMgrGrip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0;
+  color: var(--accent); cursor: grab; touch-action: none;
+  border-radius: 7px; background: var(--surface-2);
+}
+.genreMgrGrip:active { cursor: grabbing; }
+.genreMgrName {
+  flex: 1; font-size: 13px; color: var(--text-1);
+  padding: 6px 4px; cursor: text;
+}
+.genreMgrInput {
+  flex: 1; font-size: 13px; color: var(--text-1);
+  background: var(--surface-1); border: 1px solid var(--accent-line);
+  border-radius: 6px; padding: 5px 8px;
+}
+.genreMgrEditBtn, .genreMgrDelBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; padding: 4px 6px; flex-shrink: 0; color: var(--text-3);
+}
+.genreMgrDelBtn { opacity: 0.7; }
+.genreMgrHint { padding: 7px 10px; font-size: 11px; color: var(--text-3); }
 .wlMobileRow {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 8px; min-height: 42px;

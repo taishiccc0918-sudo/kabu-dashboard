@@ -247,6 +247,8 @@ export default function Page() {
   const [filterFav,    setFilterFav]    = useState(false)
   const [customGenreOptions, setCustomGenreOptions] = useState<string[]>([])
   const [removedDefaultGenres, setRemovedDefaultGenres] = useState<string[]>([])
+  const [genreOrder, setGenreOrder] = useState<string[]>([])   // J4: ジャンルの手動並び順
+  const [stockOrder, setStockOrder] = useState<string[]>([])   // J5: 銘柄の手動並び順（コード）
   const [search,     setSearch]     = useState('')
   const [showDropdown,     setShowDropdown]     = useState(false)
   const [dropdownResults,  setDropdownResults]  = useState<DropdownResult[]>([])
@@ -617,6 +619,8 @@ export default function Page() {
     setLastUpdate(ls('lastUpdate', ''))
     setCustomGenreOptions(ls('customGenreOptions', []))
     setRemovedDefaultGenres(ls('removedDefaultGenres', []))
+    setGenreOrder(ls('genreOrder', []))
+    setStockOrder(ls('stockOrder', []))
     setEarningsDates(ls('earningsDates', {}))
     const initSuper = ls<string[]>('superFavorites', [])
     setSuperFavorites(new Set(initSuper))
@@ -1213,8 +1217,32 @@ export default function Page() {
     for (const m of Object.values(stockMeta)) {
       for (const g of (m.genres ?? [])) if (!removedDefaultGenres.includes(g)) set.add(g)
     }
-    return Array.from(set)
-  }, [removedDefaultGenres, customGenreOptions, stockMeta])
+    // J4: 手動並び順を優先。genreOrder にあるものを順に、残りは元の順で末尾。
+    const all = Array.from(set)
+    if (genreOrder.length === 0) return all
+    const rank = new Map(genreOrder.map((g, i) => [g, i]))
+    return all.slice().sort((a, b) => {
+      const ra = rank.has(a) ? rank.get(a)! : Infinity
+      const rb = rank.has(b) ? rank.get(b)! : Infinity
+      if (ra !== rb) return ra - rb
+      return all.indexOf(a) - all.indexOf(b)
+    })
+  }, [removedDefaultGenres, customGenreOptions, stockMeta, genreOrder])
+
+  // J4: ジャンルの並び替えを保存（渡された順を genreOrder にする）
+  function reorderGenres(next: string[]) {
+    setGenreOrder(next); lsSet('genreOrder', next)
+  }
+  // J5: 表示中の銘柄を新しい順に並べ替え→stockOrder を更新（可視分を先頭、非可視の既存順は維持）
+  function reorderStocks(newVisibleOrder: string[]) {
+    setStockOrder(prev => {
+      const visible = new Set(newVisibleOrder)
+      const rest = prev.filter(c => !visible.has(c))
+      const next = [...newVisibleOrder, ...rest]
+      lsSet('stockOrder', next)
+      return next
+    })
+  }
 
   function addGenreOption(name: string) {
     const trimmed = name.trim()
@@ -1297,6 +1325,14 @@ export default function Page() {
 
     setRemovedDefaultGenres(nextRemoved); lsSet('removedDefaultGenres', nextRemoved)
     setCustomGenreOptions(nextCustom);    lsSet('customGenreOptions',    nextCustom)
+    // J4: 並び順の中の旧名も新名に置換（重複は除去）
+    setGenreOrder(prev => {
+      if (!prev.includes(oldName)) return prev
+      const replaced = prev.map(g => g === oldName ? trimmed : g)
+      const deduped = Array.from(new Set(replaced))
+      lsSet('genreOrder', deduped)
+      return deduped
+    })
     setTimeout(sbSyncAllMetaFromLS, 0) // 改名後のジャンルをクラウドへ
   }
 
@@ -1777,6 +1813,9 @@ export default function Page() {
             onAddGenre={addGenreOption}
             onRemoveGenre={removeGenreOption}
             onRenameGenre={renameGenre}
+            stockOrder={stockOrder}
+            onReorderStocks={reorderStocks}
+            onReorderGenres={reorderGenres}
             onExport={exportToExcel}
             earningsDates={earningsDates}
             onSaveEarningsDate={saveEarningsDate}
@@ -1892,6 +1931,7 @@ function StockManager({
   masterDB, favorites, superFavorites, stockMeta,
   allGenreOptions: managedGenreOptions,
   onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onRenameGenre, onExport,
+  stockOrder, onReorderStocks, onReorderGenres,
   earningsDates, onSaveEarningsDate,
   wlSearch, setWlSearch,
   showFavOnly, setShowFavOnly,
@@ -1914,6 +1954,9 @@ function StockManager({
   onAddGenre: (name: string) => void
   onRemoveGenre: (name: string) => void
   onRenameGenre: (oldName: string, newName: string) => void
+  stockOrder: string[]
+  onReorderStocks: (newVisibleOrder: string[]) => void
+  onReorderGenres: (next: string[]) => void
   onExport: () => void
   earningsDates: Record<string, string>
   onSaveEarningsDate: (code: string, date: string) => void
@@ -1941,6 +1984,9 @@ function StockManager({
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
   // K4: パネル開閉を親で一本化（同時に1つだけ開く＝別の行を開くと前のは閉じる）
   const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
+  // J5: 銘柄の並べ替えモード（ON時のみ☰グリップ表示・他操作は無効）
+  const [reorderMode, setReorderMode] = useState(false)
+  const wlListRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -1956,7 +2002,7 @@ function StockManager({
 
   const filteredCodes = useMemo(() => {
     const q = normalizeSearchText(wlSearch.trim())
-    return allCodes.filter(code => {
+    const list = allCodes.filter(code => {
       const rec = masterDB[code]
       if (!rec) return false
       if (showFavOnly   && !favorites.has(code))      return false
@@ -1973,7 +2019,16 @@ function StockManager({
       if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '')).includes(q)) return false
       return true
     })
-  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta])
+    // J5: 手動並び順を優先（stockOrder にある銘柄を順に、残りはコード順で末尾）
+    if (stockOrder.length === 0) return list
+    const rank = new Map(stockOrder.map((c, i) => [c, i]))
+    return list.slice().sort((a, b) => {
+      const ra = rank.has(a) ? rank.get(a)! : Infinity
+      const rb = rank.has(b) ? rank.get(b)! : Infinity
+      if (ra !== rb) return ra - rb
+      return a < b ? -1 : a > b ? 1 : 0
+    })
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder])
 
   useEffect(() => {
     if (!wlHighlightCode) return
@@ -2047,6 +2102,9 @@ function StockManager({
 
   const totalPages = Math.max(1, Math.ceil(filteredCodes.length / PER_PAGE))
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+
+  // J5: 表示中ページ内の銘柄をドラッグ並べ替え
+  const stockDrag = useDragReorder(pageCodes, onReorderStocks, wlListRef)
 
   function renderPageNums() {
     const pages: number[] = []
@@ -2167,8 +2225,25 @@ function StockManager({
         </div>
       )}
 
+      {/* J4: ジャンルの並べ替え・編集 */}
+      <GenreManager
+        genres={managedGenreOptions.filter(g => g !== GENRE_UNSET)}
+        onReorder={onReorderGenres}
+        onRename={onRenameGenre}
+        onRemove={onRemoveGenre}
+      />
+
+      {/* J5: 銘柄の並べ替えモード切替 */}
+      <div className={styles.wlReorderBar}>
+        <button className={`${styles.wlReorderToggle} ${reorderMode ? styles.wlReorderToggleOn : ''}`}
+          onClick={() => { setReorderMode(m => !m); setOpenPanel(null) }}>
+          {reorderMode ? '✓ 並べ替えを終える' : '☰ 銘柄を並べ替える'}
+        </button>
+        {reorderMode && <span className={styles.wlReorderHint}>☰ を掴んで上下にドラッグ</span>}
+      </div>
+
       {/* SP: コンパクト1行リスト */}
-      <div className={`${styles.wlSpList} ${styles.mobileOnly}`}>
+      <div className={`${styles.wlSpList} ${styles.mobileOnly}`} ref={wlListRef}>
         {/* SP: 固定列ヘッダー */}
         <div className={styles.wlSpStickyHeader}>
           <span className={styles.wlSpHdrHeart}>♥</span>
@@ -2198,6 +2273,9 @@ function StockManager({
               highlighted={wlHighlightCode === code}
               openType={openPanel?.code === code ? openPanel.type : null}
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
+              reorderMode={reorderMode}
+              dragging={stockDrag.draggingKey === code}
+              dragHandleProps={stockDrag.makeHandleProps(code)}
             />
           ))
         }
@@ -2291,7 +2369,127 @@ function EyeIcon({ on, size = 17 }: { on: boolean; size?: number }) {
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel }: {
+// ☰ つかんで縦に並べ替えるグリップアイコン
+function GripIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
+      <circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/>
+      <circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>
+      <circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
+    </svg>
+  )
+}
+
+// ─── 共通：ポインタでつかんで縦リストを並べ替えるフック（外部ライブラリ不要）──────
+// グリップ(☰)を掴むと即ドラッグ開始（touch-action:none でスクロールと競合しない）。
+// order=描画中のキー配列。移動のたび onReorder に新しい順を返す（楽観更新）。
+function useDragReorder(
+  order: string[],
+  onReorder: (next: string[]) => void,
+  containerRef: React.RefObject<HTMLElement>,
+) {
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const latest = useRef({ order, onReorder, containerRef })
+  latest.current = { order, onReorder, containerRef }
+  const st = useRef<{ key: string } | null>(null)
+
+  function makeHandleProps(key: string): React.HTMLAttributes<HTMLElement> {
+    return {
+      onPointerDown: (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return
+        try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
+        st.current = { key }
+        setDraggingKey(key)
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12)
+        e.preventDefault()
+      },
+      onPointerMove: (e) => {
+        const s = st.current
+        if (!s || s.key !== key) return
+        e.preventDefault()
+        const cont = latest.current.containerRef.current
+        if (!cont) return
+        const els = Array.from(cont.querySelectorAll('[data-drag-key]')) as HTMLElement[]
+        let insertIdx = els.length
+        for (let i = 0; i < els.length; i++) {
+          const r = els[i].getBoundingClientRect()
+          if (e.clientY < r.top + r.height / 2) { insertIdx = i; break }
+        }
+        const ord = latest.current.order
+        const fromIdx = ord.indexOf(key)
+        if (fromIdx < 0) return
+        const next = ord.slice()
+        next.splice(fromIdx, 1)
+        const adj = insertIdx > fromIdx ? insertIdx - 1 : insertIdx
+        next.splice(adj, 0, key)
+        if (next.join('') !== ord.join('')) latest.current.onReorder(next)
+      },
+      onPointerUp: (e) => {
+        st.current = null
+        setDraggingKey(null)
+        try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch {}
+      },
+      onPointerCancel: () => { st.current = null; setDraggingKey(null) },
+      style: { touchAction: 'none', cursor: 'grab' },
+    }
+  }
+  return { draggingKey, makeHandleProps }
+}
+
+// ─── ジャンルの並べ替え・編集パネル（J4）────────────────────────────────
+function GenreManager({ genres, onReorder, onRename, onRemove }: {
+  genres: string[]
+  onReorder: (next: string[]) => void
+  onRename: (oldName: string, newName: string) => void
+  onRemove: (name: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const contRef = useRef<HTMLDivElement>(null)
+  const { draggingKey, makeHandleProps } = useDragReorder(genres, onReorder, contRef)
+
+  return (
+    <div className={styles.genreMgrWrap}>
+      <button className={styles.genreMgrToggle} onClick={() => setOpen(o => !o)}>
+        🏷 ジャンルの並べ替え・編集 {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className={styles.genreMgrPanel} ref={contRef}>
+          {genres.length === 0 && <div className={styles.genreMgrEmpty}>ジャンルがありません</div>}
+          {genres.map(g => (
+            <div key={g} data-drag-key={g}
+              className={`${styles.genreMgrRow} ${draggingKey === g ? styles.genreMgrRowDragging : ''}`}>
+              <span className={styles.genreMgrGrip} {...makeHandleProps(g)}><GripIcon /></span>
+              {editing === g ? (
+                <input className={styles.genreMgrInput} autoFocus value={draft}
+                  onChange={e => setDraft(e.target.value)}
+                  onBlur={() => { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }
+                    if (e.key === 'Escape') setEditing(null)
+                  }}
+                  maxLength={12}
+                />
+              ) : (
+                <span className={styles.genreMgrName} onClick={() => { setEditing(g); setDraft(g) }}>{g}</span>
+              )}
+              {editing !== g && (
+                <>
+                  <button className={styles.genreMgrEditBtn} onClick={() => { setEditing(g); setDraft(g) }} title="名前を変更">✎</button>
+                  <button className={styles.genreMgrDelBtn} onClick={() => { if (confirm(`ジャンル「${g}」を削除しますか？（銘柄からも外れます）`)) onRemove(g) }} title="削除">🗑</button>
+                </>
+              )}
+            </div>
+          ))}
+          <div className={styles.genreMgrHint}>☰ を掴んで並べ替え／名前をタップで変更</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, reorderMode, dragging, dragHandleProps }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -2303,6 +2501,9 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   highlighted: boolean
   openType: 'genre' | 'memo' | 'links' | null
   onTogglePanel: (type: 'genre' | 'memo' | 'links') => void
+  reorderMode?: boolean
+  dragging?: boolean
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>
 }) {
   const editingMemo = openType === 'memo'
   const editingGenre = openType === 'genre'
@@ -2334,8 +2535,21 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
     { label: '公式IR',      href: `https://www.google.com/search?q=${encodeURIComponent(code + ' ' + rec.name + ' IR 投資家情報')}` },
   ]
 
+  if (reorderMode) {
+    return (
+      <div className={`${styles.wlMobileItem} ${styles.wlMobileItemReorder} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
+        <div className={styles.wlMobileRow}>
+          <span className={styles.wlReorderGrip} {...dragHandleProps}><GripIcon size={20} /></span>
+          {isSuperFav && <span className={styles.wlReorderHeart}>♥</span>}
+          <span className={styles.wlMobileCode}>{code}</span>
+          <span className={styles.wlMobileName}>{rec.name}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''}`} data-code-wl={code}>
+    <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''}`} data-code-wl={code} data-drag-key={code}>
       <div className={styles.wlMobileRow}>
         <button onClick={onToggleSuperFav}
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>

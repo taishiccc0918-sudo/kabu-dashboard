@@ -361,6 +361,15 @@ export default function Page() {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* 失敗しても通常動作 */ })
     }
   }, [])
+  // 起動時に「直近ニュースのある銘柄」を軽量取得→ダッシュの📰マークに反映（ニュースタブ未閲覧でも出る）
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/news-hot').then(r => r.json()).then((d: { codes?: string[] }) => {
+      if (cancelled || !d?.codes?.length) return
+      setNewsHotCodes(new Set(d.codes))
+    }).catch(() => { /* 失敗しても無害 */ })
+    return () => { cancelled = true }
+  }, [])
   // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
   // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
   useEffect(() => {

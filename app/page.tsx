@@ -2119,7 +2119,7 @@ function StockManager({
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   // J5: 表示中ページ内の銘柄をドラッグ並べ替え
-  const stockDrag = useDragReorder(pageCodes, onReorderStocks, wlListRef, 250)
+  const stockDrag = useDragReorder(pageCodes, onReorderStocks, wlListRef, 250, true)
 
   function renderPageNums() {
     const pages: number[] = []
@@ -2390,6 +2390,7 @@ function useDragReorder(
   onReorder: (next: string[]) => void,
   containerRef: React.RefObject<HTMLElement>,
   longPressMs = 0,
+  autoScroll = false,
 ) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
   const latest = useRef({ order, onReorder, containerRef })
@@ -2399,6 +2400,7 @@ function useDragReorder(
     timer: ReturnType<typeof setTimeout> | null; holdTimer: ReturnType<typeof setTimeout> | null
     el: HTMLElement; pointerId: number; onTap?: () => void; onHold?: () => void
     homeIndex: number; rowH: number; target: number
+    startScrollY: number; lastY: number; raf: number | null
   }
   const st = useRef<DragState | null>(null)
   // ドラッグ中だけページスクロールを止める（iOSで指追従させる肝）。参照は固定＝確実に解除できる。
@@ -2442,6 +2444,33 @@ function useDragReorder(
       el.style.position = ''; el.style.boxShadow = ''; el.style.opacity = ''; el.style.borderRadius = ''
     })
   }
+  // 指の現在位置(lastY)とスクロール量から、持ち上げた行の追従位置と挿入先を再計算して描画
+  function updateDrag(s: DragState) {
+    const docDy = (s.lastY + window.scrollY) - (s.startY + s.startScrollY)
+    const len = latest.current.order.length
+    let target = s.homeIndex + Math.round(docDy / s.rowH)
+    if (target < 0) target = 0
+    if (target > len - 1) target = len - 1
+    s.target = target
+    paintShift(rows(), s.homeIndex, target, docDy, s.rowH)
+  }
+  // ドラッグ中、画面の上端/下端に近づいたら自動でスクロール（一番下→一番上へ一気に運べる）
+  function scrollTick() {
+    const s = st.current
+    if (!s || !s.active || !autoScroll) { if (s) s.raf = null; return }
+    const vh = window.innerHeight
+    const topEdge = 90      // アプリヘッダー(52)＋列見出しぶん
+    const botEdge = 120     // 下のボトムナビぶん
+    let v = 0
+    if (s.lastY < topEdge) v = -Math.max(6, Math.ceil((topEdge - s.lastY) / 3))
+    else if (s.lastY > vh - botEdge) v = Math.max(6, Math.ceil((s.lastY - (vh - botEdge)) / 3))
+    if (v !== 0) {
+      const before = window.scrollY
+      window.scrollBy(0, v)
+      if (window.scrollY !== before) updateDrag(s)
+    }
+    s.raf = requestAnimationFrame(scrollTick)
+  }
   function activate(s: DragState) {
     s.active = true
     const els = rows()
@@ -2449,14 +2478,18 @@ function useDragReorder(
     const homeEl = els[s.homeIndex] || s.el
     s.rowH = homeEl.getBoundingClientRect().height || 44
     s.target = s.homeIndex
+    s.startScrollY = window.scrollY
+    s.lastY = s.startY
     try { s.el.setPointerCapture(s.pointerId) } catch {}
     if (els[s.homeIndex]) liftRow(els[s.homeIndex])
     startNoScroll()
     setDraggingKey(s.key)
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(14)
+    if (autoScroll) s.raf = requestAnimationFrame(scrollTick)
   }
   function teardown(s: DragState) {
     clearTimers(s); endNoScroll()
+    if (s.raf != null) { cancelAnimationFrame(s.raf); s.raf = null }
     try { s.el.releasePointerCapture(s.pointerId) } catch {}
   }
   function endDrag(commit: boolean) {
@@ -2484,7 +2517,7 @@ function useDragReorder(
         if (e.pointerType === 'mouse' && e.button !== 0) return
         const el = e.currentTarget as HTMLElement
         const immediate = longPressMs === 0
-        st.current = { key, startY: e.clientY, startX: e.clientX, active: false, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold, homeIndex: -1, rowH: 44, target: -1 }
+        st.current = { key, startY: e.clientY, startX: e.clientX, active: false, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold, homeIndex: -1, rowH: 44, target: -1, startScrollY: 0, lastY: e.clientY, raf: null }
         if (immediate) {
           activate(st.current)
           e.preventDefault()
@@ -2522,16 +2555,8 @@ function useDragReorder(
         s.moved = true
         if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
         e.preventDefault()
-        {
-          const dy = e.clientY - s.startY
-          const len = latest.current.order.length
-          let target = s.homeIndex + Math.round(dy / s.rowH)
-          if (target < 0) target = 0
-          if (target > len - 1) target = len - 1
-          s.target = target
-          paintShift(rows(), s.homeIndex, target, dy, s.rowH)
-          return
-        }
+        s.lastY = e.clientY
+        updateDrag(s)
       },
       onPointerUp: (e) => {
         const s = st.current

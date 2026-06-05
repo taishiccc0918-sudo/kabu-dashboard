@@ -3951,6 +3951,8 @@
   z-index: 600; overflow: hidden;
   animation: dropFadeIn .13s cubic-bezier(.4,0,.2,1);
 }
+.menuIcon { width: 18px; height: 18px; flex-shrink: 0; color: var(--text-3); }
+.moreMenuItem:hover .menuIcon { color: var(--accent); }
 .moreMenuItem {
   display: flex; align-items: center; gap: 10px;
   padding: 11px 16px; cursor: pointer;

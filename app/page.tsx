@@ -1374,26 +1374,33 @@ export default function Page() {
             {showMoreMenu && (
               <div className={styles.moreMenu}>
                 <button className={styles.moreMenuItem} onClick={handleManualRefresh} disabled={loading || bgFetching}>
-                  <span>↺</span> 最新に更新（数分かかる）
+                  <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-1.9 6.3"/><path d="M20 5v5h-5"/></svg>
+                  最新に更新（数分かかる）
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
-                  <span className={styles.helpBadge}>?</span> ヘルプ
+                  <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.2a2.6 2.6 0 0 1 4.7 1.3c0 1.6-2.1 1.9-2.1 3.3"/><circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="none"/></svg>
+                  ヘルプ
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowNotices(true); setNoticesSeen(LATEST_NOTICE); lsSet('noticesSeen', LATEST_NOTICE); setShowMoreMenu(false) }}>
-                  <span>📣</span> お知らせ
+                  <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 6-2.5 8-2.5 8h17S18 14 18 8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg>
+                  お知らせ
                   {LATEST_NOTICE && noticesSeen < LATEST_NOTICE && <span className={styles.noticeDot} />}
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { toggleTheme(); setShowMoreMenu(false) }}>
-                  <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}
+                  {darkMode
+                    ? <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                    : <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>}
+                  {darkMode ? 'ライトモード' : 'ダークモード'}
                 </button>
                 {isMobileView && (
                   <button className={styles.moreMenuItem} onClick={() => { setForcePc(f => !f); setShowMoreMenu(false) }}>
-                    <span>{forcePc ? '📱' : '🖥'}</span>
+                    <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
                     {forcePc ? 'SP版に戻す' : 'PC版表示に切替'}
                   </button>
                 )}
                 <button className={styles.moreMenuItem} onClick={() => { exportToExcel(); setShowMoreMenu(false) }}>
-                  <span>📥</span> ★リストをExcel保存
+                  <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M5 20h14"/></svg>
+                  ★リストをExcel保存
                 </button>
               </div>
             )}

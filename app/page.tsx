@@ -4248,6 +4248,15 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [err, setErr] = useState<string | null>(null)
   const [phase, setPhase] = useState('')
   const [loading, setLoading] = useState(false)
+  const [elapsed, setElapsed] = useState(0)  // 取得中の経過秒（「あと約○秒」表示用）
+  const estRef = useRef(8)                    // 取得の見積もり秒
+  // 取得中は経過秒をカウント（残り＝見積もり−経過で「あと約○秒」を出す）
+  useEffect(() => {
+    if (!loading) { setElapsed(0); return }
+    const start = Date.now()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500)
+    return () => clearInterval(id)
+  }, [loading])
   const [stockQuery, setStockQuery] = useState('')           // 銘柄の検索（名前/コード）
   const [mediaSet, setMediaSet] = useState<Set<string>>(new Set()) // メディア絞り込み（複数選択）
   const [feedSort, setFeedSort] = useState<'new' | 'important'>('new') // 新着順 / 重要度順
@@ -4280,6 +4289,8 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
       setItems(feedCache.items); setFetchedAt(feedLastFetched); return
     }
     setErr(null); setLoading(true)
+    // 見積もり秒: ライブ更新は銘柄数に応じて重い／蓄積DB読みは軽い
+    estRef.current = fresh ? Math.min(40, Math.max(8, Math.round(allCodes.length * 0.18))) : 6
     try {
       let all: FeedItem[]
       if (fresh) {
@@ -4452,7 +4463,15 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         )}
       </div>
 
-      {loading && <div className={styles.feedLoadingBar}><span className={styles.feedLoadingSpin}>🔄</span> 最新ニュースを取得中… <span className={styles.feedLoadingSub}>{phase || '少しお待ちください'}</span></div>}
+      {loading && (() => {
+        const remaining = Math.max(0, estRef.current - elapsed)
+        return (
+          <div className={styles.feedLoadingBar}>
+            <span className={styles.feedLoadingSpin}>🔄</span> 最新ニュースを取得中…
+            <span className={styles.feedLoadingSub}>{remaining > 0 ? `あと約${remaining}秒` : 'まもなく完了…'}{phase ? ` / ${phase}` : ''}</span>
+          </div>
+        )
+      })()}
       {!loading && phase && <div className={styles.feedPhase}>{phase}</div>}
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}

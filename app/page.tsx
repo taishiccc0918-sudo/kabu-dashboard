@@ -2382,9 +2382,9 @@ function GripIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-// ─── 共通：ポインタでつかんで縦リストを並べ替えるフック（外部ライブラリ不要）──────
-// グリップ(☰)を掴むと即ドラッグ開始（touch-action:none でスクロールと競合しない）。
-// order=描画中のキー配列。移動のたび onReorder に新しい順を返す（楽観更新）。
+// ─── 共通：ポインタでつかんで縦リストを並べ替えるフック（外部ライブラリ不要・iOS風）──
+// 長押し(longPressMs)でドラッグ開始。掴んだ行は指に追従して持ち上がり、他の行はスッと避ける。
+// ドラッグ中はページ/リストのスクロールを止める。onTap=短いタップ、onHold=動かさず長く持つ（改名用）。
 function useDragReorder(
   order: string[],
   onReorder: (next: string[]) => void,
@@ -2394,13 +2394,86 @@ function useDragReorder(
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
   const latest = useRef({ order, onReorder, containerRef })
   latest.current = { order, onReorder, containerRef }
-  type DragState = { key: string; startY: number; startX: number; active: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null; holdTimer: ReturnType<typeof setTimeout> | null; el: HTMLElement; pointerId: number; onTap?: () => void; onHold?: () => void }
+  type DragState = {
+    key: string; startY: number; startX: number; active: boolean; moved: boolean
+    timer: ReturnType<typeof setTimeout> | null; holdTimer: ReturnType<typeof setTimeout> | null
+    el: HTMLElement; pointerId: number; onTap?: () => void; onHold?: () => void
+    homeIndex: number; rowH: number; target: number
+  }
   const st = useRef<DragState | null>(null)
+  // ドラッグ中だけページスクロールを止める（iOSで指追従させる肝）。参照は固定＝確実に解除できる。
+  const blockScrollRef = useRef((e: TouchEvent) => { e.preventDefault() })
+  function startNoScroll() { if (typeof document !== 'undefined') document.addEventListener('touchmove', blockScrollRef.current, { passive: false }) }
+  function endNoScroll() { if (typeof document !== 'undefined') document.removeEventListener('touchmove', blockScrollRef.current) }
 
   function clearTimers(s: DragState | null) {
     if (!s) return
     if (s.timer) { clearTimeout(s.timer); s.timer = null }
     if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
+  }
+
+  function rows(): HTMLElement[] {
+    const cont = latest.current.containerRef.current
+    if (!cont) return []
+    return Array.from(cont.querySelectorAll('[data-drag-key]')) as HTMLElement[]
+  }
+  function liftRow(el: HTMLElement) {
+    el.style.transition = 'none'
+    el.style.transform = 'translateY(0) scale(1.03)'
+    el.style.zIndex = '30'
+    el.style.position = 'relative'
+    el.style.boxShadow = '0 10px 24px rgba(0,0,0,0.45)'
+    el.style.opacity = '0.98'
+    el.style.borderRadius = '8px'
+  }
+  function paintShift(els: HTMLElement[], homeIndex: number, target: number, dy: number, rowH: number) {
+    els.forEach((el, i) => {
+      if (i === homeIndex) { el.style.transform = `translateY(${dy}px) scale(1.03)`; return }
+      let shift = 0
+      if (homeIndex < target && i > homeIndex && i <= target) shift = -rowH
+      else if (homeIndex > target && i >= target && i < homeIndex) shift = rowH
+      el.style.transition = 'transform 0.18s cubic-bezier(0.2,0,0,1)'
+      el.style.transform = shift ? `translateY(${shift}px)` : 'translateY(0)'
+    })
+  }
+  function clearStyles(els: HTMLElement[]) {
+    els.forEach(el => {
+      el.style.transition = ''; el.style.transform = ''; el.style.zIndex = ''
+      el.style.position = ''; el.style.boxShadow = ''; el.style.opacity = ''; el.style.borderRadius = ''
+    })
+  }
+  function activate(s: DragState) {
+    s.active = true
+    const els = rows()
+    s.homeIndex = latest.current.order.indexOf(s.key)
+    const homeEl = els[s.homeIndex] || s.el
+    s.rowH = homeEl.getBoundingClientRect().height || 44
+    s.target = s.homeIndex
+    try { s.el.setPointerCapture(s.pointerId) } catch {}
+    if (els[s.homeIndex]) liftRow(els[s.homeIndex])
+    startNoScroll()
+    setDraggingKey(s.key)
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(14)
+  }
+  function teardown(s: DragState) {
+    clearTimers(s); endNoScroll()
+    try { s.el.releasePointerCapture(s.pointerId) } catch {}
+  }
+  function endDrag(commit: boolean) {
+    const s = st.current
+    if (!s) return
+    const home = s.homeIndex, target = s.target, key = s.key, wasActive = s.active
+    teardown(s)
+    clearStyles(rows())
+    st.current = null
+    setDraggingKey(null)
+    if (commit && wasActive && target !== home && home >= 0) {
+      const ord = latest.current.order
+      const next = ord.slice()
+      next.splice(home, 1)
+      next.splice(target, 0, key)
+      if (next.join('') !== ord.join('')) latest.current.onReorder(next)
+    }
   }
 
   function makeHandleProps(key: string, opts?: { onTap?: () => void; onHold?: () => void }): React.HTMLAttributes<HTMLElement> {
@@ -2411,29 +2484,22 @@ function useDragReorder(
         if (e.pointerType === 'mouse' && e.button !== 0) return
         const el = e.currentTarget as HTMLElement
         const immediate = longPressMs === 0
-        st.current = { key, startY: e.clientY, startX: e.clientX, active: immediate, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold }
+        st.current = { key, startY: e.clientY, startX: e.clientX, active: false, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold, homeIndex: -1, rowH: 44, target: -1 }
         if (immediate) {
-          try { el.setPointerCapture(e.pointerId) } catch {}
-          setDraggingKey(key)
-          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12)
+          activate(st.current)
           e.preventDefault()
         } else {
           st.current.timer = setTimeout(() => {
             const s = st.current
-            if (s && s.key === key && !s.moved) {
-              s.active = true
-              try { s.el.setPointerCapture(s.pointerId) } catch {}
-              setDraggingKey(key)
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(14)
-            }
+            if (s && s.key === key && !s.moved) activate(s)
           }, longPressMs)
-          // さらに長く（動かさずに）持つと書き換えモードへ（ジャンル用）
+          // 動かさずにさらに長く持つと改名へ（ジャンル用）。ドラッグ起動済みでも未移動なら切替。
           if (onHold) {
             st.current.holdTimer = setTimeout(() => {
               const s = st.current
               if (s && s.key === key && !s.moved) {
-                clearTimers(s)
-                try { s.el.releasePointerCapture(s.pointerId) } catch {}
+                if (s.active) clearStyles(rows())
+                teardown(s)
                 st.current = null
                 setDraggingKey(null)
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([10, 40, 10])
@@ -2454,40 +2520,33 @@ function useDragReorder(
           return
         }
         s.moved = true
-        clearTimers(s)
+        if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
         e.preventDefault()
-        const cont = latest.current.containerRef.current
-        if (!cont) return
-        const els = Array.from(cont.querySelectorAll('[data-drag-key]')) as HTMLElement[]
-        let insertIdx = els.length
-        for (let i = 0; i < els.length; i++) {
-          const r = els[i].getBoundingClientRect()
-          if (e.clientY < r.top + r.height / 2) { insertIdx = i; break }
+        {
+          const dy = e.clientY - s.startY
+          const len = latest.current.order.length
+          let target = s.homeIndex + Math.round(dy / s.rowH)
+          if (target < 0) target = 0
+          if (target > len - 1) target = len - 1
+          s.target = target
+          paintShift(rows(), s.homeIndex, target, dy, s.rowH)
+          return
         }
-        const ord = latest.current.order
-        const fromIdx = ord.indexOf(key)
-        if (fromIdx < 0) return
-        const next = ord.slice()
-        next.splice(fromIdx, 1)
-        const adj = insertIdx > fromIdx ? insertIdx - 1 : insertIdx
-        next.splice(adj, 0, key)
-        if (next.join('') !== ord.join('')) latest.current.onReorder(next)
       },
       onPointerUp: (e) => {
         const s = st.current
-        if (s) {
-          clearTimers(s)
-          if (!s.active && !s.moved && s.onTap) s.onTap()
+        if (s && !s.active && !s.moved && s.onTap) {
+          clearTimers(s); endNoScroll()
           try { s.el.releasePointerCapture(e.pointerId) } catch {}
+          st.current = null
+          s.onTap()
+          return
         }
-        st.current = null
-        setDraggingKey(null)
+        endDrag(true)
       },
-      onPointerCancel: () => { const s = st.current; clearTimers(s); st.current = null; setDraggingKey(null) },
+      onPointerCancel: () => { endDrag(false) },
       onContextMenu: (e) => { e.preventDefault() },
-      style: longPressMs === 0
-        ? { touchAction: 'none', cursor: 'grab', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }
-        : { touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' },
+      style: { touchAction: longPressMs === 0 ? 'none' : 'pan-y', cursor: longPressMs === 0 ? 'grab' : undefined, userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' },
     }
   }
   return { draggingKey, makeHandleProps }

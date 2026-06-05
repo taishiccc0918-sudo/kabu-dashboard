@@ -264,6 +264,7 @@ export default function Page() {
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showFilterBar, setShowFilterBar] = useState(false)
   const [perHintOpen, setPerHintOpen] = useState(true)  // ダッシュのPER位置バー説明ヒント（閉じたら記憶）
+  const [newsHotCodes, setNewsHotCodes] = useState<Set<string>>(new Set())  // 直近ニュースありの銘柄（ニュースタブ閲覧後に反映）
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
@@ -1667,6 +1668,7 @@ export default function Page() {
                     row={r}
                     sortKey={sortKey}
                     earnDate={earningsDates[r.code] || finDB[r.code]?.nextAnnouncementDate || ''}
+                    hasNews={newsHotCodes.has(r.code)}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
@@ -1727,6 +1729,7 @@ export default function Page() {
             starCodes={Array.from(favorites)}
             nameOf={(code) => allRows.find(r => r.code === code)?.name || masterDB[code]?.name || code}
             onClickCode={(code) => setDetailCode(code)}
+            onHotCodes={setNewsHotCodes}
           />
         )}
 
@@ -3309,8 +3312,8 @@ function sortMetricDisplay(r: StockRow, sortKey: SortKeyEx | null): { value: str
 }
 
 // ─── SpStockRow（SP専用・1銘柄1行。"いつ買うか"＝PER位置バーが主役）──────────
-function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
-  row: StockRow; sortKey: SortKeyEx | null; earnDate?: string
+function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow; sortKey: SortKeyEx | null; earnDate?: string; hasNews?: boolean
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
   onClick: () => void
@@ -3343,6 +3346,7 @@ function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav,
           <span className={styles.spRowMeta}>
             <span className={styles.spRowCode}>{r.code}</span>
             <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+            {hasNews && <span className={styles.spRowNews} title="直近の新着ニュースあり">📰</span>}
           </span>
         </span>
         <span className={styles.spRowPriceCol}>
@@ -4248,9 +4252,10 @@ function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
   return cleanFeed([...a, ...b])
 }
 
-function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
+function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes }: {
   heartCodes: string[]; starCodes: string[]
   nameOf: (code: string) => string; onClickCode: (code: string) => void
+  onHotCodes?: (codes: Set<string>) => void
 }) {
   const [scope, setScope] = useState<FeedScope>('all')
   const [items, setItems] = useState<FeedItem[] | null>(feedCache?.items ?? null)
@@ -4272,6 +4277,17 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
   const [visible, setVisible] = useState(FEED_DISPLAY_STEP) // 「もっと見る」で増やす表示件数
+  // ダッシュの「新着あり」マーク用: 直近(NEW窓=3日)のニュースがある銘柄コードを親へ通知（追加取得なし）
+  useEffect(() => {
+    if (!items || !onHotCodes) return
+    const now = Date.now()
+    const hot = new Set<string>()
+    for (const a of items) {
+      const t = new Date(a.pubDate).getTime()
+      if (a.code && !Number.isNaN(t) && now - t < NEWS_NEW_WINDOW_MS) hot.add(a.code)
+    }
+    onHotCodes(hot)
+  }, [items, onHotCodes])
 
   // ♥（スコープ絞り込みは表示側で行う。読み込みは全お気に入りを一括で扱う）
   const heartSet = useMemo(() => new Set(heartCodes), [heartCodes])

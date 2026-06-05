@@ -1159,6 +1159,7 @@
 }
 .spRowMeta { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .spRowCode { font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.spRowNews { font-size: 11px; flex-shrink: 0; line-height: 1; }
 
 /* 現在値 + 前日比 */
 .spRowPriceCol { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }

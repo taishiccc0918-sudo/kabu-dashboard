@@ -1070,6 +1070,13 @@
   background: var(--surface-2); border-bottom: 1px solid var(--line-strong);
   position: sticky; top: 100px; z-index: 18;
 }
+/* 件数の横の♥クイック絞り込み（フィルターを開かず即♥のみ表示） */
+.spHeartFilter {
+  flex-shrink: 0; background: none; border: 1px solid var(--line-strong); border-radius: 999px;
+  width: 30px; height: 24px; font-size: 14px; line-height: 1; cursor: pointer;
+  color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; padding: 0;
+}
+.spHeartFilterOn { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,0.10); }
 .spListHeaderCount {
   color: var(--text-2); font-weight: 700;
   font-family: 'JetBrains Mono', monospace; font-size: 12px;

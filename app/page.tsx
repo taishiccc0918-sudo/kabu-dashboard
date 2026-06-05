@@ -1609,6 +1609,12 @@ export default function Page() {
           <div className={forcePc ? styles.forceMobileOff : styles.mobileOnly}>
             <div className={styles.spListHeader}>
               <span className={styles.spListHeaderCount}>{filteredRows.length}{filteredRows.length !== allRows.length ? `/${allRows.length}` : ''}</span>
+              <button
+                className={`${styles.spHeartFilter} ${filterHeart ? styles.spHeartFilterOn : ''}`}
+                onClick={() => setFilterHeart(f => !f)}
+                aria-label="♥お気に入りだけ表示"
+                title="♥お気に入りだけ表示／全件"
+              >{filterHeart ? '♥' : '♡'}</button>
               <span className={styles.spSortSpacer} />
               <select
                 className={styles.spSortSelect}

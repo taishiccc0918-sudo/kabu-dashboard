@@ -309,7 +309,8 @@ export default function Page() {
   const searchWrapRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { favoritesRef.current = favorites }, [favorites])
-  useEffect(() => { if (apiKey) lsSet('apiKey', apiKey) }, [apiKey])
+  // セキュリティ(S4): J-Quantsキーはサーバーenvでのみ運用。localStorageには保存せず、過去に保存された分は削除する
+  useEffect(() => { try { localStorage.removeItem('apiKey') } catch { /* noop */ } }, [])
   useEffect(() => { if (!themeLoaded.current) return; localStorage.setItem('darkMode', String(darkMode)) }, [darkMode])
   useEffect(() => { if (tab === 'dashboard' || tab === 'card') lsSet('preferredTab', tab) }, [tab])
   // 並べ替えを永続化（最後に選んだ順を次回も維持）。読込完了後のみ保存し既定値での上書きを防ぐ
@@ -600,7 +601,7 @@ export default function Page() {
     setNoticesSeen(ls<string>('noticesSeen', ''))  // お知らせ既読状態
     if (ls<string>('perHintDismissed', '') === '1') setPerHintOpen(false)
     setFavorites(initFavorites())
-    setApiKey(ls('apiKey', ''))
+    // apiKeyはlocalStorageから読み込まない（サーバーenv運用・S4対策）
     setLastUpdate(ls('lastUpdate', ''))
     setCustomGenreOptions(ls('customGenreOptions', []))
     setRemovedDefaultGenres(ls('removedDefaultGenres', []))
@@ -742,7 +743,7 @@ export default function Page() {
       setLastUpdate(dateDisp)
       setDataLoaded(true)
       lsSet('lastUpdate', dateDisp)
-      lsSet('apiKey', apiKey)
+      // apiKeyはlocalStorageに保存しない（S4対策）
       // ── 取得データをlocalStorageにキャッシュ保存（次回即時表示用）──
       try {
         lsSet(STOCK_DATA_CACHE_KEY, { priceDB: prices, finDB: fins, masterDB: master, bizDate: dateDisp, fetchedAt: Date.now() })

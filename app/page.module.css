@@ -1397,12 +1397,13 @@
 
   /* SP: レポート/俯瞰マップを画面いっぱいに使う（左右の余白を詰める） */
   .reportRoot { padding: 10px 3px; }
-  .repMapCard { padding: 8px 2px; }
+  /* I8: SPは左右余白をほぼゼロにして図を最大化 */
+  .repMapCard { padding: 8px 0; }
   .repMapSvg { max-height: none; }
-  .repMapPlot { gap: 2px; }
+  .repMapPlot { gap: 0; }
   .repMapYax { padding: 2px 0; }
-  .repMapYax .repMapAxName { font-size: 10px; }
-  .repMapYax .repMapAxArrow { font-size: 10px; }
+  .repMapYax .repMapAxName { font-size: 11px; }
+  .repMapYax .repMapAxArrow { font-size: 11px; }
 
   /* 「↑TOP」を下部固定ナビの上に重ねない位置へ（文字切れ防止） */
   .scrollTopBtn { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px; }
@@ -2898,15 +2899,16 @@
 }
 
 .repMapWrap { width: 100%; margin-top: 12px; }
-.repMapPlot { display: flex; align-items: stretch; gap: 6px; }
+/* 左の縦軸ラベル列と余白を詰めて、図（SVG）の描画域を広く取る（本人指摘 I8） */
+.repMapPlot { display: flex; align-items: stretch; gap: 2px; }
 .repMapYax { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 4px 0; }
-.repMapSvg { flex: 1; min-width: 0; width: 100%; height: auto; display: block; touch-action: manipulation; max-height: 620px; }
+.repMapSvg { flex: 1; min-width: 0; width: 100%; height: auto; display: block; touch-action: manipulation; max-height: 760px; }
 .repDot { cursor: pointer; }
 .repDot:hover text { fill: var(--text-1) !important; }
 /* 縦軸・横軸のラベルは同じ体裁に統一 */
 .repMapAxArrow { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .repMapAxName { font-size: 11px; font-weight: 600; color: var(--text-3); white-space: nowrap; }
-.repMapYax .repMapAxName { writing-mode: vertical-rl; text-orientation: mixed; margin: 6px 0; }
+.repMapYax .repMapAxName { writing-mode: vertical-rl; text-orientation: mixed; margin: 2px 0; }
 .repMapXax {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 6px; padding: 0 2px 0 26px;

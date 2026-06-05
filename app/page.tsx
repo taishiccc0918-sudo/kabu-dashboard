@@ -2477,15 +2477,16 @@ function useDragReorder(
     const s = st.current
     if (!s || !s.active || !autoScroll) { if (s) s.raf = null; return }
     const { top, bottom } = viewEdges(s.scroller)
-    const topEdge = top + 64       // 列見出しぶんの余白
-    const botEdge = bottom - 96     // 下のボトムナビぶん
+    const vh = bottom - top
+    const zone = Math.min(170, vh * 0.3)   // 上下それぞれの発動ゾーン（広めにして届きやすく）
+    const topEdge = top + zone
+    const botEdge = bottom - zone - 56      // 下はボトムナビぶん多めに確保
     let v = 0
-    if (s.lastY < topEdge) v = -Math.max(6, Math.ceil((topEdge - s.lastY) / 2.5))
-    else if (s.lastY > botEdge) v = Math.max(6, Math.ceil((s.lastY - botEdge) / 2.5))
+    if (s.lastY < topEdge) { const frac = Math.min(1, (topEdge - s.lastY) / zone); v = -(7 + frac * 26) }
+    else if (s.lastY > botEdge) { const frac = Math.min(1, (s.lastY - botEdge) / zone); v = (7 + frac * 26) }
     if (v !== 0) {
-      const before = scrollPos(s.scroller)
       scrollByAmt(s.scroller, v)
-      if (scrollPos(s.scroller) !== before) updateDrag(s)
+      updateDrag(s)
     }
     s.raf = requestAnimationFrame(scrollTick)
   }

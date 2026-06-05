@@ -1097,6 +1097,14 @@
 .welcomeActions { display: flex; gap: 10px; margin-top: 18px; }
 .welcomePrimary { flex: 1; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer; }
 .welcomeSkip { flex-shrink: 0; background: none; border: 1px solid var(--line-strong); color: var(--text-2); border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+/* ♥/目印 の意味の説明ポップ（ヘッダー件数タップで開く） */
+.favLegendBtn { background: none; border: none; cursor: pointer; padding: 0 0 0 8px; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; }
+.favLegendQ { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-left: 5px; border-radius: 50%; border: 1px solid var(--line-strong); color: var(--text-3); font-size: 9px; font-weight: 700; }
+.favLegendOverlay { position: fixed; inset: 0; z-index: 880; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 18px; padding-top: calc(18px + env(safe-area-inset-top)); }
+.favLegendCard { width: 100%; max-width: 400px; background: var(--surface-0); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow-md); padding: 20px; animation: slideUp .2s ease; }
+.favLegendRow { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.6; color: var(--text-2); margin-bottom: 14px; }
+.favLegendRow b { color: var(--text-1); }
+.favLegendClose { width: 100%; background: var(--surface-1); border: 1px solid var(--line-strong); color: var(--text-1); border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 2px; }
 /* ダッシュのPER位置バー説明ヒント（新規ユーザー向け・閉じれる・控えめ） */
 .perHint {
   display: flex; align-items: center; gap: 8px;

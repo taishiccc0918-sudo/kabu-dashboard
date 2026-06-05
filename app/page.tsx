@@ -266,6 +266,7 @@ export default function Page() {
   const [perHintOpen, setPerHintOpen] = useState(true)  // ダッシュのPER位置バー説明ヒント（閉じたら記憶）
   const [newsHotCodes, setNewsHotCodes] = useState<Set<string>>(new Set())  // 直近ニュースありの銘柄（ニュースタブ閲覧後に反映）
   const [welcomeOpen, setWelcomeOpen] = useState(false)  // 初回オンボーディング（まず銘柄管理で登録を促す）
+  const [showFavLegend, setShowFavLegend] = useState(false)  // ♥/👁 の意味の説明ポップ
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
@@ -1350,10 +1351,13 @@ export default function Page() {
             </svg>
             かぶ<span>ノート</span>
           </div>
-          <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
-            <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
-            <span style={{color:'#f59e0b',marginLeft:8,display:'inline-flex',alignItems:'center',gap:3,verticalAlign:'middle'}}><EyeIcon on size={13} />{favorites.size}</span>
-          </span>}</div>
+          <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && (
+            <button className={styles.favLegendBtn} onClick={() => setShowFavLegend(s => !s)} title="♥（超お気に入り）と目印（ウォッチ）の違い">
+              <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
+              <span style={{color:'#f59e0b',marginLeft:7,display:'inline-flex',alignItems:'center',gap:3}}><EyeIcon on size={13} />{favorites.size}</span>
+              <span className={styles.favLegendQ}>?</span>
+            </button>
+          )}</div>
         </div>
         <div className={styles.headerRight}>
           {!apiKey && !serverHasKey && (
@@ -1858,6 +1862,21 @@ export default function Page() {
           onOpenWatchlist={() => { setWelcomeOpen(false); lsSet('onboardedV1', '1'); setTab('watchlist') }}
           onClose={() => { setWelcomeOpen(false); lsSet('onboardedV1', '1') }}
         />
+      )}
+      {showFavLegend && (
+        <div className={styles.favLegendOverlay} onClick={e => { if (e.target === e.currentTarget) setShowFavLegend(false) }}>
+          <div className={styles.favLegendCard}>
+            <div className={styles.favLegendRow}>
+              <span style={{ color: '#f59e0b', display: 'inline-flex', flexShrink: 0 }}><EyeIcon on size={22} /></span>
+              <div><b>目印（ウォッチリスト）</b><br />気になった銘柄を加えて見守る一覧。<b>ダッシュ・ニュース・レポートはこのウォッチリストが土台</b>です。</div>
+            </div>
+            <div className={styles.favLegendRow}>
+              <span style={{ color: '#f43f5e', fontSize: 22, flexShrink: 0, lineHeight: 1 }}>♥</span>
+              <div><b>♥ 超お気に入り</b><br />毎日チェックしたい、<b>特に注目</b>の銘柄。各画面で「♥のみ」に絞り込めます。</div>
+            </div>
+            <button className={styles.favLegendClose} onClick={() => setShowFavLegend(false)}>とじる</button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -3505,7 +3524,7 @@ function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () =
           <p>このアプリは、<b>あなたが選んだ銘柄</b>の「いつ買うか」を助けるツールです。はじめに、気になる銘柄を登録してください。</p>
           <ol className={styles.welcomeSteps}>
             <li><b>「銘柄管理」</b>を開く</li>
-            <li>気になる銘柄に <span style={{ color: '#f43f5e', fontWeight: 700 }}>♥</span> 超お気に入り／<span style={{ color: '#f59e0b', display: 'inline-flex', verticalAlign: 'middle' }}><EyeIcon on size={15} /></span> ウォッチ を付ける</li>
+            <li><span style={{ color: '#f59e0b', display: 'inline-flex', verticalAlign: 'middle' }}><EyeIcon on size={15} /></span> <b>目印＝ウォッチ</b>：気になったら付ける（一覧の土台）。<span style={{ color: '#f43f5e', fontWeight: 700 }}>♥</span> <b>超お気に入り</b>：毎日見たい特に注目の銘柄</li>
             <li>必要ならジャンルやメモも付けられます</li>
           </ol>
           <p className={styles.welcomeNote}>登録すると、<b>ダッシュ・ニュース・レポート</b>があなたの銘柄で動き出します。</p>

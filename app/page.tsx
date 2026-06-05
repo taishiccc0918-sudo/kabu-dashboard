@@ -265,6 +265,7 @@ export default function Page() {
   const [showFilterBar, setShowFilterBar] = useState(false)
   const [perHintOpen, setPerHintOpen] = useState(true)  // ダッシュのPER位置バー説明ヒント（閉じたら記憶）
   const [newsHotCodes, setNewsHotCodes] = useState<Set<string>>(new Set())  // 直近ニュースありの銘柄（ニュースタブ閲覧後に反映）
+  const [welcomeOpen, setWelcomeOpen] = useState(false)  // 初回オンボーディング（まず銘柄管理で登録を促す）
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
@@ -607,8 +608,14 @@ export default function Page() {
     setCustomGenreOptions(ls('customGenreOptions', []))
     setRemovedDefaultGenres(ls('removedDefaultGenres', []))
     setEarningsDates(ls('earningsDates', {}))
-    setSuperFavorites(new Set(ls<string[]>('superFavorites', [])))
+    const initSuper = ls<string[]>('superFavorites', [])
+    setSuperFavorites(new Set(initSuper))
     setStockMeta(initStockMeta())
+    // 初回オンボーディング: まだ案内を見ておらず、かつ初期状態(♥なし・お気に入りが初期3件以下)＝新規ユーザーに、
+    // 「まず銘柄管理で登録を」と促す。既存ユーザー(自分の銘柄を持つ)には出さない。
+    if (ls<string>('onboardedV1', '') !== '1' && initSuper.length === 0 && initFavorites().size <= 3) {
+      setWelcomeOpen(true)
+    }
     // 表示モード: 保存済み優先、なければ画面幅で自動判定
     const savedTab = ls<string>('preferredTab', '')
     // カードタブは廃止。旧 'card' 保存は 'dashboard' に読み替え
@@ -1829,6 +1836,12 @@ export default function Page() {
       {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
       <BottomNav tab={tab} onSelect={setTab} />
       <InstallPrompt />
+      {welcomeOpen && (
+        <WelcomeOnboarding
+          onOpenWatchlist={() => { setWelcomeOpen(false); lsSet('onboardedV1', '1'); setTab('watchlist') }}
+          onClose={() => { setWelcomeOpen(false); lsSet('onboardedV1', '1') }}
+        />
+      )}
     </div>
   )
 }
@@ -3425,6 +3438,30 @@ function InstallPrompt() {
         <span className={styles.installText}>下の共有ボタンから「<b>ホーム画面に追加</b>」で、アプリのように使えます</span>
       )}
       <button className={styles.installClose} onClick={dismiss} aria-label="閉じる">×</button>
+    </div>
+  )
+}
+
+// ─── WelcomeOnboarding（初回・まず銘柄管理で登録を促す）──────────────────
+function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () => void; onClose: () => void }) {
+  return (
+    <div className={styles.welcomeOverlay} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className={styles.welcomeCard}>
+        <div className={styles.welcomeTitle}>ようこそ！まず銘柄を登録しましょう</div>
+        <div className={styles.welcomeBody}>
+          <p>このアプリは、<b>あなたが選んだ銘柄</b>の「いつ買うか」を助けるツールです。はじめに、気になる銘柄を登録してください。</p>
+          <ol className={styles.welcomeSteps}>
+            <li><b>「銘柄管理」</b>を開く</li>
+            <li>気になる銘柄に <span style={{ color: '#f43f5e', fontWeight: 700 }}>♥</span> 超お気に入り／<span style={{ color: '#f59e0b', fontWeight: 700 }}>★</span> ウォッチ を付ける</li>
+            <li>必要ならジャンルやメモも付けられます</li>
+          </ol>
+          <p className={styles.welcomeNote}>登録すると、<b>ダッシュ・ニュース・レポート</b>があなたの銘柄で動き出します。</p>
+        </div>
+        <div className={styles.welcomeActions}>
+          <button className={styles.welcomePrimary} onClick={onOpenWatchlist}>銘柄管理をひらく</button>
+          <button className={styles.welcomeSkip} onClick={onClose}>あとで</button>
+        </div>
+      </div>
     </div>
   )
 }

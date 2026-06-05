@@ -129,7 +129,8 @@ function buildFin(stmts: Record<string,string>[]) {
   const fsales = n(fy.FSales) || n(nfy.FSales) || bestVal(all,'FSales')
   const nySalesRaw = nOrNull(fy.NxFSales) ?? nOrNull(nfy.NxFSales) ?? bestValOrNull(all,'NxFSales')
   const nySales = nySalesRaw ?? 0
-  const fdiv = n(fy.FDivAnn) || n(fy.DivAnn) || n(nfy.FDivAnn) || n(nfy.DivAnn) || bestVal(all,'FDivAnn','DivAnn')
+  // 配当は当期/来期の最新開示のみ。bestVal(all,...)の深い履歴フォールバックは分割前の古い1株配当を拾い利回りを過大化するため廃止
+  const fdiv = n(fy.FDivAnn) || n(fy.DivAnn) || n(nfy.FDivAnn) || n(nfy.DivAnn)
   const fin = {
     sales, op, odp: bestVal(all,'OdP'), np, eps, feps, nyEPS,
     bps: fyVal('BPS') || bestVal(all,'BPS'), equity, assets, divAnn: bestVal(all,'DivAnn'),

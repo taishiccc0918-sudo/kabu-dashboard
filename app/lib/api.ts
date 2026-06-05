@@ -355,7 +355,9 @@ export async function fetchFinancialOne(apiKey: string, code: string): Promise<F
       const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
       const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
       const nySales=nySalesRaw??0
-      const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+      // 配当は当期/来期の最新開示のみ。bestVal(all,...)の深い履歴フォールバックは「分割前の古い1株配当」を拾い
+    // 利回りを過大化する（例: サンリオ等の分割銘柄）ため廃止。無ければ0＝利回り非表示。
+    const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)
       return {
         fin: {
           sales,op,odp:bestVal(all,'OdP'),np,eps,feps,nyEPS,
@@ -442,7 +444,9 @@ export async function fetchAllFinancials(
     const fsales=n(fy.FSales)||n(nfy.FSales)||bestVal(all,'FSales')
     const nySalesRaw=nOrNull(fy.NxFSales)??nOrNull(nfy.NxFSales)??bestValOrNull(all,'NxFSales')
     const nySales=nySalesRaw??0
-    const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)||bestVal(all,'FDivAnn','DivAnn')
+    // 配当は当期/来期の最新開示のみ。bestVal(all,...)の深い履歴フォールバックは「分割前の古い1株配当」を拾い
+    // 利回りを過大化する（例: サンリオ等の分割銘柄）ため廃止。無ければ0＝利回り非表示。
+    const fdiv=n(fy.FDivAnn)||n(fy.DivAnn)||n(nfy.FDivAnn)||n(nfy.DivAnn)
     finDB[code] = {
       sales,op,odp:bestVal(all,'OdP'),np,
       eps,feps,nyEPS,

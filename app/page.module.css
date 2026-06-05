@@ -2919,6 +2919,9 @@
 .repMapAxArrow { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
 .repMapAxName { font-size: 11px; font-weight: 600; color: var(--text-3); white-space: nowrap; }
 .repMapYax .repMapAxName { writing-mode: vertical-rl; text-orientation: mixed; margin: 2px 0; }
+/* 縦軸ラベル列を細く（↑上昇/↓下落も縦書き）＝図の横幅を広げる（本人指摘） */
+.repMapYax .repMapAxArrow { writing-mode: vertical-rl; text-orientation: mixed; }
+.repMapYax { width: 15px; min-width: 15px; }
 .repMapXax {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 6px; padding: 0 2px 0 26px;

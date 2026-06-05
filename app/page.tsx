@@ -4463,15 +4463,12 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         )}
       </div>
 
-      {loading && (() => {
-        const remaining = Math.max(0, estRef.current - elapsed)
-        return (
-          <div className={styles.feedLoadingBar}>
-            <span className={styles.feedLoadingSpin}>🔄</span> 最新ニュースを取得中…
-            <span className={styles.feedLoadingSub}>{remaining > 0 ? `あと約${remaining}秒` : 'まもなく完了…'}{phase ? ` / ${phase}` : ''}</span>
-          </div>
-        )
-      })()}
+      {loading && (
+        <div className={styles.feedLoadingBar}>
+          <span className={styles.feedLoadingSpin}>🔄</span> 最新ニュースを取得中…
+          <span className={styles.feedLoadingSub}>経過 {elapsed}秒{phase ? ` / ${phase}` : ''}</span>
+        </div>
+      )}
       {!loading && phase && <div className={styles.feedPhase}>{phase}</div>}
       {err && <div className={styles.newsEmpty}>取得に失敗しました（{err}）</div>}
       {items === null && !err && <div className={styles.newsEmpty}>読み込み中…</div>}

@@ -1648,8 +1648,8 @@ export default function Page() {
               <button
                 className={`${styles.spHeartFilter} ${filterHeart ? styles.spHeartFilterOn : ''}`}
                 onClick={() => setFilterHeart(f => !f)}
-                aria-label="♥お気に入りだけ表示"
-                title="♥お気に入りだけ表示／全件"
+                aria-label="超注目(♥)だけ表示"
+                title="超注目(♥)だけ ／ ウォッチ全部"
               >{filterHeart ? '♥' : '♡'}</button>
               <span className={styles.spSortSpacer} />
               <select
@@ -4485,8 +4485,8 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes }: {
           <button
             className={`${styles.newsSortBtn} ${styles.newsHeartToggle} ${scope === 'hearts' ? styles.newsSortBtnActive : ''}`}
             onClick={() => { setScope(s => s === 'hearts' ? 'all' : 'hearts'); setVisible(FEED_DISPLAY_STEP) }}
-            title="♥超お気に入りの銘柄だけに絞る（もう一度押すと全件）"
-          ><span className={styles.heartGlyph}>♥</span> のみ</button>
+            title="超注目(♥)の銘柄だけに絞る（もう一度押すとウォッチ全部）"
+          ><span className={styles.heartGlyph}>♥</span> 注目のみ</button>
           <button className={styles.feedRefreshBtn} disabled={loading} onClick={() => load(true)} title="キャッシュを無視して最新ニュースを取得">
             {loading ? '🔄 取得中…' : '⟳ 更新'}
           </button>
@@ -5281,8 +5281,8 @@ function WeeklyReport({
         </div>
         <div className={styles.repRight}>
           <div className={styles.repToggle}>
-            <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
-            <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
+            <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')} title="ウォッチリスト(★)の全銘柄">ウォッチ全部</button>
+            <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')} title="超注目(♥)に絞り込み">♥注目のみ</button>
           </div>
           {repView === 'karte' && (
             <input className={styles.repKarteSearch} placeholder="🔍 銘柄・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />

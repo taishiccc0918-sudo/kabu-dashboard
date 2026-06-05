@@ -2401,10 +2401,28 @@ function useDragReorder(
     el: HTMLElement; pointerId: number; onTap?: () => void; onHold?: () => void
     homeIndex: number; rowH: number; target: number
     startScrollY: number; lastY: number; raf: number | null
+    scroller: HTMLElement | Window
   }
   const st = useRef<DragState | null>(null)
   // ドラッグ中だけページスクロールを止める（iOSで指追従させる肝）。参照は固定＝確実に解除できる。
   const blockScrollRef = useRef((e: TouchEvent) => { e.preventDefault() })
+  // 実際にスクロールしている祖先要素を特定（windowとは限らない＝レイアウト依存を吸収）
+  function getScrollParent(el: HTMLElement | null): HTMLElement | Window {
+    let node = el?.parentElement
+    while (node) {
+      const oy = getComputedStyle(node).overflowY
+      if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight + 1) return node
+      node = node.parentElement
+    }
+    return window
+  }
+  function scrollPos(sc: HTMLElement | Window): number { return sc === window ? window.scrollY : (sc as HTMLElement).scrollTop }
+  function scrollByAmt(sc: HTMLElement | Window, v: number) { if (sc === window) window.scrollBy(0, v); else (sc as HTMLElement).scrollTop += v }
+  function viewEdges(sc: HTMLElement | Window): { top: number; bottom: number } {
+    if (sc === window) return { top: 0, bottom: window.innerHeight }
+    const r = (sc as HTMLElement).getBoundingClientRect()
+    return { top: r.top, bottom: r.bottom }
+  }
   function startNoScroll() { if (typeof document !== 'undefined') document.addEventListener('touchmove', blockScrollRef.current, { passive: false }) }
   function endNoScroll() { if (typeof document !== 'undefined') document.removeEventListener('touchmove', blockScrollRef.current) }
 
@@ -2446,7 +2464,7 @@ function useDragReorder(
   }
   // 指の現在位置(lastY)とスクロール量から、持ち上げた行の追従位置と挿入先を再計算して描画
   function updateDrag(s: DragState) {
-    const docDy = (s.lastY + window.scrollY) - (s.startY + s.startScrollY)
+    const docDy = (s.lastY + scrollPos(s.scroller)) - (s.startY + s.startScrollY)
     const len = latest.current.order.length
     let target = s.homeIndex + Math.round(docDy / s.rowH)
     if (target < 0) target = 0
@@ -2458,16 +2476,16 @@ function useDragReorder(
   function scrollTick() {
     const s = st.current
     if (!s || !s.active || !autoScroll) { if (s) s.raf = null; return }
-    const vh = window.innerHeight
-    const topEdge = 90      // アプリヘッダー(52)＋列見出しぶん
-    const botEdge = 120     // 下のボトムナビぶん
+    const { top, bottom } = viewEdges(s.scroller)
+    const topEdge = top + 64       // 列見出しぶんの余白
+    const botEdge = bottom - 96     // 下のボトムナビぶん
     let v = 0
-    if (s.lastY < topEdge) v = -Math.max(6, Math.ceil((topEdge - s.lastY) / 3))
-    else if (s.lastY > vh - botEdge) v = Math.max(6, Math.ceil((s.lastY - (vh - botEdge)) / 3))
+    if (s.lastY < topEdge) v = -Math.max(6, Math.ceil((topEdge - s.lastY) / 2.5))
+    else if (s.lastY > botEdge) v = Math.max(6, Math.ceil((s.lastY - botEdge) / 2.5))
     if (v !== 0) {
-      const before = window.scrollY
-      window.scrollBy(0, v)
-      if (window.scrollY !== before) updateDrag(s)
+      const before = scrollPos(s.scroller)
+      scrollByAmt(s.scroller, v)
+      if (scrollPos(s.scroller) !== before) updateDrag(s)
     }
     s.raf = requestAnimationFrame(scrollTick)
   }
@@ -2478,7 +2496,8 @@ function useDragReorder(
     const homeEl = els[s.homeIndex] || s.el
     s.rowH = homeEl.getBoundingClientRect().height || 44
     s.target = s.homeIndex
-    s.startScrollY = window.scrollY
+    s.scroller = getScrollParent(latest.current.containerRef.current)
+    s.startScrollY = scrollPos(s.scroller)
     s.lastY = s.startY
     try { s.el.setPointerCapture(s.pointerId) } catch {}
     if (els[s.homeIndex]) liftRow(els[s.homeIndex])
@@ -2517,7 +2536,7 @@ function useDragReorder(
         if (e.pointerType === 'mouse' && e.button !== 0) return
         const el = e.currentTarget as HTMLElement
         const immediate = longPressMs === 0
-        st.current = { key, startY: e.clientY, startX: e.clientX, active: false, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold, homeIndex: -1, rowH: 44, target: -1, startScrollY: 0, lastY: e.clientY, raf: null }
+        st.current = { key, startY: e.clientY, startX: e.clientX, active: false, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold, homeIndex: -1, rowH: 44, target: -1, startScrollY: 0, lastY: e.clientY, raf: null, scroller: window }
         if (immediate) {
           activate(st.current)
           e.preventDefault()

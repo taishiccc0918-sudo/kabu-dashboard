@@ -1939,6 +1939,8 @@ function StockManager({
   onRegisterScrollFn: (fn: (code: string) => void) => void
 }) {
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
+  // K4: パネル開閉を親で一本化（同時に1つだけ開く＝別の行を開くと前のは閉じる）
+  const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
 
@@ -2194,6 +2196,8 @@ function StockManager({
               onToggleSuperFav={() => onToggleSuperFav(code)}
               onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
               highlighted={wlHighlightCode === code}
+              openType={openPanel?.code === code ? openPanel.type : null}
+              onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
             />
           ))
         }
@@ -2287,7 +2291,7 @@ function EyeIcon({ on, size = 17 }: { on: boolean; size?: number }) {
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -2297,11 +2301,13 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   onToggleFav: () => void; onToggleSuperFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   highlighted: boolean
+  openType: 'genre' | 'memo' | 'links' | null
+  onTogglePanel: (type: 'genre' | 'memo' | 'links') => void
 }) {
-  const [editingMemo, setEditingMemo] = useState(false)
-  const [editingGenre, setEditingGenre] = useState(false)
+  const editingMemo = openType === 'memo'
+  const editingGenre = openType === 'genre'
+  const showLinks = openType === 'links'
   const [genreQuery, setGenreQuery] = useState('')
-  const [showLinks, setShowLinks] = useState(false)
   const [draft, setDraft] = useState(meta.memo)
   const genres = meta.genres
 
@@ -2313,7 +2319,6 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   }
 
   function handleMemoBlur() {
-    setEditingMemo(false)
     if (draft !== meta.memo) onSaveMeta({ ...meta, memo: draft, memoUpdatedAt: draft.trim() ? new Date().toISOString() : undefined })
   }
 
@@ -2340,7 +2345,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
         {/* 銘柄名タップでリンク展開 */}
         <span
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
-          onClick={() => { setShowLinks(l => !l); if (editingMemo) setEditingMemo(false) }}
+          onClick={() => onTogglePanel('links')}
         >
           {rec.name}
           <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
@@ -2348,10 +2353,10 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
         {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
         {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
         <button className={`${styles.wlMobileEditBtn} ${genres.length ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => { setEditingGenre(g => !g); setEditingMemo(false); setShowLinks(false) }}
+          onClick={() => onTogglePanel('genre')}
           title="ジャンル編集">🏷</button>
         <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => { setEditingMemo(e => !e); setEditingGenre(false); setShowLinks(false) }}
+          onClick={() => onTogglePanel('memo')}
           title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
         >✏</button>
       </div>

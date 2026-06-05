@@ -2527,9 +2527,10 @@
   background: rgba(255,255,255,0.01);
 }
 .wlMobileMemoTextarea {
-  width: 100%; background: #0f1923; border: 1px solid var(--line-strong);
+  width: 100%; background: var(--surface-1); border: 1px solid var(--line-strong);
   border-radius: 6px; padding: 8px; color: var(--text-1);
-  font-size: 12px; line-height: 1.5; resize: none;
+  /* iOSは16px未満の入力にフォーカスすると画面を自動ズームする。16pxでズーム抑止（本人指摘 I9） */
+  font-size: 16px; line-height: 1.5; resize: none;
   font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box;
   outline: none;
 }

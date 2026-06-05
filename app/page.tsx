@@ -3962,7 +3962,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
         <span className={styles.newsCount}>新しい順・{sorted.length}件</span>
         <div className={styles.newsMediaWrap} ref={mediaRef}>
           <button className={styles.newsMediaBtn} onClick={() => setMediaOpen(o => !o)}>
-            {media && faviconUrl(curUrl) && <img className={styles.newsFavicon} src={faviconUrl(curUrl)} alt="" />}
+            {media && faviconUrl(curUrl, media) && <img className={styles.newsFavicon} src={faviconUrl(curUrl, media)} alt="" />}
             {media ? media : 'すべての媒体'} ▾
           </button>
           {mediaOpen && (
@@ -3972,7 +3972,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
               </button>
               {mediaList.map(([s, { n, url }]) => (
                 <button key={s} className={`${styles.newsMediaItem} ${media === s ? styles.newsMediaItemOn : ''}`} onClick={() => { setMedia(s); setMediaOpen(false) }}>
-                  {faviconUrl(url) && <img className={styles.newsFavicon} src={faviconUrl(url)} alt="" loading="lazy" />}
+                  {faviconUrl(url, s) && <img className={styles.newsFavicon} src={faviconUrl(url, s)} alt="" loading="lazy" />}
                   <span className={styles.newsMediaName}>{s}</span><span className={styles.newsMediaCount}>{n}</span>
                 </button>
               ))}
@@ -3988,7 +3988,7 @@ function NewsSection({ code, name }: { code: string; name: string }) {
             <a key={a.link || i} className={styles.newsItem} href={a.link} target="_blank" rel="noopener noreferrer">
               <div className={styles.newsItemHead}>
                 {isNew && <span className={styles.newsBadge}>NEW</span>}
-                {faviconUrl(a.sourceUrl) && <img className={styles.newsFavicon} src={faviconUrl(a.sourceUrl)} alt="" loading="lazy" />}
+                {faviconUrl(a.sourceUrl, a.source) && <img className={styles.newsFavicon} src={faviconUrl(a.sourceUrl, a.source)} alt="" loading="lazy" />}
                 <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
                 <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
               </div>
@@ -4032,9 +4032,31 @@ const FEED_DISPLAY_STEP = 50 // 1度に描画する件数（DOM負荷を抑え�
 let feedCache: { key: string; items: FeedItem[] } | null = null
 let feedLastFetched: number | null = null
 
-function faviconUrl(sourceUrl: string): string {
-  try { return `https://www.google.com/s2/favicons?domain=${new URL(sourceUrl).hostname}&sz=64` }
-  catch { return '' }
+// 媒体名→既知ドメイン（source url が欠落する媒体＝Yahoo等のfavicon欠けを補う）
+function sourceNameToDomain(name: string): string {
+  const n = (name || '').toLowerCase()
+  if (n.includes('yahoo') || name.includes('ヤフー')) return 'finance.yahoo.co.jp'
+  if (name.includes('日本経済新聞') || name.includes('日経') || n.includes('nikkei')) return 'nikkei.com'
+  if (name.includes('株探') || name.includes('かぶたん')) return 'kabutan.jp'
+  if (name.includes('みんかぶ')) return 'minkabu.jp'
+  if (name.includes('東洋経済') || name.includes('四季報')) return 'toyokeizai.net'
+  if (name.includes('ダイヤモンド')) return 'diamond.jp'
+  if (n.includes('reuters') || name.includes('ロイター')) return 'jp.reuters.com'
+  if (n.includes('bloomberg') || name.includes('ブルームバーグ')) return 'bloomberg.co.jp'
+  if (n.includes('pr times') || n.includes('prtimes')) return 'prtimes.jp'
+  if (name.includes('時事')) return 'jiji.com'
+  if (name.includes('共同')) return 'nordot.app'
+  if (name.includes('nhk')) return 'nhk.or.jp'
+  if (name.includes('日刊工業')) return 'nikkan.co.jp'
+  return ''
+}
+function faviconUrl(sourceUrl: string, sourceName?: string): string {
+  try {
+    const host = new URL(sourceUrl).hostname
+    if (host) return `https://www.google.com/s2/favicons?domain=${host}&sz=64`
+  } catch { /* sourceUrl欠落・不正 → 媒体名フォールバックへ */ }
+  const dom = sourceNameToDomain(sourceName || '')
+  return dom ? `https://www.google.com/s2/favicons?domain=${dom}&sz=64` : ''
 }
 
 // 検索用: 全角英数字を半角化＋小文字化（「ＩＭＶ」「imv」どちらでもヒット）
@@ -4319,7 +4341,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
                           const n = new Set(prev); n.has(m.key) ? n.delete(m.key) : n.add(m.key); return n
                         })}
                       />
-                      {faviconUrl(m.sourceUrl) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl)} alt="" loading="lazy" />}
+                      {faviconUrl(m.sourceUrl, m.source) && <img className={styles.feedFavicon} src={faviconUrl(m.sourceUrl, m.source)} alt="" loading="lazy" />}
                       <span className={styles.feedMediaName}>{m.source}</span>
                       <span className={styles.feedMediaCount}>{m.n}</span>
                     </label>
@@ -4347,7 +4369,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
         {displayed.slice(0, visible).map((a, i) => {
           const t = new Date(a.pubDate).getTime()
           const isNew = !!t && !Number.isNaN(t) && (Date.now() - t) < NEWS_NEW_WINDOW_MS
-          const fav = faviconUrl(a.sourceUrl)
+          const fav = faviconUrl(a.sourceUrl, a.source)
           return (
             <div key={a.link || i} className={styles.feedItem}>
               <a className={styles.feedItemTitle} href={a.link} target="_blank" rel="noopener noreferrer">

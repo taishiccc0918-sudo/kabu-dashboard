@@ -4931,13 +4931,20 @@ function PositionMap({ rows, hearts, onClickCode }: {
           <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>↓下落</span>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.repMapSvg} preserveAspectRatio="xMidYMid meet">
-          <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.06)" />
-          <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.04)" />
-          <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.06)" />
+          {/* PER水準の3ゾーン（割安/中立/割高）＝色＋区切り線＋上部ラベルで明確に仕切る */}
+          <rect x={L} y={T} width={pw * 0.33} height={ph} fill="rgba(52,211,153,0.10)" />
+          <rect x={L + pw * 0.33} y={T} width={pw * 0.34} height={ph} fill="rgba(251,191,36,0.07)" />
+          <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.10)" />
+          <line x1={L + pw * 0.33} y1={T} x2={L + pw * 0.33} y2={T + ph} stroke="var(--line-strong)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1={L + pw * 0.67} y1={T} x2={L + pw * 0.67} y2={T + ph} stroke="var(--line-strong)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <text x={L + pw * 0.165} y={T + 10} fontSize="8.5" fontWeight="700" fill="var(--up)" textAnchor="middle">割安</text>
+          <text x={L + pw * 0.5} y={T + 10} fontSize="8.5" fontWeight="700" fill="#caa200" textAnchor="middle">中立</text>
+          <text x={L + pw * 0.835} y={T + 10} fontSize="8.5" fontWeight="700" fill="var(--down)" textAnchor="middle">割高</text>
+          {/* 横グリッド。0%（株価1ヶ月の基準＝図の中央）をはっきり太く・ラベルも大きく */}
           {[0.2, 0, -0.2].map(g => (
             <g key={g}>
-              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="var(--line)" strokeWidth="0.6" strokeDasharray={g === 0 ? '4 3' : '2 4'} />
-              <text x={L - 2} y={y(g) + 2} fontSize="5" fill="var(--text-2)" textAnchor="end">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
+              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke={g === 0 ? 'var(--text-3)' : 'var(--line)'} strokeWidth={g === 0 ? 1 : 0.5} strokeDasharray={g === 0 ? '5 3' : '2 4'} />
+              <text x={L + 3} y={y(g) - 2.5} fontSize="8" fontWeight={g === 0 ? '700' : '400'} fill="var(--text-2)" textAnchor="start">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
             </g>
           ))}
           <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
@@ -5141,7 +5148,7 @@ function WeeklyReport({
   return (
     <div className={styles.reportRoot}>
       <div className={styles.rpHdr}>
-        <span className={styles.rpTitle}>レポート <span className={styles.rpTitleSub}>ウォッチリストの俯瞰と銘柄カルテ</span></span>
+        <span className={styles.rpTitle}>レポート</span>
         <span className={styles.rpDate}>{dateStr} &nbsp;·&nbsp; ★{baseRows.length}銘柄</span>
       </div>
 
@@ -5162,11 +5169,13 @@ function WeeklyReport({
       {repView === 'rank' && (
         <>
           <div className={styles.rankGroupTitle}>PER水準（直近1年レンジ内の位置）</div>
+          <div className={styles.rankGroupDesc}>その銘柄の過去1年のPERレンジで、今が安いか高いか。割安＝過去比で低め、割高＝高め。</div>
           <div className={styles.rankGrid}>
             <RankList title="🟢 割安ゾーン" hint="PERが1年で低い" rows={cheapRank} kind="per" onClickCode={onClickCode} />
             <RankList title="🔴 割高ゾーン" hint="PERが1年で高い" rows={expRank} kind="per" onClickCode={onClickCode} />
           </div>
           <div className={styles.rankGroupTitle} style={{ marginTop: 16 }}>株価の動き（直近1ヶ月）</div>
+          <div className={styles.rankGroupDesc}>直近1ヶ月の値動き。下落＝押し目候補、上昇＝勢い、として見る材料に（判断は人それぞれ）。</div>
           <div className={styles.rankGrid}>
             <RankList title="📉 下落" hint="押し目候補" rows={downRank} kind="down" onClickCode={onClickCode} />
             <RankList title="📈 上昇" hint="上昇トレンド" rows={upRank} kind="up" onClickCode={onClickCode} />

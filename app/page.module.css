@@ -2658,14 +2658,24 @@
   box-shadow: 0 6px 16px rgba(0,0,0,0.35); position: relative; z-index: 5;
   border-radius: 6px;
 }
-.genreReorderHit {
+.genreReorderItem { padding: 2px 4px 2px 6px; gap: 6px; }
+.genreReorderTap {
   flex: 1; display: flex; align-items: center; gap: 8px;
-  padding: 9px 6px; touch-action: pan-y; cursor: pointer; min-width: 0;
+  padding: 11px 4px; cursor: pointer; min-width: 0;
 }
+.genreReorderRename {
+  flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text-2); border-radius: 6px; padding: 6px 9px;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.genreReorderRename:active { background: var(--accent-soft); color: var(--accent); }
 .genreReorderGrip {
-  margin-left: auto; color: var(--text-3); flex-shrink: 0;
-  display: inline-flex; align-items: center;
+  flex-shrink: 0; color: var(--accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 8px; background: var(--surface-2);
+  touch-action: none; cursor: grab;
 }
+.genreReorderGrip:active { cursor: grabbing; background: var(--accent-soft); }
 .genreFilterHint { padding: 7px 10px; font-size: 11px; color: var(--text-3); }
 
 /* 列見出し「ジャンル」＝タップでグルーピング */

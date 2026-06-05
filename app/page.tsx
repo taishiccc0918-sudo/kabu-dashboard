@@ -3169,7 +3169,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
   showDetail: boolean
 }) {
   // 固定列(★/コード/銘柄名)の背景。テーマ対応のためトークン参照（旧:暗色ハードコードでライトモードは暗背景＋暗文字＝白飛びしていた）。行のゼブラ(surface-0/1)に一致させる。
-  const stickyBg = highlighted ? 'rgba(59,130,246,0.25)' : (idx % 2 === 0 ? 'var(--surface-0)' : 'var(--surface-1)')
+  const stickyBg = highlighted ? 'rgba(20,184,166,0.25)' : (idx % 2 === 0 ? 'var(--surface-0)' : 'var(--surface-1)')
   const stickyNameBg = stickyBg
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
   return (
@@ -3271,7 +3271,7 @@ function EarningsDateCell({ code, date, onSave, fin }: {
         onKeyDown={e => { if (e.key === 'Enter') { onSave(code, val); setEditing(false) } if (e.key === 'Escape') { setVal(date); setEditing(false) } }}
       />
       <button onClick={() => { onSave(code, val); setEditing(false) }}
-        style={{fontSize:10, padding:'1px 4px', background:'#3b82f6', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
+        style={{fontSize:10, padding:'1px 4px', background:'var(--accent)', border:'none', borderRadius:3, color:'#fff', cursor:'pointer'}}>✓</button>
       <button onClick={() => { setVal(date); setEditing(false) }}
         style={{fontSize:10, padding:'1px 4px', background:'transparent', border:'none', color:'#94a3b8', cursor:'pointer'}}>✕</button>
     </span>
@@ -3281,10 +3281,10 @@ function EarningsDateCell({ code, date, onSave, fin }: {
       title={displayDate ? `次回決算: ${displayDate}\nクリックして手動設定` : 'クリックして決算予定日を入力'}
       style={{
         fontSize: 11,
-        color: displayDate ? (getColor(displayDate) || '#4a7090') : '#60a5fa',
+        color: displayDate ? (getColor(displayDate) || '#4a7090') : 'var(--accent)',
         cursor: 'pointer', padding: '2px 5px', borderRadius: 3,
         border: displayDate ? '1px solid transparent' : '1px dashed rgba(96,165,250,0.5)',
-        background: displayDate ? 'transparent' : 'rgba(59,130,246,0.06)',
+        background: displayDate ? 'transparent' : 'rgba(20,184,166,0.06)',
         whiteSpace: 'nowrap', display: 'inline-block',
       }}
       onClick={() => { setVal(displayDate); setEditing(true) }}

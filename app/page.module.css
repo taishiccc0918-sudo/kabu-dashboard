@@ -258,10 +258,10 @@
 /* ── ROW HIGHLIGHT ──────────────────────────────── */
 .table tbody tr[data-code] { scroll-margin-top: 96px; }
 .table tbody tr[data-code] td { transition: background 0.8s ease-out; }
-.trHighlight td { background: rgba(59,130,246,0.25) !important; }
+.trHighlight td { background: rgba(20,184,166,0.25) !important; }
 .wlTableInner tbody tr[data-code-wl] { scroll-margin-top: 96px; }
 .wlTableInner tbody tr[data-code-wl] td { transition: background 0.8s ease-out; }
-.wlHighlight td { background: rgba(59,130,246,0.25) !important; }
+.wlHighlight td { background: rgba(20,184,166,0.25) !important; }
 
 /* ── TABLE ───────────────────────────────────────── */
 .main { flex: 1; }
@@ -444,7 +444,7 @@
   font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 13px;
   padding: 8px 10px; resize: vertical; margin-bottom: 10px; outline: none;
 }
-.bulkAddTextarea:focus { border-color: #3b82f6; }
+.bulkAddTextarea:focus { border-color: var(--accent); }
 .bulkAddActions { display: flex; gap: 8px; }
 
 /* judgment groups (detail panel) */
@@ -578,7 +578,7 @@
   border-radius: 6px; font-size: 12px;
   font-family: 'JetBrains Mono', 'Courier New', monospace; width: 120px;
 }
-.wlInput:focus { outline: none; border-color: #3b82f6; }
+.wlInput:focus { outline: none; border-color: var(--accent); }
 .wlCount { font-size: 11px; color: #4e6280; margin-bottom: 12px; font-family: 'JetBrains Mono', 'Courier New', monospace; }
 .wlChips { display: flex; flex-wrap: wrap; gap: 5px; }
 .wlChip {
@@ -944,12 +944,12 @@
   position: fixed; right: 22px; bottom: 44px; z-index: 420;
   display: inline-flex; align-items: center; gap: 4px;
   padding: 10px 14px; border-radius: 24px;
-  background: rgba(59,130,246,0.92); color: #fff;
-  border: 1px solid #60a5fa; font-size: 13px; font-weight: 700;
+  background: rgba(20,184,166,0.92); color: #fff;
+  border: 1px solid var(--accent); font-size: 13px; font-weight: 700;
   cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.45);
   transition: background .12s, transform .12s; backdrop-filter: blur(4px);
 }
-.scrollTopBtn:hover { background: #3b82f6; transform: translateY(-2px); }
+.scrollTopBtn:hover { background: var(--accent); transform: translateY(-2px); }
 
 /* ── STATUS BAR ──────────────────────────────────── */
 .statusBar {
@@ -972,7 +972,7 @@
 }
 .progressWrap { width: 100px; }
 .progressBar { height: 2px; background: #2a3a52; border-radius: 1px; overflow: hidden; }
-.progressFill { height: 100%; background: #3b82f6; border-radius: 1px; transition: width .3s; }
+.progressFill { height: 100%; background: var(--accent); border-radius: 1px; transition: width .3s; }
 
 /* ── ANIMATIONS ──────────────────────────────────── */
 @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -996,7 +996,7 @@
   cursor: pointer; white-space: nowrap;
   transition: all .12s;
 }
-.pcToggleBtn:hover { color: var(--text-1); border-color: #3b82f6; }
+.pcToggleBtn:hover { color: var(--text-1); border-color: var(--accent); }
 .pcModeBtn {
   font-size: 11px; padding: 4px 10px; border-radius: 5px;
   border: 1px solid var(--line-strong); background: rgba(255,255,255,0.04);
@@ -1004,7 +1004,7 @@
   font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
   align-items: center;
 }
-.pcModeBtn:hover { color: var(--text-1); border-color: #3b82f6; }
+.pcModeBtn:hover { color: var(--text-1); border-color: var(--accent); }
 .lightMode .pcModeBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
 
 /* ── MOBILE LIST ─────────────────────────────────── */
@@ -1022,7 +1022,7 @@
   transition: all .12s;
   gap: 10px;
 }
-.mobileRow:active { background: var(--surface-hover); border-color: #3b82f6; }
+.mobileRow:active { background: var(--surface-hover); border-color: var(--accent); }
 .mobileRowLeft { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .mobileRowTop { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .mobileCode {
@@ -1222,7 +1222,7 @@
   min-height: 36px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif;
 }
 /* 選択中の市場で色付け（Prime=青/Standard=緑/Growth=紫。行のバッジ色と対応） */
-.filterSelect_prime    { color: #60a5fa; border-color: #60a5fa; background: rgba(59,130,246,0.10); }
+.filterSelect_prime    { color: var(--accent); border-color: var(--accent); background: rgba(20,184,166,0.10); }
 .filterSelect_standard { color: #34d399; border-color: #34d399; background: rgba(16,185,129,0.10); }
 .filterSelect_growth   { color: #a78bfa; border-color: #a78bfa; background: rgba(139,92,246,0.10); }
 
@@ -1476,8 +1476,8 @@
   padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid var(--line-strong);
-  background: rgba(59,130,246,0.06);
-  color: #60a5fa;
+  background: rgba(20,184,166,0.06);
+  color: var(--accent);
   font-size: 10px;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-weight: 600;
@@ -1487,9 +1487,9 @@
   letter-spacing: 0.3px;
 }
 .infoLinkBtn:hover {
-  background: rgba(59,130,246,0.18);
-  border-color: #3b82f6;
-  color: #93c5fd;
+  background: rgba(20,184,166,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
   transform: translateY(-1px);
 }
 
@@ -1529,9 +1529,9 @@
   border-radius: 8px; padding: 5px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
   transition: all .15s;
 }
-.detailToggle:hover { color: #e8eef6; border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+.detailToggle:hover { color: #e8eef6; border-color: var(--accent); background: rgba(20,184,166,0.08); }
 .lightMode .detailToggle { border-color: #94a3b8; color: #475569; }
-.lightMode .detailToggle:hover { color: #0f172a; border-color: #2563eb; background: rgba(37,99,235,0.06); }
+.lightMode .detailToggle:hover { color: #0f172a; border-color: var(--accent); background: rgba(15,118,110,0.06); }
 
 /* ── ビューポート下端の連動スクロールバー ──────────── */
 .hScrollbar {
@@ -1553,7 +1553,7 @@
   background: #1f2d40;
   margin: 0 2px;
 }
-.mktBtn_prime.filterBtnActive    { border-color: #60a5fa; color: #60a5fa; background: rgba(59,130,246,0.1); }
+.mktBtn_prime.filterBtnActive    { border-color: var(--accent); color: var(--accent); background: rgba(20,184,166,0.1); }
 .mktBtn_standard.filterBtnActive { border-color: #34d399; color: #34d399; background: rgba(16,185,129,0.1); }
 .mktBtn_growth.filterBtnActive   { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
 
@@ -1565,7 +1565,7 @@
   border-radius: 50%;
   background: rgba(96,165,250,0.2);
   border: 1px solid rgba(96,165,250,0.4);
-  color: #60a5fa;
+  color: var(--accent);
   font-size: 9px; font-weight: 700;
   margin-left: 3px;
   cursor: help;
@@ -1628,10 +1628,10 @@
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s; white-space: nowrap;
 }
-.filterToggleBtn:hover { color: var(--text-1); border-color: #3b82f6; }
+.filterToggleBtn:hover { color: var(--text-1); border-color: var(--accent); }
 .filterToggleBtnActive {
-  border-color: #3b82f6; color: #60a5fa;
-  background: rgba(59,130,246,0.1);
+  border-color: var(--accent); color: var(--accent);
+  background: rgba(20,184,166,0.1);
 }
 
 /* ── 詳細フィルターパネル ─────────────────────────── */
@@ -1665,8 +1665,8 @@
 }
 .filterChip:hover { color: #8fa3be; border-color: var(--line-strong); }
 .filterChipActive {
-  border-color: #3b82f6; color: #60a5fa;
-  background: rgba(59,130,246,0.12);
+  border-color: var(--accent); color: var(--accent);
+  background: rgba(20,184,166,0.12);
 }
 .filterPanelInput {
   background: rgba(255,255,255,0.04);
@@ -1675,7 +1675,7 @@
   border-radius: 6px; font-size: 12px; width: 110px;
   font-family: 'JetBrains Mono', monospace;
 }
-.filterPanelInput:focus { outline: none; border-color: #3b82f6; }
+.filterPanelInput:focus { outline: none; border-color: var(--accent); }
 .filterPanelClear {
   padding: 5px 14px; border-radius: 5px;
   border: 1px solid var(--line-strong);
@@ -1707,7 +1707,7 @@
 .genreEditPanel {
   width: 100%; margin-top: 8px;
   padding: 8px; border-radius: 6px;
-  background: rgba(59,130,246,0.06);
+  background: rgba(20,184,166,0.06);
   border: 1px solid var(--line-strong);
 }
 .genreTagGrid {
@@ -1758,7 +1758,7 @@
   cursor: pointer; transition: all .12s; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.wlIconFilterBtn:hover { color: var(--text-1); border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.wlIconFilterBtn:hover { color: var(--text-1); border-color: var(--accent); background: rgba(20,184,166,0.1); }
 .wlIconFilterBtnActive {
   border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.15);
 }
@@ -1789,7 +1789,7 @@
   font-size: 12px; font-family: 'Noto Sans JP', sans-serif;
   box-sizing: border-box; transition: border-color .15s;
 }
-.wlHeaderSearch:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
+.wlHeaderSearch:focus { outline: none; border-color: var(--accent); background: rgba(20,184,166,0.06); }
 .wlHeaderSearch::placeholder { color: #4e6280; }
 
 /* セグメンテッド市場フィルター */
@@ -1807,8 +1807,8 @@
 }
 .wlMktBtn:first-child { border-left: none; }
 .wlMktBtn:hover { color: #8fa3be; background: rgba(255,255,255,0.06); }
-.wlMktBtnActive { color: var(--text-1) !important; background: rgba(59,130,246,0.2) !important; }
-.wlMktBtn_prime.wlMktBtnActive   { background: rgba(59,130,246,0.2) !important; color: #60a5fa !important; }
+.wlMktBtnActive { color: var(--text-1) !important; background: rgba(20,184,166,0.2) !important; }
+.wlMktBtn_prime.wlMktBtnActive   { background: rgba(20,184,166,0.2) !important; color: var(--accent) !important; }
 .wlMktBtn_standard.wlMktBtnActive { background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
 .wlMktBtn_growth.wlMktBtnActive  { background: rgba(139,92,246,0.2) !important; color: #a78bfa !important; }
 
@@ -1865,15 +1865,15 @@
   font-size: 11px; width: 90px;
   font-family: 'JetBrains Mono', monospace;
 }
-.genreNewInput:focus { outline: none; border-color: #3b82f6; }
+.genreNewInput:focus { outline: none; border-color: var(--accent); }
 .genreAddBtn {
   padding: 3px 10px; border-radius: 4px;
-  border: 1px solid #3b82f6;
-  background: rgba(59,130,246,0.12);
-  color: #60a5fa; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--accent);
+  background: rgba(20,184,166,0.12);
+  color: var(--accent); font-size: 11px; cursor: pointer;
   transition: background .12s;
 }
-.genreAddBtn:hover { background: rgba(59,130,246,0.25); }
+.genreAddBtn:hover { background: rgba(20,184,166,0.25); }
 
 /* 検索 */
 .wlSearchRow {
@@ -1890,7 +1890,7 @@
   font-size: 13px; font-family: 'Noto Sans JP', sans-serif;
   box-sizing: border-box;
 }
-.wlSearchInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
+.wlSearchInput:focus { outline: none; border-color: var(--accent); background: rgba(20,184,166,0.06); }
 .searchDropdown {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;
   background: #111827; border: 1px solid var(--line-strong);
@@ -1903,11 +1903,11 @@
   transition: background .1s; border-bottom: 1px solid #1f2d40;
 }
 .searchDropdownItem:last-child { border-bottom: none; }
-.searchDropdownItem:hover { background: rgba(59,130,246,0.1); }
-.searchDropdownItemActive { background: rgba(59,130,246,0.18) !important; }
+.searchDropdownItem:hover { background: rgba(20,184,166,0.1); }
+.searchDropdownItemActive { background: rgba(20,184,166,0.18) !important; }
 .searchItemCode {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; color: #60a5fa;
+  font-size: 12px; color: var(--accent);
   min-width: 44px;
 }
 .searchItemName {
@@ -1979,7 +1979,7 @@
   transition: border-color .1s; box-sizing: border-box;
   color-scheme: dark;
 }
-.wlEarningsInput:focus { outline: none; border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+.wlEarningsInput:focus { outline: none; border-color: var(--accent); background: rgba(20,184,166,0.05); }
 
 /* 決算日 MM/DD 表示ボタン */
 .wlDateBtn {
@@ -1989,14 +1989,14 @@
   font-family: 'JetBrains Mono', monospace;
   transition: border-color .1s, color .1s;
 }
-.wlDateBtn:hover { border-color: #3b82f6; color: #93c5fd; }
+.wlDateBtn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ジャンル +N バッジ */
 .genreExtraBadge {
   display: inline-block; padding: 2px 6px; border-radius: 10px;
-  background: rgba(59,130,246,0.15); color: #60a5fa;
+  background: rgba(20,184,166,0.15); color: var(--accent);
   font-size: 10px; font-weight: 600; cursor: default;
-  border: 1px solid rgba(59,130,246,0.3);
+  border: 1px solid rgba(20,184,166,0.3);
 }
 
 /* リンクドロップダウン */
@@ -2007,7 +2007,7 @@
   border-radius: 4px; cursor: pointer;
   transition: border-color .1s, background .1s;
 }
-.linkDropBtn:hover { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.linkDropBtn:hover { border-color: var(--accent); background: rgba(20,184,166,0.1); }
 .linkDropMenu {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 200;
   background: #0f1825; border: 1px solid #1f2d40;
@@ -2020,7 +2020,7 @@
   color: #94a3b8; font-size: 12px; text-decoration: none;
   transition: background .1s, color .1s; white-space: nowrap;
 }
-.linkDropItem:hover { background: rgba(59,130,246,0.12); color: #93c5fd; }
+.linkDropItem:hover { background: rgba(20,184,166,0.12); color: var(--accent); }
 .linkDropIcon { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: block; object-fit: contain; }
 
 /* ── カスタムメモツールチップ ──────────────────────────────── */
@@ -2045,7 +2045,7 @@
 .memoTooltipDate { font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
 .wlChipCode {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; font-weight: 700; color: #60a5fa;
+  font-size: 12px; font-weight: 700; color: var(--accent);
 }
 
 /* ジャンルタグ（テーブル内） */
@@ -2059,11 +2059,11 @@
   color: #4e6280; font-size: 11px; cursor: pointer;
   transition: all .1s; white-space: nowrap;
 }
-.genreTag:hover { border-color: #3b82f6; color: #8fa3be; }
+.genreTag:hover { border-color: var(--accent); color: #8fa3be; }
 .genreTagOn {
-  border-color: #3b82f6 !important;
-  background: rgba(59,130,246,0.18) !important;
-  color: #60a5fa !important; font-weight: 600;
+  border-color: var(--accent) !important;
+  background: rgba(20,184,166,0.18) !important;
+  color: var(--accent) !important; font-weight: 600;
 }
 .genreResetBtn {
   padding: 2px 6px; border-radius: 3px;
@@ -2089,12 +2089,12 @@
   font-size: 10px; cursor: pointer;
   transition: all .1s; white-space: nowrap;
 }
-.genreEditToggleBtn:hover { border-color: #3b82f6; color: #60a5fa; }
+.genreEditToggleBtn:hover { border-color: var(--accent); color: var(--accent); }
 .genreEditToggleBtnOn {
-  border-color: #3b82f6 !important; color: #60a5fa !important;
-  background: rgba(59,130,246,0.08) !important;
+  border-color: var(--accent) !important; color: var(--accent) !important;
+  background: rgba(20,184,166,0.08) !important;
 }
-.wlEditRow { background: rgba(59,130,246,0.04); }
+.wlEditRow { background: rgba(20,184,166,0.04); }
 .wlEditTd {
   padding: 8px 16px 10px 100px !important;
   border-bottom: 2px solid #1f2d40;
@@ -2106,7 +2106,7 @@
   font-family: 'Noto Sans JP', sans-serif;
 }
 .wlGenreSearch::placeholder { color: #7a8fa6; }
-.wlGenreSearch:focus { outline: none; border-color: #3b82f6; }
+.wlGenreSearch:focus { outline: none; border-color: var(--accent); }
 .wlGenreSearchClear { border: none; background: transparent; color: #93a8be; font-size: 16px; cursor: pointer; }
 .wlGenreSearchClear:hover { color: #fff; }
 .wlGenreNoHit { font-size: 12px; color: #8a9bb0; }
@@ -2122,10 +2122,10 @@
 
 /* ── 銘柄管理ボタンのアクティブ状態 ─────────────── */
 .btnSecondaryActive {
-  background: #1d4ed8 !important;
-  border-color: #60a5fa !important;
+  background: var(--accent-strong) !important;
+  border-color: var(--accent) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 0 1px #3b82f6;
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 
@@ -2152,8 +2152,8 @@
 .genreRenameInput {
   font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 600;
   padding: 1px 6px; border-radius: 3px;
-  border: 1px solid #3b82f6;
-  background: rgba(59,130,246,0.12);
+  border: 1px solid var(--accent);
+  background: rgba(20,184,166,0.12);
   color: var(--text-1); outline: none;
   width: 90px;
 }
@@ -2175,8 +2175,8 @@
   box-shadow: none !important;
 }
 .btnDone:hover {
-  background: #1d4ed8 !important;
-  border-color: #3b82f6 !important;
+  background: var(--accent-strong) !important;
+  border-color: var(--accent) !important;
   color: #fff !important;
 }
 
@@ -2296,10 +2296,10 @@
   color: #4e6280; font-size: 11px; cursor: pointer;
   font-family: 'Noto Sans JP', sans-serif; transition: all .12s;
 }
-.wlGenreFilterChip:hover { color: #8fa3be; border-color: #3b82f6; }
+.wlGenreFilterChip:hover { color: #8fa3be; border-color: var(--accent); }
 .wlGenreFilterChipActive {
-  border-color: #3b82f6; color: #60a5fa;
-  background: rgba(59,130,246,0.12);
+  border-color: var(--accent); color: var(--accent);
+  background: rgba(20,184,166,0.12);
 }
 .wlGenreFilterClear {
   padding: 3px 10px; border-radius: 99px;
@@ -2319,7 +2319,7 @@
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s; white-space: nowrap; flex-shrink: 0;
 }
-.genreDropdownBtn:hover { color: #8fa3be; border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+.genreDropdownBtn:hover { color: #8fa3be; border-color: var(--accent); background: rgba(20,184,166,0.08); }
 .genrePanel {
   position: absolute; top: calc(100% + 6px); right: 0;
   width: 220px; max-height: 400px;
@@ -2357,7 +2357,7 @@
   font-size: 11px; padding: 2px 5px; color: #4e6280;
   border-radius: 3px; transition: background .1s; line-height: 1;
 }
-.genrePanelRenameBtn:hover { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.genrePanelRenameBtn:hover { background: rgba(20,184,166,0.15); color: var(--accent); }
 .genrePanelDeleteBtn {
   background: none; border: none; cursor: pointer;
   font-size: 13px; padding: 0 5px; color: #f87171; opacity: 0.6;
@@ -2376,7 +2376,7 @@
   margin-left: 4px; vertical-align: middle;
 }
 .genreFilterBtn:hover { color: #8fa3be; border-color: var(--line-strong); }
-.genreFilterBtnActive { color: #3b82f6 !important; border-color: #3b82f6 !important; }
+.genreFilterBtnActive { color: var(--accent) !important; border-color: var(--accent) !important; }
 
 /* ── ダッシュボードのジャンル絞り込み（検索付きドロップダウン）─────── */
 .filterGenreWrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -2384,18 +2384,18 @@
   font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;
   border: 1px solid var(--line-strong); color: #aebccd; margin-left: 0;
 }
-.filterGenreWrap .genreFilterBtn:hover { color: var(--text-1); border-color: #3b82f6; }
+.filterGenreWrap .genreFilterBtn:hover { color: var(--text-1); border-color: var(--accent); }
 .filterGenreChips { display: flex; gap: 5px; flex-wrap: wrap; }
 .filterGenreActiveChip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 11px; border-radius: 999px; cursor: pointer;
-  background: rgba(59,130,246,0.14); border: 1px solid #3b82f6;
-  color: #93c5fd; font-size: 12.5px; font-weight: 600; transition: all .12s;
+  background: rgba(20,184,166,0.14); border: 1px solid var(--accent);
+  color: var(--accent); font-size: 12.5px; font-weight: 600; transition: all .12s;
 }
 .filterGenreActiveChip:hover { background: rgba(248,113,113,0.18); border-color: #f87171; color: #fca5a5; }
 .filterGenreChipX { font-size: 12px; line-height: 1; opacity: 0.8; }
 .lightMode .filterGenreWrap .genreFilterBtn { color: #475569; border-color: #cbd5e1; }
-.lightMode .filterGenreActiveChip { background: rgba(37,99,235,0.1); border-color: #2563eb; color: #1d4ed8; }
+.lightMode .filterGenreActiveChip { background: rgba(15,118,110,0.1); border-color: var(--accent); color: var(--accent-strong); }
 .genreFilterPanel {
   width: 200px; max-height: 380px;
   background: #111827; border: 1px solid var(--line-strong);
@@ -2442,9 +2442,9 @@
   display: inline-block; box-sizing: border-box;
 }
 .genreFilterItem:hover .genreFilterCheck,
-.genreFilterSelectAll:hover .genreFilterCheck { border-color: #3b82f6; }
+.genreFilterSelectAll:hover .genreFilterCheck { border-color: var(--accent); }
 .genreFilterCheckOn {
-  background: #3b82f6 !important; border-color: #3b82f6 !important;
+  background: var(--accent) !important; border-color: var(--accent) !important;
 }
 .genreFilterCheckOn::after {
   content: ''; position: absolute;
@@ -2459,12 +2459,12 @@
 }
 .genreFilterApplyBtn {
   flex: 1; padding: 5px 8px; border-radius: 5px;
-  border: 1px solid #3b82f6; background: rgba(59,130,246,0.15);
-  color: #60a5fa; font-size: 11px;
+  border: 1px solid var(--accent); background: rgba(20,184,166,0.15);
+  color: var(--accent); font-size: 11px;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: background .12s;
 }
-.genreFilterApplyBtn:hover { background: rgba(59,130,246,0.28); }
+.genreFilterApplyBtn:hover { background: rgba(20,184,166,0.28); }
 .genreFilterClearBtn {
   flex: 1; padding: 5px 8px; border-radius: 5px;
   border: 1px solid var(--line-strong); background: rgba(255,255,255,0.03);
@@ -2516,12 +2516,12 @@
   font-family: 'JetBrains Mono', monospace;
   cursor: pointer; transition: all .1s;
 }
-.pageBtn:hover:not(:disabled) { border-color: #3b82f6; color: #60a5fa; background: rgba(59,130,246,0.1); }
+.pageBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(20,184,166,0.1); }
 .pageBtn:disabled { color: #2a3a52; cursor: not-allowed; }
 .pageBtnActive {
-  border-color: #3b82f6 !important;
-  background: rgba(59,130,246,0.2) !important;
-  color: #93c5fd !important;
+  border-color: var(--accent) !important;
+  background: rgba(20,184,166,0.2) !important;
+  color: var(--accent) !important;
   font-weight: 700;
 }
 .pageInfo {
@@ -2593,7 +2593,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .wlMobileEditBtn:active { background: rgba(255,255,255,0.06); }
-.wlMobileEditBtnActive { color: #60a5fa !important; }
+.wlMobileEditBtnActive { color: var(--accent) !important; }
 .wlMobileMemoEdit {
   padding: 6px 10px 8px; border-top: 1px solid #1f2d40;
   background: rgba(255,255,255,0.01);
@@ -2606,7 +2606,7 @@
   font-family: 'Noto Sans JP', sans-serif; box-sizing: border-box;
   outline: none;
 }
-.wlMobileMemoTextarea:focus { border-color: #3b82f6; }
+.wlMobileMemoTextarea:focus { border-color: var(--accent); }
 
 /* ── WlMobileRow: 銘柄名タップ / リンク展開 ─────────── */
 .wlMobileNameTap {
@@ -2624,13 +2624,13 @@
   background: rgba(0,0,0,0.2);
 }
 .wlMobileLinkBtn {
-  font-size: 12px; color: #60a5fa; padding: 4px 10px;
+  font-size: 12px; color: var(--accent); padding: 4px 10px;
   border: 1px solid var(--line-strong); border-radius: 14px;
-  background: rgba(59,130,246,0.07); text-decoration: none;
+  background: rgba(20,184,166,0.07); text-decoration: none;
   display: inline-flex; align-items: center; white-space: nowrap;
   transition: background .1s, border-color .1s;
 }
-.wlMobileLinkBtn:active { background: rgba(59,130,246,0.2); border-color: #60a5fa; }
+.wlMobileLinkBtn:active { background: rgba(20,184,166,0.2); border-color: var(--accent); }
 
 /* ── 銘柄管理ツールバー 2段レイアウト（SP用） ───────── */
 /* PC: display:contents で親flexに溶け込む（透明なラッパー） */
@@ -2681,9 +2681,9 @@
   flex-shrink: 0; transition: all .12s;
 }
 .wlSpGenreChipActive {
-  color: #60a5fa !important;
-  border-color: #3b82f6 !important;
-  background: rgba(59,130,246,0.12) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  background: rgba(20,184,166,0.12) !important;
 }
 .wlSpGenreClearBtn {
   font-size: 11px; color: #f87171;
@@ -2701,16 +2701,16 @@
   cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.themeToggle:hover { background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.themeToggle:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
 
 /* ── 認証ボタン ─────────────────────────────────────────────── */
 .loginBtn {
   padding: 5px 10px; border-radius: 6px;
-  border: 1px solid #3b82f6; background: rgba(59,130,246,0.15);
-  color: #93c5fd; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--accent); background: rgba(20,184,166,0.15);
+  color: var(--accent); font-size: 12px; cursor: pointer;
   white-space: nowrap; transition: all .15s;
 }
-.loginBtn:hover { background: rgba(59,130,246,0.28); color: #bfdbfe; }
+.loginBtn:hover { background: rgba(20,184,166,0.28); color: #bfdbfe; }
 
 .userMenu {
   position: relative;
@@ -2722,11 +2722,11 @@
   background: transparent; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.avatarBtn:hover { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.avatarBtn:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(20,184,166,0.15); }
 .avatarImg, .avatarImgLg {
   width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg,#3b82f6,#6366f1);
+  background: linear-gradient(135deg,var(--accent),#6366f1);
   color: #fff; font-weight: 700;
 }
 .avatarImg { font-size: 14px; }
@@ -2750,8 +2750,8 @@
 .userDropdownLogout:hover { background: rgba(248,113,113,0.15); border-color: #f87171; color: #f87171; }
 .userDropdownNote { font-size: 10px; color: var(--text-3); text-align: center; }
 
-.lightMode .loginBtn { border-color: #2563eb; background: rgba(37,99,235,0.1); color: #1d4ed8; }
-.lightMode .loginBtn:hover { background: rgba(37,99,235,0.2); }
+.lightMode .loginBtn { border-color: var(--accent); background: rgba(15,118,110,0.1); color: var(--accent-strong); }
+.lightMode .loginBtn:hover { background: rgba(15,118,110,0.2); }
 .lightMode .avatarBtn { border-color: #cbd5e1; }
 .lightMode .userDropdown { background: #fff; border-color: #cbd5e1; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
 .lightMode .userDropdownName { color: #0f172a; }
@@ -3093,11 +3093,11 @@
 .lightMode .wlTd { background: #fff !important; }
 .lightMode .wlTr:hover .wlTd { background: #e2e8f0 !important; }
 .lightMode .wlDateBtn { color: #475569 !important; }
-.lightMode .wlDateBtn:hover { border-color: #3b82f6 !important; color: #1d4ed8 !important; }
+.lightMode .wlDateBtn:hover { border-color: var(--accent) !important; color: var(--accent-strong) !important; }
 .lightMode .linkDropBtn { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #475569 !important; }
 .lightMode .linkDropMenu { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important; }
 .lightMode .linkDropItem { color: #475569 !important; }
-.lightMode .linkDropItem:hover { background: #eff6ff !important; color: #1d4ed8 !important; }
+.lightMode .linkDropItem:hover { background: #eff6ff !important; color: var(--accent-strong) !important; }
 .lightMode .wlChip { background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
 .lightMode .wlChipCode { color: #475569 !important; }
 .lightMode .wlChipName { color: #64748b !important; }
@@ -3111,12 +3111,12 @@
 .lightMode .wlGenreLabel { color: #475569 !important; }
 .lightMode .genreBadgeEditable { background: #fff !important; border-color: #94a3b8 !important; color: #334155 !important; }
 .lightMode .genreRemoveBtn { color: #dc2626 !important; opacity: 0.7; }
-.lightMode .genreRenameInput { background: rgba(37,99,235,0.08) !important; color: #1e40af !important; border-color: #2563eb !important; }
+.lightMode .genreRenameInput { background: rgba(15,118,110,0.08) !important; color: #1e40af !important; border-color: var(--accent) !important; }
 
 /* 2. 検索バー */
 .lightMode .wlSearchInput { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlSearchInput::placeholder { color: #94a3b8 !important; }
-.lightMode .wlSearchInput:focus { border-color: #2563eb !important; background: rgba(37,99,235,0.04) !important; }
+.lightMode .wlSearchInput:focus { border-color: var(--accent) !important; background: rgba(15,118,110,0.04) !important; }
 
 /* 3. フィルターバー */
 .lightMode .wlFilterBar { background: #f1f5f9 !important; border-bottom-color: #cbd5e1 !important; }
@@ -3125,50 +3125,50 @@
 /* 4. 銘柄一覧本文 */
 .lightMode .wlTr { border-bottom-color: #e2e8f0 !important; }
 .lightMode .wlTdName { color: #1e293b !important; }
-.lightMode .wlChipCode { color: #2563eb !important; }
+.lightMode .wlChipCode { color: var(--accent) !important; }
 .lightMode .wlMemoInput { background: #fff !important; border-color: #cbd5e1 !important; color: #1e293b !important; }
 .lightMode .wlMemoInput::placeholder { color: #94a3b8 !important; }
 .lightMode .wlEarningsInput { background: #fff !important; border-color: #cbd5e1 !important; color: #1e293b !important; color-scheme: light; }
 .lightMode .genreTag { border-color: #94a3b8 !important; background: rgba(0,0,0,0.04) !important; color: #334155 !important; }
-.lightMode .genreTagOn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
+.lightMode .genreTagOn { border-color: var(--accent) !important; background: rgba(15,118,110,0.1) !important; color: var(--accent-strong) !important; }
 .lightMode .genreEditToggleBtn { border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .genreEditToggleBtnOn { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
-.lightMode .wlEditRow { background: rgba(37,99,235,0.04) !important; }
+.lightMode .genreEditToggleBtnOn { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(15,118,110,0.06) !important; }
+.lightMode .wlEditRow { background: rgba(15,118,110,0.04) !important; }
 .lightMode .wlEditTd { border-bottom-color: #cbd5e1 !important; }
 .lightMode .favBtn { color: rgba(0,0,0,0.2) !important; }
 .lightMode .heartBtn { color: rgba(0,0,0,0.15) !important; }
 .lightMode .heartBtn:hover { color: #f43f5e !important; }
 .lightMode .heartBtnOn { color: #f43f5e !important; }
 .lightMode .starSymbol { color: rgba(180,130,0,0.5) !important; }
-.lightMode .infoLinkBtn { color: #1d4ed8 !important; border-color: #93c5fd !important; background: rgba(37,99,235,0.07) !important; }
+.lightMode .infoLinkBtn { color: var(--accent-strong) !important; border-color: var(--accent) !important; background: rgba(15,118,110,0.07) !important; }
 
 /* 5. ページネーション */
 .lightMode .pagination { border-top-color: #cbd5e1 !important; }
 .lightMode .pageBtn { border-color: #94a3b8 !important; background: #f8fafc !important; color: #334155 !important; }
-.lightMode .pageBtn:hover:not(:disabled) { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .pageBtn:hover:not(:disabled) { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(15,118,110,0.06) !important; }
 .lightMode .pageBtn:disabled { color: #cbd5e1 !important; }
-.lightMode .pageBtnActive { border-color: #2563eb !important; background: rgba(37,99,235,0.12) !important; color: #1d4ed8 !important; }
+.lightMode .pageBtnActive { border-color: var(--accent) !important; background: rgba(15,118,110,0.12) !important; color: var(--accent-strong) !important; }
 .lightMode .pageInfo { color: #64748b !important; }
 
 /* ── ライトモード: 検索ドロップダウン ───────────── */
 .lightMode .searchDropdownPanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
 .lightMode .searchDropdownEmpty { color: #64748b !important; }
 .lightMode .searchDropdownCategory { color: #64748b !important; border-top-color: #e2e8f0 !important; }
-.lightMode .searchDropdownItem:hover { background: rgba(37,99,235,0.06) !important; }
+.lightMode .searchDropdownItem:hover { background: rgba(15,118,110,0.06) !important; }
 
 /* ── ライトモード: 銘柄管理ヘッダーフィルター ─── */
 .lightMode .wlIconFilterBtn { border-color: #94a3b8 !important; background: #f8fafc !important; color: #475569 !important; }
-.lightMode .wlIconFilterBtn:hover { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,0.07) !important; }
+.lightMode .wlIconFilterBtn:hover { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(15,118,110,0.07) !important; }
 .lightMode .wlIconFilterBtnActive { border-color: #d97706 !important; color: #b45309 !important; background: rgba(217,119,6,0.1) !important; }
 .lightMode .wlIconFilterBtnHeart:hover { border-color: #e11d48 !important; color: #e11d48 !important; background: rgba(225,29,72,0.07) !important; }
 .lightMode .wlIconFilterBtnHeartActive { border-color: #e11d48 !important; color: #be123c !important; background: rgba(225,29,72,0.1) !important; }
 .lightMode .wlHeaderSearch { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlHeaderSearch::placeholder { color: #94a3b8 !important; }
-.lightMode .wlHeaderSearch:focus { border-color: #2563eb !important; background: rgba(37,99,235,0.04) !important; }
+.lightMode .wlHeaderSearch:focus { border-color: var(--accent) !important; background: rgba(15,118,110,0.04) !important; }
 .lightMode .wlMktSegment { border-color: #94a3b8 !important; }
 .lightMode .wlMktBtn { border-left-color: #94a3b8 !important; background: #f8fafc !important; color: #475569 !important; }
 .lightMode .wlMktBtn:hover { background: #e2e8f0 !important; color: #1e293b !important; }
-.lightMode .wlMktBtn_prime.wlMktBtnActive { background: rgba(37,99,235,0.12) !important; color: #1d4ed8 !important; }
+.lightMode .wlMktBtn_prime.wlMktBtnActive { background: rgba(15,118,110,0.12) !important; color: var(--accent-strong) !important; }
 .lightMode .wlMktBtn_standard.wlMktBtnActive { background: rgba(5,150,105,0.12) !important; color: #047857 !important; }
 .lightMode .wlMktBtn_growth.wlMktBtnActive { background: rgba(109,40,217,0.12) !important; color: #6d28d9 !important; }
 .lightMode .wlHeaderCount { color: #64748b !important; }
@@ -3178,13 +3178,13 @@
 .lightMode .statusDot { background: #10b981 !important; }
 .lightMode .statusError { background: #ef4444 !important; }
 .lightMode .progressBar { background: #e2e8f0 !important; }
-.lightMode .progressFill { background: #3b82f6 !important; }
-.lightMode .searchDropdownItemActive { background: rgba(37,99,235,0.1) !important; }
-.lightMode .searchDropdownCode { color: #2563eb !important; }
+.lightMode .progressFill { background: var(--accent) !important; }
+.lightMode .searchDropdownItemActive { background: rgba(15,118,110,0.1) !important; }
+.lightMode .searchDropdownCode { color: var(--accent) !important; }
 .lightMode .searchDropdownName { color: #1e293b !important; }
 .lightMode .searchDropdownSnippet { color: #64748b !important; }
-.lightMode .trHighlight td { background: rgba(37,99,235,0.15) !important; }
-.lightMode .wlHighlight td { background: rgba(37,99,235,0.15) !important; }
+.lightMode .trHighlight td { background: rgba(15,118,110,0.15) !important; }
+.lightMode .wlHighlight td { background: rgba(15,118,110,0.15) !important; }
 
 /* ── SETTINGS BUTTON ─────────────────────────────────── */
 .settingsBtn {
@@ -3195,7 +3195,7 @@
   line-height: 1; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.settingsBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.settingsBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: var(--accent); }
 
 /* ── SETTINGS OVERLAY ────────────────────────────────── */
 .settingsOverlay {
@@ -3264,7 +3264,7 @@
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer;
 }
-.judgmentLogicSelect:focus { outline: none; border-color: #3b82f6; }
+.judgmentLogicSelect:focus { outline: none; border-color: var(--accent); }
 
 .judgmentBody {
   flex: 1; overflow-y: auto; padding: 16px 20px;
@@ -3272,12 +3272,12 @@
 }
 
 .judgmentAddBtn {
-  background: rgba(59,130,246,0.15); border: 1px solid #3b82f6;
-  color: #60a5fa; font-size: 16px; line-height: 1;
+  background: rgba(20,184,166,0.15); border: 1px solid var(--accent);
+  color: var(--accent); font-size: 16px; line-height: 1;
   cursor: pointer; border-radius: 6px; padding: 4px 10px;
   transition: all .15s; flex-shrink: 0;
 }
-.judgmentAddBtn:hover { background: rgba(59,130,246,0.28); }
+.judgmentAddBtn:hover { background: rgba(20,184,166,0.28); }
 
 .judgmentDupBtn {
   background: rgba(255,255,255,0.04); border: 1px solid var(--line-strong);
@@ -3300,7 +3300,7 @@
 .logicNumBadge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(59,130,246,0.15); color: #60a5fa;
+  background: rgba(20,184,166,0.15); color: var(--accent);
   font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
 .logicNameRow {
@@ -3313,7 +3313,7 @@
   color: var(--text-1); font-size: 13px; font-weight: 600;
   padding: 6px 10px; font-family: 'Noto Sans JP', sans-serif;
 }
-.logicNameInput:focus { outline: none; border-color: #3b82f6; }
+.logicNameInput:focus { outline: none; border-color: var(--accent); }
 
 .rangesSection { display: flex; flex-direction: column; gap: 6px; }
 .rangesSectionLabel {
@@ -3335,7 +3335,7 @@
   border-radius: 5px; padding: 3px 4px;
   font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
 }
-.metricSelect:focus { outline: none; border-color: #3b82f6; }
+.metricSelect:focus { outline: none; border-color: var(--accent); }
 
 .rangeInput {
   width: 56px; flex-shrink: 0;
@@ -3344,7 +3344,7 @@
   border-radius: 5px; padding: 3px 6px; text-align: right;
   font-family: 'JetBrains Mono', monospace;
 }
-.rangeInput:focus { outline: none; border-color: #3b82f6; }
+.rangeInput:focus { outline: none; border-color: var(--accent); }
 .rangeInput::placeholder { color: #4e6280; }
 
 .rangeLabel { font-size: 11px; color: #4e6280; flex-shrink: 0; }
@@ -3366,7 +3366,7 @@
   transition: all .15s; margin-top: 2px;
   font-family: 'Noto Sans JP', sans-serif;
 }
-.addRangeBtn:hover { color: #60a5fa; border-color: #3b82f6; background: rgba(59,130,246,0.06); }
+.addRangeBtn:hover { color: var(--accent); border-color: var(--accent); background: rgba(20,184,166,0.06); }
 
 /* ── HELP BUTTON ──────────────────────────────────────── */
 .helpBtn {
@@ -3378,7 +3378,7 @@
   line-height: 1; cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.helpBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+.helpBtn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); border-color: var(--accent); }
 
 /* ── HELP OVERLAY ─────────────────────────────────────── */
 .helpOverlay {
@@ -3443,7 +3443,7 @@
   margin-bottom: -1px;
 }
 .helpTab:hover { color: #8fa3be; }
-.helpTabActive { color: #60a5fa; border-bottom-color: #3b82f6; }
+.helpTabActive { color: var(--accent); border-bottom-color: var(--accent); }
 
 .helpBody {
   flex: 1; overflow-y: auto;
@@ -3481,7 +3481,7 @@
 .helpIndLabel {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px; font-weight: 600;
-  color: #60a5fa;
+  color: var(--accent);
 }
 .helpIndDesc {
   font-size: 12px; color: #9ca3af; line-height: 1.6;
@@ -3490,7 +3490,7 @@
 
 /* ── HELP: LIGHT MODE ─────────────────────────────────── */
 .lightMode .settingsBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .settingsBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .settingsBtn:hover { background: rgba(15,118,110,0.06) !important; border-color: var(--accent) !important; color: #1e293b !important; }
 .lightMode .judgmentPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
 .lightMode .judgmentPanelTitle { color: #1e293b !important; }
 .lightMode .judgmentClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
@@ -3505,36 +3505,36 @@
 .lightMode .rangeUnit { color: #94a3b8 !important; }
 .lightMode .addRangeBtn { color: #94a3b8 !important; border-color: #94a3b8 !important; }
 .lightMode .helpBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .helpBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .helpBtn:hover { background: rgba(15,118,110,0.06) !important; border-color: var(--accent) !important; color: #1e293b !important; }
 .lightMode .helpPanel { background: #fff !important; border-left-color: #cbd5e1 !important; }
 .lightMode .helpPanelTitle { color: #1e293b !important; }
 .lightMode .helpClose { background: rgba(0,0,0,0.04) !important; border-color: #cbd5e1 !important; color: #64748b !important; }
 .lightMode .helpClose:hover { color: #1e293b !important; background: rgba(0,0,0,0.08) !important; }
 .lightMode .helpTabs { border-bottom-color: #cbd5e1 !important; }
 .lightMode .helpTab { color: #64748b !important; }
-.lightMode .helpTabActive { color: #2563eb !important; border-bottom-color: #2563eb !important; }
+.lightMode .helpTabActive { color: var(--accent) !important; border-bottom-color: var(--accent) !important; }
 .lightMode .helpItem:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
 .lightMode .helpItemTitle { color: #1e293b !important; }
 .lightMode .helpItemDesc { color: #475569 !important; }
 .lightMode .helpIndRow:hover { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
-.lightMode .helpIndLabel { color: #2563eb !important; }
+.lightMode .helpIndLabel { color: var(--accent) !important; }
 .lightMode .helpIndDesc { color: #475569 !important; }
 
 /* ── GENRE DROPDOWN / FILTER: LIGHT MODE ──────────────── */
 .lightMode .genreDropdownBtn { border-color: #94a3b8 !important; color: #475569 !important; background: #f8fafc !important; }
-.lightMode .genreDropdownBtn:hover { border-color: #2563eb !important; color: #1e293b !important; background: rgba(37,99,235,0.06) !important; }
+.lightMode .genreDropdownBtn:hover { border-color: var(--accent) !important; color: #1e293b !important; background: rgba(15,118,110,0.06) !important; }
 .lightMode .genrePanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
 .lightMode .genrePanelSearch { background: #f8fafc !important; border-bottom-color: #e2e8f0 !important; color: #1e293b !important; }
 .lightMode .genrePanelSearch::placeholder { color: #94a3b8 !important; }
 .lightMode .genrePanelItem:hover { background: rgba(0,0,0,0.03) !important; }
 .lightMode .genrePanelItemName { color: #1e293b !important; }
 .lightMode .genrePanelRenameBtn { color: #94a3b8 !important; }
-.lightMode .genrePanelRenameBtn:hover { background: rgba(37,99,235,0.1) !important; color: #2563eb !important; }
+.lightMode .genrePanelRenameBtn:hover { background: rgba(15,118,110,0.1) !important; color: var(--accent) !important; }
 .lightMode .genrePanelDeleteBtn { color: #dc2626 !important; }
 .lightMode .genrePanelFooter { border-top-color: #e2e8f0 !important; }
 .lightMode .genreFilterBtn { color: #94a3b8 !important; }
 .lightMode .genreFilterBtn:hover { color: #475569 !important; border-color: #94a3b8 !important; }
-.lightMode .genreFilterBtnActive { color: #2563eb !important; border-color: #2563eb !important; }
+.lightMode .genreFilterBtnActive { color: var(--accent) !important; border-color: var(--accent) !important; }
 .lightMode .genreFilterPanel { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
 .lightMode .genreFilterSearch { background: #f8fafc !important; border-bottom-color: #e2e8f0 !important; color: #1e293b !important; }
 .lightMode .genreFilterSearch::placeholder { color: #94a3b8 !important; }
@@ -3544,11 +3544,11 @@
 .lightMode .genreFilterItem:hover { background: rgba(0,0,0,0.03) !important; }
 .lightMode .genreFilterCheck { border-color: #94a3b8 !important; }
 .lightMode .genreFilterItem:hover .genreFilterCheck,
-.lightMode .genreFilterSelectAll:hover .genreFilterCheck { border-color: #2563eb !important; }
-.lightMode .genreFilterCheckOn { background: #2563eb !important; border-color: #2563eb !important; }
+.lightMode .genreFilterSelectAll:hover .genreFilterCheck { border-color: var(--accent) !important; }
+.lightMode .genreFilterCheckOn { background: var(--accent) !important; border-color: var(--accent) !important; }
 .lightMode .genreFilterDivider { background: #e2e8f0 !important; }
-.lightMode .genreFilterApplyBtn { border-color: #2563eb !important; background: rgba(37,99,235,0.1) !important; color: #1d4ed8 !important; }
-.lightMode .genreFilterApplyBtn:hover { background: rgba(37,99,235,0.2) !important; }
+.lightMode .genreFilterApplyBtn { border-color: var(--accent) !important; background: rgba(15,118,110,0.1) !important; color: var(--accent-strong) !important; }
+.lightMode .genreFilterApplyBtn:hover { background: rgba(15,118,110,0.2) !important; }
 .lightMode .genreFilterClearBtn { border-color: #94a3b8 !important; color: #475569 !important; background: #f8fafc !important; }
 .lightMode .genreFilterClearBtn:hover { color: #1e293b !important; background: rgba(0,0,0,0.04) !important; }
 .lightMode .genreChipRenameBtn { color: #64748b !important; }
@@ -3560,7 +3560,7 @@
 
 /* ── ライトモード: mobileRow（修正1） ───────────────── */
 .lightMode .mobileRow { background: #fff !important; border-color: #cbd5e1 !important; }
-.lightMode .mobileRow:active { background: #e2e8f0 !important; border-color: #2563eb !important; }
+.lightMode .mobileRow:active { background: #e2e8f0 !important; border-color: var(--accent) !important; }
 .lightMode .mobileCode { color: #64748b !important; }
 .lightMode .mobileName { color: #1e293b !important; }
 .lightMode .mobileMetaItem { color: #64748b !important; }
@@ -3593,16 +3593,16 @@
 .lightMode .wlMobileName { color: #1e293b !important; }
 .lightMode .wlMobileGenre { color: #64748b !important; background: rgba(0,0,0,0.03) !important; border-color: #cbd5e1 !important; }
 .lightMode .wlMobileEditBtn { color: #64748b !important; }
-.lightMode .wlMobileEditBtnActive { color: #2563eb !important; }
+.lightMode .wlMobileEditBtnActive { color: var(--accent) !important; }
 .lightMode .wlMobileMemoTextarea { background: #f8fafc !important; border-color: #94a3b8 !important; color: #1e293b !important; }
-.lightMode .wlMobileMemoTextarea:focus { border-color: #2563eb !important; }
+.lightMode .wlMobileMemoTextarea:focus { border-color: var(--accent) !important; }
 .lightMode .wlMobileLinkRow { background: rgba(0,0,0,0.04) !important; border-top-color: #e2e8f0 !important; }
-.lightMode .wlMobileLinkBtn { color: #2563eb !important; background: rgba(37,99,235,0.06) !important; border-color: #bfdbfe !important; }
+.lightMode .wlMobileLinkBtn { color: var(--accent) !important; background: rgba(15,118,110,0.06) !important; border-color: #bfdbfe !important; }
 .lightMode .wlMobileNameCaret { color: #94a3b8 !important; }
 .lightMode .wlSpGenreBar { background: #e8edf3 !important; border-bottom-color: #cbd5e1 !important; }
 .lightMode .wlSpGenreBarLabel { color: #64748b !important; }
 .lightMode .wlSpGenreChip { color: #475569 !important; border-color: #94a3b8 !important; background: #f8fafc !important; }
-.lightMode .wlSpGenreChipActive { color: #2563eb !important; border-color: #3b82f6 !important; background: rgba(37,99,235,0.08) !important; }
+.lightMode .wlSpGenreChipActive { color: var(--accent) !important; border-color: var(--accent) !important; background: rgba(15,118,110,0.08) !important; }
 
 /* ── 銘柄管理ヘッダー SP 縦並びレイアウト ─────────────── */
 @media (max-width: 768px) {
@@ -3691,7 +3691,7 @@
 .header {
   background: linear-gradient(180deg, rgba(10,16,26,0.99) 0%, rgba(8,12,18,0.97) 100%) !important;
   border-bottom-color: transparent !important;
-  box-shadow: 0 1px 0 rgba(59,130,246,0.18), 0 2px 12px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 1px 0 rgba(20,184,166,0.18), 0 2px 12px rgba(0,0,0,0.5) !important;
 }
 
 /* ロゴの ▶ マーカーにビーコンアニメーション */
@@ -3699,8 +3699,8 @@
   animation: logoBeacon 3s ease-in-out infinite;
 }
 @keyframes logoBeacon {
-  0%, 100% { color: #3b82f6; }
-  50%       { color: #60a5fa; text-shadow: 0 0 8px rgba(96,165,250,0.7); }
+  0%, 100% { color: var(--accent); }
+  50%       { color: var(--accent); text-shadow: 0 0 8px rgba(96,165,250,0.7); }
 }
 
 /* ── ツールバー: 微妙なグラデーション ────────── */
@@ -3722,7 +3722,7 @@
   position: absolute;
   top: 0; left: 12px; right: 12px;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.4) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.4) 50%, transparent 100%);
   opacity: 0;
   transition: opacity .2s;
 }
@@ -3730,7 +3730,7 @@
 
 /* ── テーブル: 行ホバー左アクセントボーダー ─── */
 .table tbody tr:hover .tdStar {
-  box-shadow: inset 3px 0 0 #3b82f6 !important;
+  box-shadow: inset 3px 0 0 var(--accent) !important;
   transition: box-shadow .08s !important;
 }
 
@@ -3757,7 +3757,7 @@
 
 /* プログレスバーにグロー */
 .progressFill {
-  background: linear-gradient(90deg, #2563eb, #60a5fa) !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent)) !important;
   box-shadow: 0 0 6px rgba(96,165,250,0.5);
 }
 
@@ -3771,23 +3771,23 @@
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 2.5px;
-  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
   border-radius: 2px;
 }
 
 /* ── カード: ホバー時のデプス強化 ──────────── */
 .card:hover {
-  box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 0 1px rgba(59,130,246,0.18) !important;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 0 1px rgba(20,184,166,0.18) !important;
 }
 
 /* ── プライマリボタン: グラデーション & シャドウ ─ */
 .btnPrimary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 100%) !important;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
 }
 .btnPrimary:not(:disabled):hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-  box-shadow: 0 4px 12px rgba(59,130,246,0.3), 0 1px 4px rgba(0,0,0,0.3) !important;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%) !important;
+  box-shadow: 0 4px 12px rgba(20,184,166,0.3), 0 1px 4px rgba(0,0,0,0.3) !important;
   transform: translateY(-1px) !important;
 }
 .btnPrimary:not(:disabled):active {
@@ -3798,8 +3798,8 @@
 /* ── 銘柄管理行: 左アクセントボーダー ──────── */
 .wlTr { transition: background .08s, box-shadow .08s !important; }
 .wlTr:hover {
-  background: rgba(59,130,246,0.04) !important;
-  box-shadow: inset 3px 0 0 #3b82f6 !important;
+  background: rgba(20,184,166,0.04) !important;
+  box-shadow: inset 3px 0 0 var(--accent) !important;
 }
 .wlTr:hover .wlTd { background: rgba(15,22,38,0.8) !important; }
 
@@ -3819,7 +3819,7 @@
 
 /* ── フィルターアクティブ: フォーカスリング ─── */
 .filterBtnActive {
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.18) !important;
+  box-shadow: 0 0 0 2px rgba(20,184,166,0.18) !important;
 }
 
 /* ── テーブルヘッダーグループ: 上部カラーライン ─ */
@@ -3828,7 +3828,7 @@
 
 /* ── ページネーション: アクティブボタンのグロー ─ */
 .pageBtnActive {
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.25) !important;
+  box-shadow: 0 0 0 2px rgba(20,184,166,0.25) !important;
 }
 
 /* ── リンクドロップダウン: 開くアニメーション ── */
@@ -3842,8 +3842,8 @@
 
 /* ── 検索ドロップダウン: ボーダーカラー ─────── */
 .searchDropdownPanel {
-  border-color: rgba(59,130,246,0.22) !important;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(59,130,246,0.06) !important;
+  border-color: rgba(20,184,166,0.22) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(20,184,166,0.06) !important;
 }
 
 /* ── 鮮度アイコン: ゆらぎアニメーション ────── */
@@ -3858,7 +3858,7 @@
 /* ── ライトモード: ポリッシュ追加 ──────────── */
 .lightMode .header {
   background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(248,250,252,0.97) 100%) !important;
-  box-shadow: 0 1px 0 rgba(37,99,235,0.12), 0 2px 10px rgba(0,0,0,0.07) !important;
+  box-shadow: 0 1px 0 rgba(15,118,110,0.12), 0 2px 10px rgba(0,0,0,0.07) !important;
 }
 .lightMode .toolbar {
   background: linear-gradient(180deg, #e8edf5 0%, #e2e8f0 100%) !important;
@@ -3868,38 +3868,38 @@
 }
 .lightMode .statCard { border-right-color: #e2e8f0 !important; }
 .lightMode .progressFill {
-  background: linear-gradient(90deg, #1d4ed8, #3b82f6) !important;
-  box-shadow: 0 0 6px rgba(37,99,235,0.4) !important;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent)) !important;
+  box-shadow: 0 0 6px rgba(15,118,110,0.4) !important;
 }
 .lightMode .detailSectionTitle::before {
-  background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong)) !important;
 }
 .lightMode .wlTr:hover {
-  background: rgba(37,99,235,0.04) !important;
-  box-shadow: inset 3px 0 0 #2563eb !important;
+  background: rgba(15,118,110,0.04) !important;
+  box-shadow: inset 3px 0 0 var(--accent) !important;
 }
 .lightMode .wlTr:hover .wlTd { background: rgba(240,244,252,0.9) !important; }
 .lightMode .table tbody tr:hover .tdStar {
-  box-shadow: inset 3px 0 0 #2563eb !important;
+  box-shadow: inset 3px 0 0 var(--accent) !important;
 }
 .lightMode .tdName {
   box-shadow: 4px 0 10px rgba(0,0,0,0.08) !important;
 }
 .lightMode .btnPrimary {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%) !important;
 }
 .lightMode .btnPrimary:not(:disabled):hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.25), 0 1px 4px rgba(0,0,0,0.15) !important;
+  background: linear-gradient(135deg, var(--accent-strong) 0%, #1e40af 100%) !important;
+  box-shadow: 0 4px 12px rgba(15,118,110,0.25), 0 1px 4px rgba(0,0,0,0.15) !important;
 }
 .lightMode .pageBtnActive {
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.2) !important;
+  box-shadow: 0 0 0 2px rgba(15,118,110,0.2) !important;
 }
 .lightMode .searchDropdownPanel {
-  border-color: rgba(37,99,235,0.18) !important;
+  border-color: rgba(15,118,110,0.18) !important;
   box-shadow: 0 8px 28px rgba(0,0,0,0.12) !important;
 }
-.lightMode .mkt_prime    { border-left-color: #2563eb !important; }
+.lightMode .mkt_prime    { border-left-color: var(--accent) !important; }
 .lightMode .mkt_standard { border-left-color: #059669 !important; }
 .lightMode .mkt_growth   { border-left-color: #7c3aed !important; }
 
@@ -3963,10 +3963,10 @@
   border-bottom-color: #e2e8f0 !important;
 }
 .lightMode .moreBtn { background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important; }
-.lightMode .moreBtn:hover { background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important; }
+.lightMode .moreBtn:hover { background: rgba(15,118,110,0.06) !important; border-color: var(--accent) !important; color: #1e293b !important; }
 .lightMode .moreMenu { background: #fff !important; border-color: #cbd5e1 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
 .lightMode .moreMenuItem { color: #475569 !important; }
-.lightMode .moreMenuItem:hover { background: rgba(37,99,235,0.06) !important; color: #1e293b !important; }
+.lightMode .moreMenuItem:hover { background: rgba(15,118,110,0.06) !important; color: #1e293b !important; }
 .lightMode .moreMenuDivider { background: #e2e8f0 !important; }
 
 /* ══════════════════════════════════════════════════
@@ -4041,10 +4041,10 @@
 /* ── レビューバー ── */
 .voiceReviewBar {
   display: flex; align-items: center; padding: 7px 12px;
-  background: rgba(59,130,246,0.06);
-  border-bottom: 1px solid rgba(59,130,246,0.14);
+  background: rgba(20,184,166,0.06);
+  border-bottom: 1px solid rgba(20,184,166,0.14);
 }
-.voiceReviewLabel { font-size: 11px; color: #60a5fa; font-weight: 500; }
+.voiceReviewLabel { font-size: 11px; color: var(--accent); font-weight: 500; }
 
 /* ── レビュー編集テキストエリア ── */
 .voiceReviewArea {
@@ -4056,7 +4056,7 @@
   font-family: 'Noto Sans JP', sans-serif;
   resize: vertical; outline: none;
 }
-.voiceReviewArea:focus { background: rgba(59,130,246,0.03); }
+.voiceReviewArea:focus { background: rgba(20,184,166,0.03); }
 
 /* ── レビューアクションボタン行 ── */
 .voiceActions {
@@ -4074,7 +4074,7 @@
   white-space: nowrap; font-family: 'Noto Sans JP', sans-serif;
 }
 .voiceRetryBtn:hover {
-  background: rgba(255,255,255,0.07); color: #e2e8f0; border-color: #3b82f6;
+  background: rgba(255,255,255,0.07); color: #e2e8f0; border-color: var(--accent);
 }
 .voiceXBtn2 {
   padding: 5px 8px; border-radius: 6px; border: none;
@@ -4097,10 +4097,10 @@
 .lightMode .voiceTranscript .voiceFinal { color: #1e293b !important; }
 .lightMode .voiceTranscript .voiceInterim { color: rgba(71,85,105,0.6) !important; }
 .lightMode .voiceReviewArea { color: #1e293b !important; border-bottom-color: #e2e8f0 !important; }
-.lightMode .voiceReviewArea:focus { background: rgba(37,99,235,0.02) !important; }
+.lightMode .voiceReviewArea:focus { background: rgba(15,118,110,0.02) !important; }
 .lightMode .voiceRetryBtn {
   background: #f8fafc !important; border-color: #94a3b8 !important; color: #475569 !important;
 }
 .lightMode .voiceRetryBtn:hover {
-  background: rgba(37,99,235,0.06) !important; border-color: #2563eb !important; color: #1e293b !important;
+  background: rgba(15,118,110,0.06) !important; border-color: var(--accent) !important; color: #1e293b !important;
 }

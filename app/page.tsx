@@ -4958,7 +4958,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
   const W = 420, H = 520, L = 22, R = 10, T = 14, B = 30  // B大きめ＝下段にゾーン帯（割安/中立/割高）を置く
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
-  const FS = 8.5     // ラベル文字サイズ（SVG単位。図の拡大に合わせ大きく＝読みやすく）
+  const FS = 9.8     // ラベル文字サイズ（SVG単位。読みやすさ優先で拡大。重なりは縦オフセットで回避）
   const x = (pos: number) => L + pos * pw
   const y = (chg: number) => T + (1 - (Math.max(-CAP, Math.min(CAP, chg)) + CAP) / (2 * CAP)) * ph
   // 社名は株式会社/括弧/HD表記を省いてフル表示（途中で切らない）
@@ -5012,7 +5012,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
           {[0.2, 0, -0.2].map(g => (
             <g key={g}>
               <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke={g === 0 ? 'var(--text-3)' : 'var(--line)'} strokeWidth={g === 0 ? 1 : 0.5} strokeDasharray={g === 0 ? '5 3' : '2 4'} />
-              <text x={L + 3} y={y(g) - 2.5} fontSize="8" fontWeight={g === 0 ? '700' : '400'} fill="var(--text-2)" textAnchor="start">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
+              <text x={L + 3} y={y(g) - 2.5} fontSize="9.5" fontWeight={g === 0 ? '700' : '500'} fill="var(--text-2)" textAnchor="start">{g > 0 ? '+' : ''}{Math.round(g * 100)}%</text>
             </g>
           ))}
           <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
@@ -5024,7 +5024,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
           ].map(z => (
             <g key={z.label}>
               <rect x={z.x + 1} y={T + ph + 4} width={z.w - 2} height={16} rx={2.5} fill={z.c} />
-              <text x={z.x + z.w / 2} y={T + ph + 15} fontSize="9.5" fontWeight="700" fill={z.t} textAnchor="middle">{z.label}</text>
+              <text x={z.x + z.w / 2} y={T + ph + 15} fontSize="11" fontWeight="700" fill={z.t} textAnchor="middle">{z.label}</text>
             </g>
           ))}
           {/* 全銘柄の社名を表示（色＝上昇緑/下落赤）。ずらした分は実位置へ細い引き出し線 */}

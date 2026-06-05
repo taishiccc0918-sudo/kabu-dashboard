@@ -1984,8 +1984,8 @@ function StockManager({
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
   // K4: パネル開閉を親で一本化（同時に1つだけ開く＝別の行を開くと前のは閉じる）
   const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
-  // J5: 銘柄の並べ替えモード（ON時のみ☰グリップ表示・他操作は無効）
-  const [reorderMode, setReorderMode] = useState(false)
+  // 列見出し「ジャンル」タップでジャンルごとにグルーピング表示
+  const [groupByGenre, setGroupByGenre] = useState(false)
   const wlListRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
@@ -2019,7 +2019,22 @@ function StockManager({
       if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '')).includes(q)) return false
       return true
     })
-    // J5: 手動並び順を優先（stockOrder にある銘柄を順に、残りはコード順で末尾）
+    // 列見出し「ジャンル」タップ時：ジャンルごとにグルーピング（ジャンルの並び順を優先、未設定は末尾）
+    if (groupByGenre) {
+      const grank = new Map(managedGenreOptions.map((g, i) => [g, i]))
+      const primaryRank = (code: string) => {
+        const gs = stockMeta[code]?.genres ?? []
+        let best = Infinity
+        for (const g of gs) { const r = grank.has(g) ? grank.get(g)! : Infinity; if (r < best) best = r }
+        return best
+      }
+      return list.slice().sort((a, b) => {
+        const ra = primaryRank(a), rb = primaryRank(b)
+        if (ra !== rb) return ra - rb
+        return a < b ? -1 : a > b ? 1 : 0
+      })
+    }
+    // 手動並び順を優先（stockOrder にある銘柄を順に、残りはコード順で末尾）
     if (stockOrder.length === 0) return list
     const rank = new Map(stockOrder.map((c, i) => [c, i]))
     return list.slice().sort((a, b) => {
@@ -2028,7 +2043,7 @@ function StockManager({
       if (ra !== rb) return ra - rb
       return a < b ? -1 : a > b ? 1 : 0
     })
-  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder])
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder, groupByGenre, managedGenreOptions])
 
   useEffect(() => {
     if (!wlHighlightCode) return
@@ -2205,11 +2220,13 @@ function StockManager({
       <div className={styles.wlSpGenreRow}>
         <span className={styles.wlSpGenreRowLabel}>ジャンル</span>
         <GenreFilterDropdown
-          label="ジャンルで絞り込む"
+          label="ジャンルで絞り込む・並べ替え"
           genres={managedGenreOptions}
           activeFilters={genreFilters}
           onApply={f => { setGenreFilters(f); setPage(1) }}
           onClear={() => { setGenreFilters(new Set()); setPage(1) }}
+          onReorder={onReorderGenres}
+          onRename={onRenameGenre}
         />
         {genreFilters.size > 0 && (
           <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>全解除</button>
@@ -2225,32 +2242,18 @@ function StockManager({
         </div>
       )}
 
-      {/* J4: ジャンルの並べ替え・編集 */}
-      <GenreManager
-        genres={managedGenreOptions.filter(g => g !== GENRE_UNSET)}
-        onReorder={onReorderGenres}
-        onRename={onRenameGenre}
-        onRemove={onRemoveGenre}
-      />
-
-      {/* J5: 銘柄の並べ替えモード切替 */}
-      <div className={styles.wlReorderBar}>
-        <button className={`${styles.wlReorderToggle} ${reorderMode ? styles.wlReorderToggleOn : ''}`}
-          onClick={() => { setReorderMode(m => !m); setOpenPanel(null) }}>
-          {reorderMode ? '✓ 並べ替えを終える' : '☰ 銘柄を並べ替える'}
-        </button>
-        {reorderMode && <span className={styles.wlReorderHint}>☰ を掴んで上下にドラッグ</span>}
-      </div>
-
-      {/* SP: コンパクト1行リスト */}
+      {/* SP: コンパクト1行リスト（銘柄名を長押しでドラッグ並べ替え） */}
       <div className={`${styles.wlSpList} ${styles.mobileOnly}`} ref={wlListRef}>
-        {/* SP: 固定列ヘッダー */}
+        {/* SP: 固定列ヘッダー（「ジャンル」タップでジャンルごとに並べ替え） */}
         <div className={styles.wlSpStickyHeader}>
           <span className={styles.wlSpHdrHeart}>♥</span>
           <span className={styles.wlSpHdrStar} title="ウォッチ"><EyeIcon on size={13} /></span>
           <span className={styles.wlSpHdrCode}>コード</span>
           <span className={styles.wlSpHdrName}>銘柄名</span>
-          <span className={styles.wlSpHdrGenre}>ジャンル</span>
+          <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
+            onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
+            ジャンル{groupByGenre ? ' ✓' : ' ⇅'}
+          </button>
           <span className={styles.wlSpHdrMemo}>メモ</span>
         </div>
         {allCodes.length === 0
@@ -2273,9 +2276,8 @@ function StockManager({
               highlighted={wlHighlightCode === code}
               openType={openPanel?.code === code ? openPanel.type : null}
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
-              reorderMode={reorderMode}
               dragging={stockDrag.draggingKey === code}
-              dragHandleProps={stockDrag.makeHandleProps(code)}
+              nameDragProps={stockDrag.makeHandleProps(code, () => setOpenPanel(p => (p?.code === code && p.type === 'links') ? null : { code, type: 'links' }))}
             />
           ))
         }
@@ -2387,25 +2389,48 @@ function useDragReorder(
   order: string[],
   onReorder: (next: string[]) => void,
   containerRef: React.RefObject<HTMLElement>,
+  longPressMs = 0,
 ) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
   const latest = useRef({ order, onReorder, containerRef })
   latest.current = { order, onReorder, containerRef }
-  const st = useRef<{ key: string } | null>(null)
+  type DragState = { key: string; startY: number; startX: number; active: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null; el: HTMLElement; pointerId: number; onTap?: () => void }
+  const st = useRef<DragState | null>(null)
 
-  function makeHandleProps(key: string): React.HTMLAttributes<HTMLElement> {
+  function makeHandleProps(key: string, onTap?: () => void): React.HTMLAttributes<HTMLElement> {
     return {
       onPointerDown: (e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return
-        try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
-        st.current = { key }
-        setDraggingKey(key)
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12)
-        e.preventDefault()
+        const el = e.currentTarget as HTMLElement
+        const immediate = longPressMs === 0
+        st.current = { key, startY: e.clientY, startX: e.clientX, active: immediate, moved: false, timer: null, el, pointerId: e.pointerId, onTap }
+        if (immediate) {
+          try { el.setPointerCapture(e.pointerId) } catch {}
+          setDraggingKey(key)
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12)
+          e.preventDefault()
+        } else {
+          st.current.timer = setTimeout(() => {
+            const s = st.current
+            if (s && s.key === key && !s.moved) {
+              s.active = true
+              try { s.el.setPointerCapture(s.pointerId) } catch {}
+              setDraggingKey(key)
+              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(14)
+            }
+          }, longPressMs)
+        }
       },
       onPointerMove: (e) => {
         const s = st.current
         if (!s || s.key !== key) return
+        if (!s.active) {
+          if (Math.abs(e.clientY - s.startY) > 8 || Math.abs(e.clientX - s.startX) > 8) {
+            s.moved = true
+            if (s.timer) { clearTimeout(s.timer); s.timer = null }
+          }
+          return
+        }
         e.preventDefault()
         const cont = latest.current.containerRef.current
         if (!cont) return
@@ -2425,71 +2450,68 @@ function useDragReorder(
         if (next.join('') !== ord.join('')) latest.current.onReorder(next)
       },
       onPointerUp: (e) => {
+        const s = st.current
+        if (s) {
+          if (s.timer) clearTimeout(s.timer)
+          if (!s.active && !s.moved && s.onTap) s.onTap()
+          try { s.el.releasePointerCapture(e.pointerId) } catch {}
+        }
         st.current = null
         setDraggingKey(null)
-        try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch {}
       },
-      onPointerCancel: () => { st.current = null; setDraggingKey(null) },
-      style: { touchAction: 'none', cursor: 'grab' },
+      onPointerCancel: () => { const s = st.current; if (s && s.timer) clearTimeout(s.timer); st.current = null; setDraggingKey(null) },
+      style: longPressMs === 0 ? { touchAction: 'none', cursor: 'grab' } : { touchAction: 'pan-y' },
     }
   }
   return { draggingKey, makeHandleProps }
 }
 
-// ─── ジャンルの並べ替え・編集パネル（J4）────────────────────────────────
-function GenreManager({ genres, onReorder, onRename, onRemove }: {
+// ─── ジャンルの並べ替え・編集リスト（絞り込みドロップダウン内で使用）──────────────
+// 長押しでドラッグ並べ替え／タップで絞り込みON-OFF／✎で改名。
+function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRename }: {
   genres: string[]
+  pending: Set<string>
+  onTogglePending: (g: string) => void
   onReorder: (next: string[]) => void
   onRename: (oldName: string, newName: string) => void
-  onRemove: (name: string) => void
 }) {
-  const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const contRef = useRef<HTMLDivElement>(null)
-  const { draggingKey, makeHandleProps } = useDragReorder(genres, onReorder, contRef)
+  const { draggingKey, makeHandleProps } = useDragReorder(genres, onReorder, contRef, 320)
 
   return (
-    <div className={styles.genreMgrWrap}>
-      <button className={styles.genreMgrToggle} onClick={() => setOpen(o => !o)}>
-        🏷 ジャンルの並べ替え・編集 {open ? '▲' : '▼'}
-      </button>
-      {open && (
-        <div className={styles.genreMgrPanel} ref={contRef}>
-          {genres.length === 0 && <div className={styles.genreMgrEmpty}>ジャンルがありません</div>}
-          {genres.map(g => (
-            <div key={g} data-drag-key={g}
-              className={`${styles.genreMgrRow} ${draggingKey === g ? styles.genreMgrRowDragging : ''}`}>
-              <span className={styles.genreMgrGrip} {...makeHandleProps(g)}><GripIcon /></span>
-              {editing === g ? (
-                <input className={styles.genreMgrInput} autoFocus value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  onBlur={() => { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }
-                    if (e.key === 'Escape') setEditing(null)
-                  }}
-                  maxLength={12}
-                />
-              ) : (
-                <span className={styles.genreMgrName} onClick={() => { setEditing(g); setDraft(g) }}>{g}</span>
-              )}
-              {editing !== g && (
-                <>
-                  <button className={styles.genreMgrEditBtn} onClick={() => { setEditing(g); setDraft(g) }} title="名前を変更">✎</button>
-                  <button className={styles.genreMgrDelBtn} onClick={() => { if (confirm(`ジャンル「${g}」を削除しますか？（銘柄からも外れます）`)) onRemove(g) }} title="削除">🗑</button>
-                </>
-              )}
-            </div>
-          ))}
-          <div className={styles.genreMgrHint}>☰ を掴んで並べ替え／名前をタップで変更</div>
+    <div className={styles.genreFilterList} ref={contRef}>
+      {genres.map(g => (
+        <div key={g} data-drag-key={g}
+          className={`${styles.genreFilterItem} ${styles.genreReorderItem} ${draggingKey === g ? styles.genreReorderItemDragging : ''}`}>
+          {editing === g ? (
+            <input className={styles.genreMgrInput} autoFocus value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={() => { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim()); setEditing(null) }
+                if (e.key === 'Escape') setEditing(null)
+              }}
+              maxLength={12}
+            />
+          ) : (
+            <span className={styles.genreReorderHit} {...makeHandleProps(g, () => onTogglePending(g))}>
+              <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
+              <span className={styles.genreFilterLabel}>{g}</span>
+              <span className={styles.genreReorderGrip}><GripIcon size={15} /></span>
+            </span>
+          )}
+          {editing !== g && (
+            <button className={styles.genreMgrEditBtn} onClick={() => { setEditing(g); setDraft(g) }} title="名前を変更">✎</button>
+          )}
         </div>
-      )}
+      ))}
     </div>
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, reorderMode, dragging, dragHandleProps }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -2501,9 +2523,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   highlighted: boolean
   openType: 'genre' | 'memo' | 'links' | null
   onTogglePanel: (type: 'genre' | 'memo' | 'links') => void
-  reorderMode?: boolean
   dragging?: boolean
-  dragHandleProps?: React.HTMLAttributes<HTMLElement>
+  nameDragProps?: React.HTMLAttributes<HTMLElement>
 }) {
   const editingMemo = openType === 'memo'
   const editingGenre = openType === 'genre'
@@ -2535,31 +2556,18 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
     { label: '公式IR',      href: `https://www.google.com/search?q=${encodeURIComponent(code + ' ' + rec.name + ' IR 投資家情報')}` },
   ]
 
-  if (reorderMode) {
-    return (
-      <div className={`${styles.wlMobileItem} ${styles.wlMobileItemReorder} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
-        <div className={styles.wlMobileRow}>
-          <span className={styles.wlReorderGrip} {...dragHandleProps}><GripIcon size={20} /></span>
-          {isSuperFav && <span className={styles.wlReorderHeart}>♥</span>}
-          <span className={styles.wlMobileCode}>{code}</span>
-          <span className={styles.wlMobileName}>{rec.name}</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''}`} data-code-wl={code} data-drag-key={code}>
+    <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
       <div className={styles.wlMobileRow}>
         <button onClick={onToggleSuperFav}
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>
         <button onClick={onToggleFav}
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}><EyeIcon on={isFav} size={16} /></button>
         <span className={styles.wlMobileCode}>{code}</span>
-        {/* 銘柄名タップでリンク展開 */}
+        {/* 銘柄名：タップでリンク展開／長押しでドラッグ並べ替え */}
         <span
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
-          onClick={() => onTogglePanel('links')}
+          {...nameDragProps}
         >
           {rec.name}
           <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
@@ -3971,12 +3979,14 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
 }
 
 // ─── GenreFilterDropdown（列ヘッダーフィルター）────────────────────────
-function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }: {
+function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label, onReorder, onRename }: {
   genres: string[]
   activeFilters: Set<string>
   onApply: (filters: Set<string>) => void
   onClear: () => void
   label?: string
+  onReorder?: (next: string[]) => void
+  onRename?: (oldName: string, newName: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -4043,19 +4053,31 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }:
             <span className={`${styles.genreFilterCheck} ${allSelected ? styles.genreFilterCheckOn : ''}`} />
             <span>{allSelected ? '全解除' : '全選択'}</span>
           </div>
-          <div className={styles.genreFilterList}>
-            {filtered.map(g => (
-              <div key={g} className={styles.genreFilterItem} onClick={() => {
-                const next = new Set(pending)
-                next.has(g) ? next.delete(g) : next.add(g)
-                setPending(next)
-              }}>
-                <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
-                <span className={styles.genreFilterLabel}>{g}</span>
-              </div>
-            ))}
-            {/* 未設定フィルター（常に末尾に表示） */}
-            {!search.trim() && (
+          {onReorder && !search.trim() ? (
+            <GenreReorderList
+              genres={filtered}
+              pending={pending}
+              onTogglePending={(g) => setPending(prev => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n })}
+              onReorder={onReorder}
+              onRename={onRename ?? (() => {})}
+            />
+          ) : (
+            <div className={styles.genreFilterList}>
+              {filtered.map(g => (
+                <div key={g} className={styles.genreFilterItem} onClick={() => {
+                  const next = new Set(pending)
+                  next.has(g) ? next.delete(g) : next.add(g)
+                  setPending(next)
+                }}>
+                  <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
+                  <span className={styles.genreFilterLabel}>{g}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* 未設定フィルター（常に末尾に表示） */}
+          {!search.trim() && (
+            <div className={styles.genreFilterList}>
               <div className={styles.genreFilterItem} onClick={() => {
                 const next = new Set(pending)
                 next.has(GENRE_UNSET) ? next.delete(GENRE_UNSET) : next.add(GENRE_UNSET)
@@ -4064,8 +4086,11 @@ function GenreFilterDropdown({ genres, activeFilters, onApply, onClear, label }:
                 <span className={`${styles.genreFilterCheck} ${pending.has(GENRE_UNSET) ? styles.genreFilterCheckOn : ''}`} />
                 <span className={styles.genreFilterLabel} style={{color:'#f87171'}}>未設定</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          {onReorder && !search.trim() && (
+            <div className={styles.genreFilterHint}>長押しで並べ替え／✎で名前を変更</div>
+          )}
           <div className={styles.genreFilterDivider} />
           <div className={styles.genreFilterActions}>
             <button className={styles.genreFilterApplyBtn} onClick={() => { onApply(pending); setOpen(false) }}>適用</button>

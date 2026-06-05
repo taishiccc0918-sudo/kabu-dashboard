@@ -2645,6 +2645,30 @@
 }
 .genreMgrDelBtn { opacity: 0.7; }
 .genreMgrHint { padding: 7px 10px; font-size: 11px; color: var(--text-3); }
+
+/* ジャンル絞り込みドロップダウン内：並べ替え行 */
+.genreReorderItem { display: flex; align-items: center; gap: 0; padding-right: 4px; }
+.genreReorderItemDragging {
+  background: var(--accent-soft);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35); position: relative; z-index: 5;
+  border-radius: 6px;
+}
+.genreReorderHit {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  padding: 9px 6px; touch-action: pan-y; cursor: pointer; min-width: 0;
+}
+.genreReorderGrip {
+  margin-left: auto; color: var(--text-3); flex-shrink: 0;
+  display: inline-flex; align-items: center;
+}
+.genreFilterHint { padding: 7px 10px; font-size: 11px; color: var(--text-3); }
+
+/* 列見出し「ジャンル」＝タップでグルーピング */
+.wlSpHdrGenreBtn {
+  background: none; border: none; cursor: pointer;
+  font: inherit; color: inherit; padding: 0; text-align: inherit;
+}
+.wlSpHdrGenreBtnOn { color: var(--accent); font-weight: 700; }
 .wlMobileRow {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 8px; min-height: 42px;

@@ -4122,6 +4122,26 @@ function sourceNameToDomain(name: string): string {
   if (name.includes('日刊工業')) return 'nikkan.co.jp'
   return ''
 }
+// 同一媒体の連続を maxRun 件までに抑えて多様化（Yahoo/日経の塊を崩す。記事は落とさず順序のみ調整）。
+function diversifyBySource(items: FeedItem[], maxRun = 2): FeedItem[] {
+  const out: FeedItem[] = []
+  const queue = [...items]  // 新着順を維持
+  let lastKey = ''
+  let run = 0
+  while (queue.length) {
+    let idx = 0
+    if (run >= maxRun) {
+      const diff = queue.findIndex(it => (it.source || '').toLowerCase().trim() !== lastKey)
+      idx = diff >= 0 ? diff : 0  // 残り全部が同一媒体なら諦めて先頭
+    }
+    const it = queue.splice(idx, 1)[0]
+    const k = (it.source || '').toLowerCase().trim()
+    if (k === lastKey) run++; else { lastKey = k; run = 1 }
+    out.push(it)
+  }
+  return out
+}
+
 function faviconUrl(sourceUrl: string, sourceName?: string): string {
   try {
     const host = new URL(sourceUrl).hostname
@@ -4320,7 +4340,7 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode }: {
   // 表示順: 新着順（既定）／重要度順（決算・適時開示・公式IRを上位＝有益な一次情報を優先。
   // PV等の人気データは持たないので、捏造せず「開示の重み×新しさ」で擬似ランキング）
   const displayed = useMemo(() => {
-    if (feedSort === 'new') return filtered
+    if (feedSort === 'new') return diversifyBySource(filtered)  // 新着順でも媒体を散らす（Yahoo/日経偏重の緩和）
     const score = (a: FeedItem) => (a.disc ? 2 : 0) + (a.ir ? 2 : 0)
     return [...filtered].sort((a, b) => {
       const s = score(b) - score(a)

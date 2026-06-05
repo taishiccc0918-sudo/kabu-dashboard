@@ -263,6 +263,7 @@ export default function Page() {
   const [earningsDates, setEarningsDates] = useState<Record<string,string>>({})
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showFilterBar, setShowFilterBar] = useState(false)
+  const [perHintOpen, setPerHintOpen] = useState(true)  // ダッシュのPER位置バー説明ヒント（閉じたら記憶）
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const detailScrollRef = useRef<HTMLDivElement>(null)
   const abortSignalRef = useRef({ aborted: false })
@@ -597,6 +598,7 @@ export default function Page() {
     if (savedSortKey) { setSortKey(savedSortKey); setSortDir(ls<1 | -1>('sortDir', -1) === 1 ? 1 : -1) }
     sortLoaded.current = true
     setNoticesSeen(ls<string>('noticesSeen', ''))  // お知らせ既読状態
+    if (ls<string>('perHintDismissed', '') === '1') setPerHintOpen(false)
     setFavorites(initFavorites())
     setApiKey(ls('apiKey', ''))
     setLastUpdate(ls('lastUpdate', ''))
@@ -1649,6 +1651,12 @@ export default function Page() {
                 <option value="chg1y|desc">値上がり：1年</option>
               </select>
             </div>
+            {perHintOpen && (
+              <div className={styles.perHint}>
+                <span>下のバーは<b>PER位置</b>＝過去1年で今が<span style={{ color: 'var(--up)', fontWeight: 700 }}>割安</span>〜<span style={{ color: 'var(--down)', fontWeight: 700 }}>割高</span>のどこか。●が今の予想PER。</span>
+                <button className={styles.perHintClose} onClick={() => { setPerHintOpen(false); lsSet('perHintDismissed', '1') }} aria-label="閉じる">×</button>
+              </div>
+            )}
             <div className={styles.spList}>
               {filteredRows.length === 0
                 ? <div className={styles.emptyCell}>該当銘柄なし</div>

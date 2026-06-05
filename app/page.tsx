@@ -4885,7 +4885,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
   rows: StockRow[]; hearts: Set<string>; onClickCode: (c: string) => void
 }) {
   // 縦を大きく取り、余っていた縦スペースを使って図を拡大（本人指摘 I8）。横は width:100% で画面幅いっぱい。
-  const W = 420, H = 520, L = 22, R = 10, T = 14, B = 14
+  const W = 420, H = 520, L = 22, R = 10, T = 14, B = 30  // B大きめ＝下段にゾーン帯（割安/中立/割高）を置く
   const pw = W - L - R, ph = H - T - B
   const CAP = 0.35   // ±35%でクランプ（緩めて上下端への張り付きを減らし中央を厚く）
   const FS = 8.5     // ラベル文字サイズ（SVG単位。図の拡大に合わせ大きく＝読みやすく）
@@ -4924,13 +4924,6 @@ function PositionMap({ rows, hearts, onClickCode }: {
 
   return (
     <div className={styles.repMapWrap}>
-      {/* PER水準の3ゾーン凡例（枠外・色付き＝緑/黄/赤と割安/中立/割高の対応が一目で分かる） */}
-      <div className={styles.repMapZoneRow}>
-        <span className={styles.repMapZoneSpacer} />
-        <span className={`${styles.repMapZone} ${styles.repZoneCheap}`}>割安</span>
-        <span className={`${styles.repMapZone} ${styles.repZoneMid}`}>中立</span>
-        <span className={`${styles.repMapZone} ${styles.repZoneHigh}`}>割高</span>
-      </div>
       <div className={styles.repMapPlot}>
         <div className={styles.repMapYax}>
           <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>↑上昇</span>
@@ -4953,6 +4946,17 @@ function PositionMap({ rows, hearts, onClickCode }: {
             </g>
           ))}
           <rect x={L} y={T} width={pw} height={ph} fill="none" stroke="var(--line-strong)" strokeWidth="1" />
+          {/* 下段: PER3ゾーン（割安/中立/割高）の色付き帯＋ラベル。列はプロットと揃う */}
+          {[
+            { x: L, w: pw * 0.33, c: 'rgba(52,211,153,0.22)', t: 'var(--up)', label: '割安' },
+            { x: L + pw * 0.33, w: pw * 0.34, c: 'rgba(251,191,36,0.22)', t: '#b78900', label: '中立' },
+            { x: L + pw * 0.67, w: pw * 0.33, c: 'rgba(248,113,113,0.22)', t: 'var(--down)', label: '割高' },
+          ].map(z => (
+            <g key={z.label}>
+              <rect x={z.x + 1} y={T + ph + 4} width={z.w - 2} height={16} rx={2.5} fill={z.c} />
+              <text x={z.x + z.w / 2} y={T + ph + 15} fontSize="9.5" fontWeight="700" fill={z.t} textAnchor="middle">{z.label}</text>
+            </g>
+          ))}
           {/* 全銘柄の社名を表示（色＝上昇緑/下落赤）。ずらした分は実位置へ細い引き出し線 */}
           {nodes.map(({ r, px, py, ny, name, anchor, tx }) => {
             const c = r.chg1m! > 0.005 ? 'var(--up)' : r.chg1m! < -0.005 ? 'var(--down)' : 'var(--text-2)'
@@ -4969,9 +4973,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
         </svg>
       </div>
       <div className={styles.repMapXax}>
-        <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>← 安値圏</span>
-        <span className={styles.repMapAxName}>PER位置（過去1年レンジ）</span>
-        <span className={styles.repMapAxArrow} style={{ color: 'var(--down)' }}>高値圏 →</span>
+        <span className={styles.repMapAxName}>PER（過去1年レンジ）</span>
       </div>
     </div>
   )
@@ -5165,9 +5167,14 @@ function WeeklyReport({
             <button key={k} className={repView === k ? styles.repTogActive : styles.repTog} onClick={() => setRepView(k)}>{l}</button>
           ))}
         </div>
-        <div className={styles.repToggle}>
-          <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
-          <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
+        <div className={styles.repRight}>
+          <div className={styles.repToggle}>
+            <button className={scope === 'all' ? styles.repTogActive : styles.repTog} onClick={() => setScope('all')}>すべて</button>
+            <button className={scope === 'heart' ? styles.repTogActive : styles.repTog} onClick={() => setScope('heart')}>♥のみ</button>
+          </div>
+          {repView === 'karte' && (
+            <input className={styles.repKarteSearch} placeholder="🔍 銘柄・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />
+          )}
         </div>
       </div>
 
@@ -5207,15 +5214,12 @@ function WeeklyReport({
         <>
           <div className={styles.repCardsHead}>
             <span>銘柄カルテ <span className={styles.repCardsSub}>{karteRows.length}銘柄</span></span>
-            <div className={styles.repKarteControls}>
-              <input className={styles.repKarteSearch} placeholder="🔍 銘柄・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />
-              <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
-                <option value="move">1ヶ月の値動きが大きい順</option>
-                <option value="cheap">PERが割安な順</option>
-                <option value="growth">来期増収率が高い順</option>
-                <option value="code">コード順</option>
-              </select>
-            </div>
+            <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
+              <option value="move">1ヶ月の値動きが大きい順</option>
+              <option value="cheap">PERが割安な順</option>
+              <option value="growth">来期増収率が高い順</option>
+              <option value="code">コード順</option>
+            </select>
           </div>
           {karteRows.length === 0
             ? <div className={styles.rpEmpty}>該当する銘柄がありません</div>

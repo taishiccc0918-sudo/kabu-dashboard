@@ -2932,8 +2932,8 @@
 .repMapYax .repMapAxArrow { writing-mode: vertical-rl; text-orientation: upright; }
 .repMapYax { width: 15px; min-width: 15px; }
 .repMapXax {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 6px; padding: 0 2px 0 26px;
+  display: flex; justify-content: center; align-items: center;
+  margin-top: 4px; padding: 0;
 }
 .repMapNoteSmall { margin-top: 8px; font-size: 11px; color: var(--text-3); text-align: center; }
 .repMapLegend {
@@ -2949,7 +2949,8 @@
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .repCardsSub { font-size: 13px; color: var(--text-3); font-weight: 400; margin-left: 6px; }
-/* 銘柄カルテの検索窓＋並べ替え（横並び・スマホで折返し可） */
+/* レポート上段の右側（スコープ すべて/♥のみ ＋ カルテ検索）を横並び */
+.repRight { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .repKarteControls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .repKarteSearch {
   background: var(--surface-0); border: 1px solid var(--line-strong); color: var(--text-1);

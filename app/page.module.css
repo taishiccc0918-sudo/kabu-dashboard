@@ -1200,7 +1200,9 @@
   /* 日付を消した分、ロゴ＋財務♥★ と メニュー/アイコン を必ず1行に（余白削減・menuを上へ） */
   .header {
     height: auto; flex-wrap: nowrap;
-    padding: 8px 12px; gap: 6px;
+    /* PWA全画面(standalone)時、iOS/Androidのステータスバー(時計・電波)と重ならないよう
+       上に safe-area 分の余白を確保。通常のブラウザでは inset=0 なので影響なし。 */
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px; gap: 6px;
     position: sticky; top: 0;
   }
   .headerLeft {

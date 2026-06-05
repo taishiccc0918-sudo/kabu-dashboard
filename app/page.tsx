@@ -240,6 +240,8 @@ export default function Page() {
   const [darkMode,   setDarkMode]   = useState<boolean>(true)
   const [showHelp,     setShowHelp]     = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showNotices,  setShowNotices]  = useState(false)
+  const [noticesSeen,  setNoticesSeen]  = useState('')  // 既読の最新お知らせ日付
   const [showDetail,   setShowDetail]   = useState(false)  // 詳細列の表示（判定設定の隣のボタンで切替）
   const [filterHeart,  setFilterHeart]  = useState(false)
   const [filterFav,    setFilterFav]    = useState(false)
@@ -594,6 +596,7 @@ export default function Page() {
     const savedSortKey = ls<SortKeyEx | null>('sortKey', null)
     if (savedSortKey) { setSortKey(savedSortKey); setSortDir(ls<1 | -1>('sortDir', -1) === 1 ? 1 : -1) }
     sortLoaded.current = true
+    setNoticesSeen(ls<string>('noticesSeen', ''))  // お知らせ既読状態
     setFavorites(initFavorites())
     setApiKey(ls('apiKey', ''))
     setLastUpdate(ls('lastUpdate', ''))
@@ -1346,6 +1349,7 @@ export default function Page() {
               onClick={() => setShowMoreMenu(m => !m)}
               title="その他のメニュー"
             >メニュー</button>
+            {LATEST_NOTICE && noticesSeen < LATEST_NOTICE && <span className={styles.menuNoticeDot} />}
             {showMoreMenu && (
               <div className={styles.moreMenu}>
                 <button className={styles.moreMenuItem} onClick={handleManualRefresh} disabled={loading || bgFetching}>
@@ -1353,6 +1357,10 @@ export default function Page() {
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { setShowHelp(h => !h); setShowMoreMenu(false) }}>
                   <span className={styles.helpBadge}>?</span> ヘルプ
+                </button>
+                <button className={styles.moreMenuItem} onClick={() => { setShowNotices(true); setNoticesSeen(LATEST_NOTICE); lsSet('noticesSeen', LATEST_NOTICE); setShowMoreMenu(false) }}>
+                  <span>📣</span> お知らせ
+                  {LATEST_NOTICE && noticesSeen < LATEST_NOTICE && <span className={styles.noticeDot} />}
                 </button>
                 <button className={styles.moreMenuItem} onClick={() => { toggleTheme(); setShowMoreMenu(false) }}>
                   <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'ライトモード' : 'ダークモード'}
@@ -1780,6 +1788,7 @@ export default function Page() {
       )}
 
       <HelpPanel visible={showHelp} onClose={() => setShowHelp(false)} />
+      <NoticesPanel visible={showNotices} onClose={() => setShowNotices(false)} />
       <SettingsPanel
         visible={showSettings}
         onClose={() => setShowSettings(false)}
@@ -5192,6 +5201,37 @@ const INDICATOR_ITEMS = [
   { label: 'EPS今期成長率', desc: '今期予想EPS ÷ 直近実績EPS − 1。FY確定後の銘柄は次期予想EPSを充当。マイナスなら今期減益予想' },
   { label: 'PEG',         desc: 'PER今期 ÷ EPS今期成長率(%)。1倍未満が目安。成長率を考慮した割安度指標' },
 ]
+
+// ─── お知らせ（アップデート/お詫び等。新しい順。date は YYYY-MM-DD）────────
+type Notice = { date: string; title: string; body: string }
+const NOTICES: Notice[] = [
+  { date: '2026-06-05', title: 'チャート高速化・ニュース改善・PWA対応', body: 'お気に入りのチャートを先読みして表示を速くしました。ニュースの媒体アイコン表示、レポートの見やすさも改善。スマホは「ホーム画面に追加」でアプリのように使えます。' },
+  { date: '2026-06-04', title: 'スマホ表示・ライトモードを大幅改善', body: '銘柄名の表示崩れ、ライトモードでの文字の見えにくさ、指標の用語解説（？マーク）などを見直しました。' },
+]
+const LATEST_NOTICE = NOTICES[0]?.date ?? ''
+
+function NoticesPanel({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  return (
+    <>
+      <div className={`${styles.helpOverlay} ${visible ? styles.helpOverlayVisible : ''}`} onClick={onClose} />
+      <div className={`${styles.helpPanel} ${visible ? styles.helpPanelOpen : ''}`}>
+        <div className={styles.helpPanelHead}>
+          <span className={styles.helpPanelTitle}>お知らせ</span>
+          <button className={styles.helpClose} onClick={onClose}>×</button>
+        </div>
+        <div className={styles.helpBody}>
+          {NOTICES.map(n => (
+            <div key={n.date + n.title} className={styles.noticeItem}>
+              <div className={styles.noticeDate}>{n.date.replace(/-/g, '/')}</div>
+              <div className={styles.noticeTitle}>{n.title}</div>
+              <div className={styles.noticeBody}>{n.body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
 
 function HelpPanel({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'usage' | 'indicators'>('usage')

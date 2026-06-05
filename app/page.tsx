@@ -2135,7 +2135,6 @@ function StockManager({
           <span className={styles.wlSpHdrStar}>★</span>
           <span className={styles.wlSpHdrCode}>コード</span>
           <span className={styles.wlSpHdrName}>銘柄名</span>
-          <span className={styles.wlSpHdrMkt}>市場</span>
           <span className={styles.wlSpHdrGenre}>ジャンル</span>
           <span className={styles.wlSpHdrMemo}>メモ</span>
         </div>
@@ -2151,6 +2150,8 @@ function StockManager({
               isFav={favorites.has(code)}
               isSuperFav={superFavorites.has(code)}
               meta={stockMeta[code] ?? { genres: [], memo: '' }}
+              allGenreOptions={managedGenreOptions}
+              onAddGenre={onAddGenre}
               onToggleFav={() => onToggleFavorite(code)}
               onToggleSuperFav={() => onToggleSuperFav(code)}
               onSaveMeta={(meta) => onSaveStockMeta(code, meta)}
@@ -2238,22 +2239,30 @@ function MemoTooltip({ text, updatedAt, children }: { text: string; updatedAt?: 
 }
 
 // ─── WlMobileRow（銘柄管理 SP 用コンパクト1行） ─────────────────────
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
   meta: StockMeta
+  allGenreOptions: string[]
+  onAddGenre: (name: string) => void
   onToggleFav: () => void; onToggleSuperFav: () => void
   onSaveMeta: (meta: StockMeta) => void
   highlighted: boolean
 }) {
   const [editingMemo, setEditingMemo] = useState(false)
+  const [editingGenre, setEditingGenre] = useState(false)
+  const [genreQuery, setGenreQuery] = useState('')
   const [showLinks, setShowLinks] = useState(false)
   const [draft, setDraft] = useState(meta.memo)
-  const { label: mktLabel, cls: mktCls } = marketShort(rec.market)
-  const mainGenre = meta.genres[0] ?? null
+  const genres = meta.genres
 
   useEffect(() => { setDraft(meta.memo) }, [meta.memo])
+
+  function toggleGenre(tag: string) {
+    const next = genres.includes(tag) ? genres.filter(g => g !== tag) : [...genres, tag]
+    onSaveMeta({ ...meta, genres: next })
+  }
 
   function handleMemoBlur() {
     setEditingMemo(false)
@@ -2288,13 +2297,30 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, onToggleFav, onToggle
           {rec.name}
           <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
         </span>
-        <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-        {mainGenre && <span className={styles.wlMobileGenre}>{mainGenre}</span>}
+        {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
+        {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
+        <button className={`${styles.wlMobileEditBtn} ${genres.length ? styles.wlMobileEditBtnActive : ''}`}
+          onClick={() => { setEditingGenre(g => !g); setEditingMemo(false); setShowLinks(false) }}
+          title="ジャンル編集">🏷</button>
         <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => { setEditingMemo(e => !e); if (showLinks) setShowLinks(false) }}
+          onClick={() => { setEditingMemo(e => !e); setEditingGenre(false); setShowLinks(false) }}
           title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
         >✏</button>
       </div>
+      {/* ジャンル編集（付け外し・新規追加） */}
+      {editingGenre && (
+        <div className={styles.wlMobileGenreEdit}>
+          <input className={styles.wlMobileGenreSearch} placeholder="ジャンルを検索 / 新規追加" value={genreQuery} onChange={e => setGenreQuery(e.target.value)} />
+          <div className={styles.wlMobileGenreChips}>
+            {allGenreOptions.filter(g => genres.includes(g) || !genreQuery.trim() || normJa(g).includes(normJa(genreQuery))).map(g => (
+              <button key={g} className={`${styles.wlGenreEditChip} ${genres.includes(g) ? styles.wlGenreEditChipOn : ''}`} onClick={() => toggleGenre(g)}>{g}</button>
+            ))}
+            {genreQuery.trim() && !allGenreOptions.some(g => g === genreQuery.trim()) && (
+              <button className={styles.wlGenreEditChipAdd} onClick={() => { const t = genreQuery.trim(); onAddGenre(t); toggleGenre(t); setGenreQuery('') }}>＋「{genreQuery.trim()}」を追加</button>
+            )}
+          </div>
+        </div>
+      )}
       {/* リンク展開パネル */}
       {showLinks && (
         <div className={styles.wlMobileLinkRow}>

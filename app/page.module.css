@@ -2665,8 +2665,8 @@
 }
 .genreReorderRename {
   flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--line);
-  color: var(--text-2); border-radius: 6px; padding: 6px 9px;
-  font-size: 12px; cursor: pointer; white-space: nowrap;
+  color: var(--text-2); border-radius: 6px; padding: 6px 10px; min-width: 36px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
 }
 .genreReorderRename:active { background: var(--accent-soft); color: var(--accent); }
 .genreReorderGrip {

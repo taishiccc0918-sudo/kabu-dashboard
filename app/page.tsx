@@ -2605,9 +2605,62 @@ function useDragReorder(
   return { draggingKey, makeHandleProps }
 }
 
+// ─── ジャンル1行：長押し＝改名／☰ドラッグ＝並べ替え／タップ＝絞り込み ──────────────
+// 改名のトリガはネイティブの touch 長押し（pointer capture を使わない＝iOSで確実に発火）。
+function GenreRow({ g, checked, onToggle, onRename, dragging, dragHandleProps }: {
+  g: string
+  checked: boolean
+  onToggle: () => void
+  onRename: (newName: string) => void
+  dragging: boolean
+  dragHandleProps: React.HTMLAttributes<HTMLElement>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(g)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressed = useRef(false)
+  useEffect(() => { if (!editing) setDraft(g) }, [g, editing])
+
+  function startLP() {
+    longPressed.current = false
+    timer.current = setTimeout(() => {
+      longPressed.current = true
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(16)
+      setDraft(g); setEditing(true)
+    }, 450)
+  }
+  function cancelLP() { if (timer.current) { clearTimeout(timer.current); timer.current = null } }
+  function commit() { const t = draft.trim(); if (t && t !== g) onRename(t); setEditing(false) }
+
+  if (editing) {
+    return (
+      <div className={`${styles.genreFilterItem} ${styles.genreReorderItem}`} data-drag-key={g}>
+        <input className={styles.genreMgrInput} autoFocus value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
+          maxLength={12}
+        />
+        <button className={styles.genreReorderRename} onMouseDown={e => e.preventDefault()} onClick={commit}>OK</button>
+      </div>
+    )
+  }
+  return (
+    <div className={`${styles.genreFilterItem} ${styles.genreReorderItem} ${dragging ? styles.genreReorderItemDragging : ''}`} data-drag-key={g}>
+      <span className={styles.genreReorderTap}
+        onTouchStart={startLP} onTouchEnd={cancelLP} onTouchMove={cancelLP} onTouchCancel={cancelLP}
+        onClick={() => { if (longPressed.current) { longPressed.current = false; return } onToggle() }}>
+        <span className={`${styles.genreFilterCheck} ${checked ? styles.genreFilterCheckOn : ''}`} />
+        <span className={styles.genreFilterLabel}>{g}</span>
+      </span>
+      <button className={styles.genreReorderRename} onClick={() => { setDraft(g); setEditing(true) }} title="名前を変更">✎</button>
+      <span className={styles.genreReorderGrip} {...dragHandleProps} title="つまんで並べ替え"><GripIcon size={18} /></span>
+    </div>
+  )
+}
+
 // ─── ジャンルの並べ替え・編集リスト（絞り込みドロップダウン内で使用）──────────────
-// ☰グリップをつまんでドラッグ＝並べ替え／✎タップ＝改名／行タップ＝絞り込みON-OFF。
-// （長押しジェスチャーは端末依存で不安定なため、確実なタップ/グリップ方式に変更）
+// 長押し＝改名（ネイティブtouch）／☰つまんでドラッグ＝並べ替え／タップ＝絞り込みON-OFF／✎でも改名。
 function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRename }: {
   genres: string[]
   pending: Set<string>
@@ -2615,43 +2668,20 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
   onReorder: (next: string[]) => void
   onRename: (oldName: string, newName: string) => void
 }) {
-  const [editing, setEditing] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
   const contRef = useRef<HTMLDivElement>(null)
-  // longPressMs=0：グリップ(☰)をつまんだ瞬間にドラッグ開始（長押し不要・確実）
+  // longPressMs=0：グリップ(☰)をつまんだ瞬間にドラッグ開始
   const { draggingKey, makeHandleProps } = useDragReorder(genres, onReorder, contRef, 0)
-
-  function commit(g: string) {
-    if (draft.trim() && draft.trim() !== g) onRename(g, draft.trim())
-    setEditing(null)
-  }
 
   return (
     <div className={styles.genreFilterList} ref={contRef}>
       {genres.map(g => (
-        <div key={g} data-drag-key={g}
-          className={`${styles.genreFilterItem} ${styles.genreReorderItem} ${draggingKey === g ? styles.genreReorderItemDragging : ''}`}>
-          {editing === g ? (
-            <input className={styles.genreMgrInput} autoFocus value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onBlur={() => commit(g)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commit(g)
-                if (e.key === 'Escape') setEditing(null)
-              }}
-              maxLength={12}
-            />
-          ) : (
-            <>
-              <span className={styles.genreReorderTap} onClick={() => onTogglePending(g)}>
-                <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
-                <span className={styles.genreFilterLabel}>{g}</span>
-              </span>
-              <button className={styles.genreReorderRename} onClick={() => { setEditing(g); setDraft(g) }}>✎ 改名</button>
-              <span className={styles.genreReorderGrip} {...makeHandleProps(g)} title="つまんで並べ替え"><GripIcon size={18} /></span>
-            </>
-          )}
-        </div>
+        <GenreRow key={g} g={g}
+          checked={pending.has(g)}
+          onToggle={() => onTogglePending(g)}
+          onRename={(newName) => onRename(g, newName)}
+          dragging={draggingKey === g}
+          dragHandleProps={makeHandleProps(g)}
+        />
       ))}
     </div>
   )

@@ -349,6 +349,12 @@ export default function Page() {
     })()
     return () => { stopped = true }
   }, [dataLoaded, apiKey, serverHasKey, superFavorites, favorites, globalChartMode])
+  // サービスワーカー登録（PWAインストール可能化。キャッシュしないので古い表示は出ない）
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => { /* 失敗しても通常動作 */ })
+    }
+  }, [])
   // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
   // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
   useEffect(() => {
@@ -1795,6 +1801,7 @@ export default function Page() {
 
       {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
       <BottomNav tab={tab} onSelect={setTab} />
+      <InstallPrompt />
     </div>
   )
 }
@@ -3337,6 +3344,56 @@ function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav,
         ) : <span className={styles.spBarSpace} />}
         <span className={styles.spRowZone} style={{ color: zone?.color ?? 'var(--text-3)' }}>{zoneText}</span>
       </div>
+    </div>
+  )
+}
+
+// ─── InstallPrompt（PWA「ホーム画面に追加」促進バナー）──────────────────
+function InstallPrompt() {
+  const [show, setShow] = useState(false)
+  const [mode, setMode] = useState<'android' | 'ios'>('android')
+  const deferredRef = useRef<{ prompt: () => void; userChoice: Promise<unknown> } | null>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as unknown as { standalone?: boolean }).standalone === true
+    if (standalone) return  // 既にホーム追加済みなら出さない
+    try { if (localStorage.getItem('pwaPromptDismissed') === '1') return } catch { /* noop */ }
+    const ua = navigator.userAgent || ''
+    if (/iphone|ipad|ipod/i.test(ua)) {
+      // iOSは beforeinstallprompt が無い→共有メニューの案内を出す
+      setMode('ios')
+      const t = setTimeout(() => setShow(true), 2500)
+      return () => clearTimeout(t)
+    }
+    const onBIP = (e: Event) => {
+      e.preventDefault()
+      deferredRef.current = e as unknown as { prompt: () => void; userChoice: Promise<unknown> }
+      setMode('android'); setShow(true)
+    }
+    window.addEventListener('beforeinstallprompt', onBIP)
+    return () => window.removeEventListener('beforeinstallprompt', onBIP)
+  }, [])
+  if (!show) return null
+  const dismiss = () => { setShow(false); try { localStorage.setItem('pwaPromptDismissed', '1') } catch { /* noop */ } }
+  return (
+    <div className={styles.installPrompt}>
+      <span className={styles.installIcon}>📲</span>
+      {mode === 'android' ? (
+        <>
+          <span className={styles.installText}>ホーム画面に追加して、アプリのように使えます</span>
+          <button className={styles.installBtn} onClick={async () => {
+            const d = deferredRef.current
+            if (!d) { dismiss(); return }
+            d.prompt()
+            try { await d.userChoice } catch { /* noop */ }
+            deferredRef.current = null; dismiss()
+          }}>追加</button>
+        </>
+      ) : (
+        <span className={styles.installText}>下の共有ボタンから「<b>ホーム画面に追加</b>」で、アプリのように使えます</span>
+      )}
+      <button className={styles.installClose} onClick={dismiss} aria-label="閉じる">×</button>
     </div>
   )
 }

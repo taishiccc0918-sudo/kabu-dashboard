@@ -4924,6 +4924,13 @@ function PositionMap({ rows, hearts, onClickCode }: {
 
   return (
     <div className={styles.repMapWrap}>
+      {/* PER水準の3ゾーン凡例（枠外・色付き＝緑/黄/赤と割安/中立/割高の対応が一目で分かる） */}
+      <div className={styles.repMapZoneRow}>
+        <span className={styles.repMapZoneSpacer} />
+        <span className={`${styles.repMapZone} ${styles.repZoneCheap}`}>割安</span>
+        <span className={`${styles.repMapZone} ${styles.repZoneMid}`}>中立</span>
+        <span className={`${styles.repMapZone} ${styles.repZoneHigh}`}>割高</span>
+      </div>
       <div className={styles.repMapPlot}>
         <div className={styles.repMapYax}>
           <span className={styles.repMapAxArrow} style={{ color: 'var(--up)' }}>↑上昇</span>
@@ -4937,9 +4944,7 @@ function PositionMap({ rows, hearts, onClickCode }: {
           <rect x={L + pw * 0.67} y={T} width={pw * 0.33} height={ph} fill="rgba(248,113,113,0.10)" />
           <line x1={L + pw * 0.33} y1={T} x2={L + pw * 0.33} y2={T + ph} stroke="var(--line-strong)" strokeWidth="0.5" strokeDasharray="3 3" />
           <line x1={L + pw * 0.67} y1={T} x2={L + pw * 0.67} y2={T + ph} stroke="var(--line-strong)" strokeWidth="0.5" strokeDasharray="3 3" />
-          <text x={L + pw * 0.165} y={T + 10} fontSize="8.5" fontWeight="700" fill="var(--up)" textAnchor="middle">割安</text>
-          <text x={L + pw * 0.5} y={T + 10} fontSize="8.5" fontWeight="700" fill="#caa200" textAnchor="middle">中立</text>
-          <text x={L + pw * 0.835} y={T + 10} fontSize="8.5" fontWeight="700" fill="var(--down)" textAnchor="middle">割高</text>
+          {/* 割安/中立/割高のラベルは枠外（上）の凡例バーに出す＝点と重ならない */}
           {/* 横グリッド。0%（株価1ヶ月の基準＝図の中央）をはっきり太く・ラベルも大きく */}
           {[0.2, 0, -0.2].map(g => (
             <g key={g}>
@@ -5203,7 +5208,7 @@ function WeeklyReport({
           <div className={styles.repCardsHead}>
             <span>銘柄カルテ <span className={styles.repCardsSub}>{karteRows.length}銘柄</span></span>
             <div className={styles.repKarteControls}>
-              <input className={styles.repKarteSearch} placeholder="🔍 銘柄名・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />
+              <input className={styles.repKarteSearch} placeholder="🔍 銘柄・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />
               <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
                 <option value="move">1ヶ月の値動きが大きい順</option>
                 <option value="cheap">PERが割安な順</option>

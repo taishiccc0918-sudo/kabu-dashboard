@@ -2910,6 +2910,13 @@
 }
 
 .repMapWrap { width: 100%; margin-top: 12px; }
+/* PER3ゾーンの色付き凡例バー（枠外・上）。割安=緑/中立=黄/割高=赤 を一目で */
+.repMapZoneRow { display: flex; align-items: stretch; margin-bottom: 5px; }
+.repMapZoneSpacer { width: 15px; flex-shrink: 0; }
+.repMapZone { font-size: 11px; font-weight: 700; text-align: center; padding: 3px 0; border-radius: 4px; flex-basis: 0; }
+.repZoneCheap { flex-grow: 33; background: rgba(52,211,153,0.18); color: var(--up); }
+.repZoneMid { flex-grow: 34; background: rgba(251,191,36,0.18); color: #caa200; margin: 0 3px; }
+.repZoneHigh { flex-grow: 33; background: rgba(248,113,113,0.18); color: var(--down); }
 /* 左の縦軸ラベル列と余白を詰めて、図（SVG）の描画域を広く取る（本人指摘 I8） */
 .repMapPlot { display: flex; align-items: stretch; gap: 2px; }
 .repMapYax { display: flex; flex-direction: column; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 4px 0; }
@@ -2947,9 +2954,9 @@
 .repKarteSearch {
   background: var(--surface-0); border: 1px solid var(--line-strong); color: var(--text-1);
   border-radius: var(--r-btn); font-size: 16px; font-weight: 500; padding: 6px 10px;
-  font-family: 'Noto Sans JP', sans-serif; min-width: 0; width: 150px; max-width: 46vw;
+  font-family: 'Noto Sans JP', sans-serif; min-width: 0; width: 170px; max-width: 52vw;
 }
-.repKarteSearch::placeholder { color: var(--text-3); }
+.repKarteSearch::placeholder { color: var(--text-3); font-size: 13px; }
 .repCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
 .repCard {
   background: var(--surface-0); border: 1px solid var(--line); border-radius: var(--r-card);

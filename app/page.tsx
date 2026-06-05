@@ -2226,7 +2226,7 @@ function StockManager({
           onApply={f => { setGenreFilters(f); setPage(1) }}
           onClear={() => { setGenreFilters(new Set()); setPage(1) }}
           onReorder={onReorderGenres}
-          onRename={onRenameGenre}
+          onRename={handleRename}
         />
         {genreFilters.size > 0 && (
           <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>全解除</button>
@@ -2572,8 +2572,16 @@ function useDragReorder(
           }
           return
         }
-        s.moved = true
-        if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
+        // 起動後：12px以上動いて初めて「本当の移動」と判定。微小な手ブレでは
+        // 改名(onHold)タイマーをキャンセルしない＝長押し改名が確実に出せる。
+        if (!s.moved) {
+          if (Math.abs(e.clientY - s.startY) > 12 || Math.abs(e.clientX - s.startX) > 12) {
+            s.moved = true
+            if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
+          } else {
+            return
+          }
+        }
         e.preventDefault()
         s.lastY = e.clientY
         updateDrag(s)

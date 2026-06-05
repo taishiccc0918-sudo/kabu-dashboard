@@ -5136,6 +5136,7 @@ function WeeklyReport({
 
   // レポート内タブ（縦長スクロールを避け、ページを分ける＝Kabuアプリ風）
   const [repView, setRepView] = useState<'rank' | 'map' | 'karte'>('rank')
+  const [karteQuery, setKarteQuery] = useState('')  // 銘柄カルテの検索（名前/コード）
   const withPos = useMemo(() => scoped.filter(r => r.perBand?.position != null), [scoped])
   const cheapRank = useMemo(() => [...withPos].sort((a, b) => a.perBand!.position! - b.perBand!.position!).slice(0, 20), [withPos])
   const expRank = useMemo(() => [...withPos].sort((a, b) => b.perBand!.position! - a.perBand!.position!).slice(0, 20), [withPos])
@@ -5194,22 +5195,28 @@ function WeeklyReport({
       )}
 
       {/* ③ 銘柄カルテ */}
-      {repView === 'karte' && (
+      {repView === 'karte' && (() => {
+        const kq = normalizeSearchText(karteQuery.trim())
+        const karteRows = kq ? sorted.filter(r => normalizeSearchText(r.code + ' ' + r.name).includes(kq)) : sorted
+        return (
         <>
           <div className={styles.repCardsHead}>
-            <span>銘柄カルテ <span className={styles.repCardsSub}>{sorted.length}銘柄</span></span>
-            <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
-              <option value="move">1ヶ月の値動きが大きい順</option>
-              <option value="cheap">PERが割安な順</option>
-              <option value="growth">来期増収率が高い順</option>
-              <option value="code">コード順</option>
-            </select>
+            <span>銘柄カルテ <span className={styles.repCardsSub}>{karteRows.length}銘柄</span></span>
+            <div className={styles.repKarteControls}>
+              <input className={styles.repKarteSearch} placeholder="🔍 銘柄名・コード" value={karteQuery} onChange={e => setKarteQuery(e.target.value)} />
+              <select className={styles.spSortSelect} value={sort} onChange={e => setSort(e.target.value as RepSort)} aria-label="並べ替え">
+                <option value="move">1ヶ月の値動きが大きい順</option>
+                <option value="cheap">PERが割安な順</option>
+                <option value="growth">来期増収率が高い順</option>
+                <option value="code">コード順</option>
+              </select>
+            </div>
           </div>
-          {sorted.length === 0
-            ? <div className={styles.rpEmpty}>表示する銘柄がありません</div>
+          {karteRows.length === 0
+            ? <div className={styles.rpEmpty}>該当する銘柄がありません</div>
             : (
               <div className={styles.repCards}>
-                {sorted.map(r => (
+                {karteRows.map(r => (
                   <KarteCard key={r.code} r={r} fin={finDB[r.code]} newsN={newsCount[r.code] ?? 0}
                     heart={superFavorites.has(r.code)} onClick={() => onClickCode(r.code)} />
                 ))}
@@ -5219,7 +5226,8 @@ function WeeklyReport({
             ※ 会社予想EPSベースの事実の提示です（買い／売りの判断ではありません）。PER位置・EPS推移はその銘柄自身の過去との比較です。
           </div>
         </>
-      )}
+        )
+      })()}
     </div>
   )
 }

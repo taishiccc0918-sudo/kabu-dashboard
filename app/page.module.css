@@ -629,17 +629,18 @@
 .detailName { font-size: 18px; font-weight: 700; margin: 4px 0 8px; color: var(--text-1); }
 .detailBadgeRow { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
 .detailPrice { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 30px; font-weight: 700; margin: 10px 0 4px; color: var(--text-1); }
-.detailSubPrice { font-size: 11px; color: var(--text-3); }
+.detailSubPrice { font-size: 13px; font-weight: 600; color: var(--text-2); }
 .detailSection { margin-top: 20px; }
+/* 見出しが9pxで小さすぎ＝高齢者に読めない問題を解消（濃く・大きく・はっきり） */
 .detailSectionTitle {
-  font-size: 9px; color: var(--text-2); text-transform: uppercase;
-  letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 6px;
-  border-bottom: 1px solid var(--line); font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px; font-weight: 700; color: var(--text-1);
+  letter-spacing: 0.3px; margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-strong); font-family: 'Noto Sans JP', sans-serif;
 }
 /* 幅に応じて自動で列数が増える（パネルを広げると株価変化率などが横1行に並ぶ）。狭い画面は2列。 */
 .detailGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .detailItem { background: var(--surface-1); border-radius: var(--r-chip); padding: 10px 12px; border: 1px solid var(--line); position: relative; }
-.detailItemLabel { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--text-2); margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 500; }
+.detailItemLabel { display: flex; align-items: center; gap: 4px; font-size: 13.5px; color: var(--text-2); margin-bottom: 5px; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
 .infoDot {
   flex: 0 0 auto; width: 15px; height: 15px; border-radius: 50%;
   border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text-2);
@@ -663,7 +664,7 @@
   font-family: 'Noto Sans JP', sans-serif; font-size: 11.5px; line-height: 1.55; font-weight: 500;
   color: var(--text-1); white-space: normal; cursor: pointer;
 }
-.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 19px; font-weight: 700; color: var(--text-1); line-height: 1.2; overflow-wrap: anywhere; }
+.detailItemValue { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 20px; font-weight: 700; color: var(--text-1); line-height: 1.2; overflow-wrap: anywhere; }
 .detailMemo {
   width: 100%; background: var(--surface-1);
   border: 1px solid var(--line);

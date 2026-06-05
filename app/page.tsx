@@ -4666,10 +4666,17 @@ function DetailPanel({
           ['1年',    r.chg1y, fmtPct(r.chg1y), pctClass(r.chg1y)],
         ]} />
       </Section>
+      <Section title="PER位置（過去1年レンジ）">
+        <div style={{ margin: '2px 0 12px' }}><PerBandBar band={r.perBand} likePer={r.likePer} big /></div>
+        <Grid2 items={[
+          ['PER実績',     null, r.perA ? fmtN(r.perA) + '倍' : '—', ''],
+          ['PER今期',     null, r.perF ? fmtN(r.perF) + '倍' : '—', ''],
+          ['1年の最低PER', null, r.perBand?.lowPER != null ? fmtN(r.perBand.lowPER) + '倍' : '—', ''],
+          ['1年の最高PER', null, r.perBand?.highPER != null ? fmtN(r.perBand.highPER) + '倍' : '—', ''],
+        ]} />
+      </Section>
       <Section title="バリュー指標">
         <Grid2 items={[
-          ['PER実績',    null, r.perA ? fmtN(r.perA) : '—', ''],
-          ['PER今期',    null, r.perF ? fmtN(r.perF) : '—', ''],
           ['PBR',        null, r.pbr  ? fmtN(r.pbr)  : '—', ''],
           ['ROE',        null, r.roe  ? fmtPct(r.roe) : '—', r.roe && r.roe > 0.1 ? 'up' : ''],
           ['配当利回り', null, r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],

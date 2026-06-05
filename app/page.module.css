@@ -2570,6 +2570,8 @@
 .wlSpHdrMemo  { flex-shrink: 0; width: 26px; text-align: center; }
 .wlMobileItem {
   border-bottom: 1px solid #1f2d40;
+  /* 長押しドラッグ時に文字選択・コピー吹き出しを出さない */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 /* J5: 並べ替えモードの行 */
 .wlMobileItemReorder { background: var(--surface-1); }
@@ -2647,7 +2649,10 @@
 .genreMgrHint { padding: 7px 10px; font-size: 11px; color: var(--text-3); }
 
 /* ジャンル絞り込みドロップダウン内：並べ替え行 */
-.genreReorderItem { display: flex; align-items: center; gap: 0; padding-right: 4px; }
+.genreReorderItem {
+  display: flex; align-items: center; gap: 0; padding-right: 4px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 .genreReorderItemDragging {
   background: var(--accent-soft);
   box-shadow: 0 6px 16px rgba(0,0,0,0.35); position: relative; z-index: 5;

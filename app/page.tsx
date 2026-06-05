@@ -2119,7 +2119,7 @@ function StockManager({
   const pageCodes = filteredCodes.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   // J5: 表示中ページ内の銘柄をドラッグ並べ替え
-  const stockDrag = useDragReorder(pageCodes, onReorderStocks, wlListRef)
+  const stockDrag = useDragReorder(pageCodes, onReorderStocks, wlListRef, 250)
 
   function renderPageNums() {
     const pages: number[] = []
@@ -2277,7 +2277,7 @@ function StockManager({
               openType={openPanel?.code === code ? openPanel.type : null}
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
               dragging={stockDrag.draggingKey === code}
-              nameDragProps={stockDrag.makeHandleProps(code, () => setOpenPanel(p => (p?.code === code && p.type === 'links') ? null : { code, type: 'links' }))}
+              nameDragProps={stockDrag.makeHandleProps(code, { onTap: () => setOpenPanel(p => (p?.code === code && p.type === 'links') ? null : { code, type: 'links' }) })}
             />
           ))
         }
@@ -2394,16 +2394,24 @@ function useDragReorder(
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
   const latest = useRef({ order, onReorder, containerRef })
   latest.current = { order, onReorder, containerRef }
-  type DragState = { key: string; startY: number; startX: number; active: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null; el: HTMLElement; pointerId: number; onTap?: () => void }
+  type DragState = { key: string; startY: number; startX: number; active: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null; holdTimer: ReturnType<typeof setTimeout> | null; el: HTMLElement; pointerId: number; onTap?: () => void; onHold?: () => void }
   const st = useRef<DragState | null>(null)
 
-  function makeHandleProps(key: string, onTap?: () => void): React.HTMLAttributes<HTMLElement> {
+  function clearTimers(s: DragState | null) {
+    if (!s) return
+    if (s.timer) { clearTimeout(s.timer); s.timer = null }
+    if (s.holdTimer) { clearTimeout(s.holdTimer); s.holdTimer = null }
+  }
+
+  function makeHandleProps(key: string, opts?: { onTap?: () => void; onHold?: () => void }): React.HTMLAttributes<HTMLElement> {
+    const onTap = opts?.onTap
+    const onHold = opts?.onHold
     return {
       onPointerDown: (e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return
         const el = e.currentTarget as HTMLElement
         const immediate = longPressMs === 0
-        st.current = { key, startY: e.clientY, startX: e.clientX, active: immediate, moved: false, timer: null, el, pointerId: e.pointerId, onTap }
+        st.current = { key, startY: e.clientY, startX: e.clientX, active: immediate, moved: false, timer: null, holdTimer: null, el, pointerId: e.pointerId, onTap, onHold }
         if (immediate) {
           try { el.setPointerCapture(e.pointerId) } catch {}
           setDraggingKey(key)
@@ -2419,6 +2427,20 @@ function useDragReorder(
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(14)
             }
           }, longPressMs)
+          // さらに長く（動かさずに）持つと書き換えモードへ（ジャンル用）
+          if (onHold) {
+            st.current.holdTimer = setTimeout(() => {
+              const s = st.current
+              if (s && s.key === key && !s.moved) {
+                clearTimers(s)
+                try { s.el.releasePointerCapture(s.pointerId) } catch {}
+                st.current = null
+                setDraggingKey(null)
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([10, 40, 10])
+                onHold()
+              }
+            }, longPressMs + 450)
+          }
         }
       },
       onPointerMove: (e) => {
@@ -2427,10 +2449,12 @@ function useDragReorder(
         if (!s.active) {
           if (Math.abs(e.clientY - s.startY) > 8 || Math.abs(e.clientX - s.startX) > 8) {
             s.moved = true
-            if (s.timer) { clearTimeout(s.timer); s.timer = null }
+            clearTimers(s)
           }
           return
         }
+        s.moved = true
+        clearTimers(s)
         e.preventDefault()
         const cont = latest.current.containerRef.current
         if (!cont) return
@@ -2452,15 +2476,18 @@ function useDragReorder(
       onPointerUp: (e) => {
         const s = st.current
         if (s) {
-          if (s.timer) clearTimeout(s.timer)
+          clearTimers(s)
           if (!s.active && !s.moved && s.onTap) s.onTap()
           try { s.el.releasePointerCapture(e.pointerId) } catch {}
         }
         st.current = null
         setDraggingKey(null)
       },
-      onPointerCancel: () => { const s = st.current; if (s && s.timer) clearTimeout(s.timer); st.current = null; setDraggingKey(null) },
-      style: longPressMs === 0 ? { touchAction: 'none', cursor: 'grab' } : { touchAction: 'pan-y' },
+      onPointerCancel: () => { const s = st.current; clearTimers(s); st.current = null; setDraggingKey(null) },
+      onContextMenu: (e) => { e.preventDefault() },
+      style: longPressMs === 0
+        ? { touchAction: 'none', cursor: 'grab', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }
+        : { touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' },
     }
   }
   return { draggingKey, makeHandleProps }
@@ -2496,7 +2523,7 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
               maxLength={12}
             />
           ) : (
-            <span className={styles.genreReorderHit} {...makeHandleProps(g, () => onTogglePending(g))}>
+            <span className={styles.genreReorderHit} {...makeHandleProps(g, { onTap: () => onTogglePending(g), onHold: () => { setEditing(g); setDraft(g) } })}>
               <span className={`${styles.genreFilterCheck} ${pending.has(g) ? styles.genreFilterCheckOn : ''}`} />
               <span className={styles.genreFilterLabel}>{g}</span>
               <span className={styles.genreReorderGrip}><GripIcon size={15} /></span>
@@ -2563,7 +2590,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>
         <button onClick={onToggleFav}
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}><EyeIcon on={isFav} size={16} /></button>
-        <span className={styles.wlMobileCode}>{code}</span>
+        <span className={styles.wlMobileCode} {...nameDragProps}>{code}</span>
         {/* 銘柄名：タップでリンク展開／長押しでドラッグ並べ替え */}
         <span
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}

@@ -61,6 +61,10 @@ export function buildPerBand(
 ): PerBand {
   const base = { fwdPER, highPER: null, lowPER: null, position: null }
 
+  // 予想PERがマイナス＝今期予想EPSが赤字。過去(黒字)レンジに当てると位置が0にクランプされ
+  // 「割安」と誤表示されるため、最初に「赤字」として算出不可にする（緑の割安表示を防ぐ）。
+  if (fwdPER != null && fwdPER <= 0) return { ...base, reason: 'loss' }
+
   if (!fyEps || fyEps.length === 0) return { ...base, reason: 'no_history' }
 
   // EPS実績(>0)の階段関数を作る。開示日昇順。

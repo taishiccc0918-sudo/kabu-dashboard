@@ -83,7 +83,7 @@ export function buildStockRow(
   const perA  = (close && eps)   ? close / eps   : null
   const perF  = (close && feps)  ? close / feps  : null
   const pbr   = (close && bps)   ? close / bps   : null
-  const divY  = (close && fdiv)  ? fdiv  / close : null
+  const divY  = (close && fdiv > 0) ? fdiv / close : null  // 配当は0超のみ＝マイナス/ゼロ利回りを出さない
   const peg   = (perF != null && epsCurGr !== null && epsCurGr !== 0) ? perF / (epsCurGr * 100) : null
   // 成長加味の予想PER（1年先のEPSに割り戻したイメージ）。成長率が-100%以下なら無効
   const likePer = (close && feps && epsCurGr !== null && (1 + epsCurGr) > 0)

@@ -26,10 +26,10 @@
   --text-2: #aebdd0;
   --text-3: #8493a6;
   /* アクセント */
-  --accent:        #4d8dff;
-  --accent-strong: #2563eb;
-  --accent-soft:   rgba(77,141,255,0.12);
-  --accent-line:   rgba(77,141,255,0.35);
+  --accent:        #14b8a6;
+  --accent-strong: #0f766e;
+  --accent-soft:   rgba(20,184,166,0.12);
+  --accent-line:   rgba(20,184,166,0.35);
   /* 騰落（意味は不変：緑=上昇/赤=下落） */
   --up:   #34d399;
   --down: #f87171;
@@ -66,10 +66,10 @@
   --text-1: #0c1830;
   --text-2: #475567;
   --text-3: #6b7888;
-  --accent:        #2563eb;
-  --accent-strong: #1d4ed8;
-  --accent-soft:   rgba(37,99,235,0.07);
-  --accent-line:   rgba(37,99,235,0.30);
+  --accent:        #0f766e;
+  --accent-strong: #0b5a54;
+  --accent-soft:   rgba(15,118,110,0.08);
+  --accent-line:   rgba(15,118,110,0.30);
   --up:   #0f9d58;        /* 白地でも沈まない深めの緑 */
   --down: #e5484d;
   --flat: #93a3b5;

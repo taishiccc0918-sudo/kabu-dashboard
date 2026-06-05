@@ -1328,17 +1328,18 @@ export default function Page() {
           <div className={styles.logo} onClick={() => setTab('dashboard')} style={{cursor:'pointer'}}>
             <svg width="24" height="24" viewBox="0 0 64 64" style={{flexShrink:0}} aria-hidden="true">
               <defs>
-                <linearGradient id="hdrRing" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                  <stop offset="0" stopColor="#818cf8"/><stop offset="1" stopColor="#3b82f6"/>
+                <linearGradient id="hdrBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#13897e"/><stop offset="1" stopColor="#0b5a54"/>
                 </linearGradient>
               </defs>
-              <circle cx="32" cy="32" r="19" fill="none" stroke="url(#hdrRing)" strokeWidth="5"
-                      strokeLinecap="round" strokeDasharray="104 30" transform="rotate(125 32 32)"/>
-              <polyline points="21,40 28,32 34,36 43,23" fill="none" stroke="#34d399"
-                        strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="43" cy="23" r="3.8" fill="#34d399"/>
+              <rect width="64" height="64" rx="14" fill="url(#hdrBg)"/>
+              <rect x="17" y="14" width="30" height="38" rx="5" fill="#ffffff"/>
+              <path d="M37 14 h9 v15 l-4.5 -3.6 -4.5 3.6 z" fill="#f5a623"/>
+              <polyline points="22,44 29,36 35,40 43,29" fill="none" stroke="#0f766e"
+                        strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="43" cy="29" r="2.8" fill="#0f766e"/>
             </svg>
-            株式<span>ウォッチ</span>
+            かぶ<span>ノート</span>
           </div>
           <div className={styles.lastUpdate}>{maxDiscDate && <span className={styles.discDateLabel}>財務 {maxDiscDate.replace(/^\d{4}[-/]/, '')}</span>}{stats.total > 0 && <span style={{marginLeft:8,fontSize:12,fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap',flexShrink:0}}>
             <span style={{color:'#f43f5e'}}>♥{superFavorites.size}</span>
@@ -5340,6 +5341,7 @@ const INDICATOR_ITEMS = [
 // ─── お知らせ（アップデート/お詫び等。新しい順。date は YYYY-MM-DD）────────
 type Notice = { date: string; title: string; body: string }
 const NOTICES: Notice[] = [
+  { date: '2026-06-05', title: 'アプリ名を「かぶノート」に・アイコン刷新', body: 'アプリ名を「かぶノート」に変更し、アイコンとカラー（ティール基調）を新しくしました。ホーム画面に追加している方は、一度削除して追加し直すと新アイコンになります。' },
   { date: '2026-06-05', title: 'チャート高速化・ニュース改善・PWA対応', body: 'お気に入りのチャートを先読みして表示を速くしました。ニュースの媒体アイコン表示、レポートの見やすさも改善。スマホは「ホーム画面に追加」でアプリのように使えます。' },
   { date: '2026-06-04', title: 'スマホ表示・ライトモードを大幅改善', body: '銘柄名の表示崩れ、ライトモードでの文字の見えにくさ、指標の用語解説（？マーク）などを見直しました。' },
 ]

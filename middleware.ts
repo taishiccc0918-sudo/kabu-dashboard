@@ -32,6 +32,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // 静的ファイルと listed-info（重いJPXフェッチ）は除外
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/listed-info).*)'],
+  // 静的ファイル・PWAアセット・listed-info（重いJPXフェッチ）は除外
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/listed-info|manifest.webmanifest|icon.svg|apple-icon).*)'],
 }

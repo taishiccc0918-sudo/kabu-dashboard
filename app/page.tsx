@@ -2768,7 +2768,7 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
   const { draggingKey, gripHandlers } = useTouchReorder(genres, onReorder, contRef)
 
   return (
-    <div className={styles.genreFilterList} ref={contRef}>
+    <div className={`${styles.genreFilterList} ${styles.genreReorderListMode}`} ref={contRef}>
       {genres.map(g => (
         <GenreRow key={g} g={g}
           checked={pending.has(g)}

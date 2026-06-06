@@ -2658,6 +2658,8 @@
   box-shadow: 0 6px 16px rgba(0,0,0,0.35); position: relative; z-index: 5;
   border-radius: 6px;
 }
+/* 並べ替えモードは1列の縦リスト（✎/☰を表示する幅を確保＋縦ドラッグ計算を成立させる） */
+.genreFilterList.genreReorderListMode { display: block; }
 .genreReorderItem { padding: 2px 4px 2px 6px; gap: 6px; }
 .genreReorderTap {
   flex: 1; display: flex; align-items: center; gap: 8px;

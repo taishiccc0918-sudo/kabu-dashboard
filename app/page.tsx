@@ -2784,6 +2784,128 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
   )
 }
 
+// ─── ジャンルチップ一覧（コンパクトな折り返し表示・iPhoneアプリ風の長押し移動／改名）──
+// タップ＝付け外し／長押し→そのままドラッグ＝並べ替え（指に追従）／長押し静止して離す＝その場で改名。
+// すべてネイティブtouchで実装（iOSで確実）。
+function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
+  genres: string[]
+  assigned: Set<string>
+  onToggle: (g: string) => void
+  onReorder: (next: string[]) => void
+  onRename: (oldName: string, newName: string) => void
+}) {
+  const contRef = useRef<HTMLDivElement>(null)
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const latest = useRef({ genres, onReorder })
+  latest.current = { genres, onReorder }
+  const blockRef = useRef((e: TouchEvent) => { e.preventDefault() })
+  const suppressClick = useRef(false)
+  type S = { key: string; el: HTMLElement; startX: number; startY: number; lifted: boolean; moved: boolean; target: number; timer: ReturnType<typeof setTimeout> | null }
+  const st = useRef<S | null>(null)
+
+  function chipsEls(): HTMLElement[] {
+    const c = contRef.current
+    return c ? (Array.from(c.querySelectorAll('[data-chip-key]')) as HTMLElement[]) : []
+  }
+  function resetEl(el: HTMLElement) {
+    el.style.transition = ''; el.style.transform = ''; el.style.zIndex = ''
+    el.style.position = ''; el.style.boxShadow = ''; el.style.opacity = ''
+  }
+  function endDrag(commit: boolean) {
+    const s = st.current
+    if (!s) return
+    if (s.timer) { clearTimeout(s.timer); s.timer = null }
+    document.removeEventListener('touchmove', blockRef.current)
+    if (s.lifted) {
+      suppressClick.current = true
+      resetEl(s.el)
+      setDraggingKey(null)
+      if (commit && s.moved && s.target >= 0) {
+        const ord = latest.current.genres
+        const home = ord.indexOf(s.key)
+        if (home >= 0 && s.target !== home) {
+          const next = ord.slice()
+          next.splice(home, 1)
+          const insertAt = s.target > home ? s.target - 1 : s.target
+          next.splice(insertAt, 0, s.key)
+          if (next.join('') !== ord.join('')) latest.current.onReorder(next)
+        }
+      } else if (commit && !s.moved) {
+        setDraft(s.key); setEditing(s.key)
+      }
+    }
+    st.current = null
+  }
+
+  function onStart(e: React.TouchEvent, key: string) {
+    const t = e.touches[0]
+    const el = e.currentTarget as HTMLElement
+    st.current = { key, el, startX: t.clientX, startY: t.clientY, lifted: false, moved: false, target: -1, timer: null }
+    st.current.timer = setTimeout(() => {
+      const s = st.current
+      if (!s || s.key !== key) return
+      s.lifted = true
+      setDraggingKey(key)
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(16)
+      document.addEventListener('touchmove', blockRef.current, { passive: false })
+      el.style.transition = 'none'; el.style.transform = 'scale(1.12)'; el.style.zIndex = '40'
+      el.style.position = 'relative'; el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.5)'; el.style.opacity = '0.96'
+    }, 420)
+  }
+  function onMove(e: React.TouchEvent) {
+    const s = st.current
+    if (!s) return
+    const t = e.touches[0]
+    const dx = t.clientX - s.startX, dy = t.clientY - s.startY
+    if (!s.lifted) {
+      if (Math.abs(dx) > 12 || Math.abs(dy) > 12) { if (s.timer) { clearTimeout(s.timer); s.timer = null } st.current = null }
+      return
+    }
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) s.moved = true
+    s.el.style.transform = `translate(${dx}px, ${dy}px) scale(1.12)`
+    let best = -1, bestD = Infinity
+    chipsEls().forEach((el, i) => {
+      const r = el.getBoundingClientRect()
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2
+      const d = (cx - t.clientX) ** 2 + (cy - t.clientY) ** 2
+      if (d < bestD) { bestD = d; best = i }
+    })
+    s.target = best
+  }
+
+  function commitRename(g: string) {
+    const v = draft.trim()
+    if (v && v !== g) onRename(g, v)
+    setEditing(null)
+  }
+
+  return (
+    <div className={styles.wlMobileGenreChips} ref={contRef}>
+      {genres.map(g => (
+        editing === g ? (
+          <input key={g} className={styles.wlGenreEditChipInput} autoFocus value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={() => commitRename(g)}
+            onKeyDown={e => { if (e.key === 'Enter') commitRename(g); if (e.key === 'Escape') setEditing(null) }}
+            maxLength={12}
+          />
+        ) : (
+          <button key={g} data-chip-key={g}
+            className={`${styles.wlGenreEditChip} ${assigned.has(g) ? styles.wlGenreEditChipOn : ''} ${draggingKey === g ? styles.wlGenreEditChipDrag : ''}`}
+            onTouchStart={e => onStart(e, g)}
+            onTouchMove={onMove}
+            onTouchEnd={() => endDrag(true)}
+            onTouchCancel={() => endDrag(false)}
+            onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } onToggle(g) }}
+          >{g}</button>
+        )
+      ))}
+    </div>
+  )
+}
+
 function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre }: {
   code: string
   rec: MasterRecord
@@ -2872,11 +2994,11 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
             </div>
           ) : (
             <>
-              <div className={styles.wlGenreManageHint}>タップ＝付け外し／長押し or ✎＝改名／☰つまんで並べ替え</div>
-              <GenreReorderList
+              <div className={styles.wlGenreManageHint}>タップ＝付け外し／長押し→そのまま動かして並べ替え／長押しして離す＝その場で改名</div>
+              <GenreChipList
                 genres={allGenreOptions}
-                pending={new Set(genres)}
-                onTogglePending={(g) => toggleGenre(g)}
+                assigned={new Set(genres)}
+                onToggle={(g) => toggleGenre(g)}
                 onReorder={onReorderGenres}
                 onRename={onRenameGenre}
               />

@@ -2278,6 +2278,8 @@ function StockManager({
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
               dragging={stockDrag.draggingKey === code}
               nameDragProps={stockDrag.makeHandleProps(code, { onTap: () => setOpenPanel(p => (p?.code === code && p.type === 'links') ? null : { code, type: 'links' }) })}
+              onReorderGenres={onReorderGenres}
+              onRenameGenre={handleRename}
             />
           ))
         }
@@ -2782,7 +2784,7 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -2796,6 +2798,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   onTogglePanel: (type: 'genre' | 'memo' | 'links') => void
   dragging?: boolean
   nameDragProps?: React.HTMLAttributes<HTMLElement>
+  onReorderGenres: (next: string[]) => void
+  onRenameGenre: (oldName: string, newName: string) => void
 }) {
   const editingMemo = openType === 'memo'
   const editingGenre = openType === 'genre'
@@ -2853,18 +2857,31 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
         >✏</button>
       </div>
-      {/* ジャンル編集（付け外し・新規追加） */}
+      {/* ジャンル編集（付け外し・新規追加・並べ替え・改名） */}
       {editingGenre && (
         <div className={styles.wlMobileGenreEdit}>
           <input className={styles.wlMobileGenreSearch} placeholder="ジャンルを検索 / 新規追加" value={genreQuery} onChange={e => setGenreQuery(e.target.value)} />
-          <div className={styles.wlMobileGenreChips}>
-            {allGenreOptions.filter(g => genres.includes(g) || !genreQuery.trim() || normJa(g).includes(normJa(genreQuery))).map(g => (
-              <button key={g} className={`${styles.wlGenreEditChip} ${genres.includes(g) ? styles.wlGenreEditChipOn : ''}`} onClick={() => toggleGenre(g)}>{g}</button>
-            ))}
-            {genreQuery.trim() && !allGenreOptions.some(g => g === genreQuery.trim()) && (
-              <button className={styles.wlGenreEditChipAdd} onClick={() => { const t = genreQuery.trim(); onAddGenre(t); toggleGenre(t); setGenreQuery('') }}>＋「{genreQuery.trim()}」を追加</button>
-            )}
-          </div>
+          {genreQuery.trim() ? (
+            <div className={styles.wlMobileGenreChips}>
+              {allGenreOptions.filter(g => normJa(g).includes(normJa(genreQuery))).map(g => (
+                <button key={g} className={`${styles.wlGenreEditChip} ${genres.includes(g) ? styles.wlGenreEditChipOn : ''}`} onClick={() => toggleGenre(g)}>{g}</button>
+              ))}
+              {!allGenreOptions.some(g => g === genreQuery.trim()) && (
+                <button className={styles.wlGenreEditChipAdd} onClick={() => { const t = genreQuery.trim(); onAddGenre(t); toggleGenre(t); setGenreQuery('') }}>＋「{genreQuery.trim()}」を追加</button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className={styles.wlGenreManageHint}>タップ＝付け外し／長押し or ✎＝改名／☰つまんで並べ替え</div>
+              <GenreReorderList
+                genres={allGenreOptions}
+                pending={new Set(genres)}
+                onTogglePending={(g) => toggleGenre(g)}
+                onReorder={onReorderGenres}
+                onRename={onRenameGenre}
+              />
+            </>
+          )}
         </div>
       )}
       {/* リンク展開パネル */}

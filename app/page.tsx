@@ -2605,6 +2605,93 @@ function useDragReorder(
   return { draggingKey, makeHandleProps }
 }
 
+// ─── ネイティブtouchベースの並べ替え（ドロップダウン内・iOSで確実）─────────────────
+// pointer capture を使わず、touchイベントだけで完結。iOSは touchstart 対象に touchmove/end
+// を投げ続けるため capture 不要。スクロール抑止は document の非passive touchmove で行う。
+function useTouchReorder(
+  order: string[],
+  onReorder: (next: string[]) => void,
+  containerRef: React.RefObject<HTMLElement>,
+) {
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const latest = useRef({ order, onReorder, containerRef })
+  latest.current = { order, onReorder, containerRef }
+  const st = useRef<{ key: string; startY: number; homeIndex: number; rowH: number; target: number } | null>(null)
+  const blockRef = useRef((e: TouchEvent) => { e.preventDefault() })
+
+  function rows(): HTMLElement[] {
+    const c = latest.current.containerRef.current
+    return c ? (Array.from(c.querySelectorAll('[data-drag-key]')) as HTMLElement[]) : []
+  }
+  function paint(dy: number) {
+    const s = st.current; if (!s) return
+    rows().forEach((el, i) => {
+      if (i === s.homeIndex) {
+        el.style.transition = 'none'; el.style.transform = `translateY(${dy}px) scale(1.04)`
+        el.style.zIndex = '30'; el.style.position = 'relative'
+        el.style.boxShadow = '0 10px 24px rgba(0,0,0,0.45)'; el.style.borderRadius = '8px'
+        return
+      }
+      let shift = 0
+      if (s.homeIndex < s.target && i > s.homeIndex && i <= s.target) shift = -s.rowH
+      else if (s.homeIndex > s.target && i >= s.target && i < s.homeIndex) shift = s.rowH
+      el.style.transition = 'transform 0.16s ease'
+      el.style.transform = shift ? `translateY(${shift}px)` : 'translateY(0)'
+    })
+  }
+  function clearAll() {
+    rows().forEach(el => {
+      el.style.transition = ''; el.style.transform = ''; el.style.zIndex = ''
+      el.style.position = ''; el.style.boxShadow = ''; el.style.borderRadius = ''
+    })
+  }
+  function gripHandlers(key: string): React.HTMLAttributes<HTMLElement> {
+    return {
+      onTouchStart: (e) => {
+        const t = e.touches[0]
+        const els = rows()
+        const homeIndex = latest.current.order.indexOf(key)
+        const rowH = (els[homeIndex]?.getBoundingClientRect().height) || 40
+        st.current = { key, startY: t.clientY, homeIndex, rowH, target: homeIndex }
+        setDraggingKey(key)
+        document.addEventListener('touchmove', blockRef.current, { passive: false })
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12)
+      },
+      onTouchMove: (e) => {
+        const s = st.current; if (!s) return
+        const t = e.touches[0]
+        const dy = t.clientY - s.startY
+        let target = s.homeIndex + Math.round(dy / s.rowH)
+        const len = latest.current.order.length
+        if (target < 0) target = 0
+        if (target > len - 1) target = len - 1
+        s.target = target
+        paint(dy)
+      },
+      onTouchEnd: () => {
+        const s = st.current
+        document.removeEventListener('touchmove', blockRef.current)
+        clearAll()
+        st.current = null
+        setDraggingKey(null)
+        if (s && s.target !== s.homeIndex && s.homeIndex >= 0) {
+          const ord = latest.current.order
+          const next = ord.slice()
+          next.splice(s.homeIndex, 1)
+          next.splice(s.target, 0, s.key)
+          if (next.join('') !== ord.join('')) latest.current.onReorder(next)
+        }
+      },
+      onTouchCancel: () => {
+        document.removeEventListener('touchmove', blockRef.current)
+        clearAll(); st.current = null; setDraggingKey(null)
+      },
+      style: { touchAction: 'none' },
+    }
+  }
+  return { draggingKey, gripHandlers }
+}
+
 // ─── ジャンル1行：長押し＝改名／☰ドラッグ＝並べ替え／タップ＝絞り込み ──────────────
 // 改名のトリガはネイティブの touch 長押し（pointer capture を使わない＝iOSで確実に発火）。
 function GenreRow({ g, checked, onToggle, onRename, dragging, dragHandleProps }: {
@@ -2619,15 +2706,23 @@ function GenreRow({ g, checked, onToggle, onRename, dragging, dragHandleProps }:
   const [draft, setDraft] = useState(g)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressed = useRef(false)
+  const startPos = useRef({ x: 0, y: 0 })
   useEffect(() => { if (!editing) setDraft(g) }, [g, editing])
 
-  function startLP() {
+  function startLP(e: React.TouchEvent) {
+    const t = e.touches[0]
+    startPos.current = { x: t.clientX, y: t.clientY }
     longPressed.current = false
     timer.current = setTimeout(() => {
       longPressed.current = true
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(16)
       setDraft(g); setEditing(true)
     }, 450)
+  }
+  function moveLP(e: React.TouchEvent) {
+    // iOSは静止中も微小な touchmove を出すため、10px超で初めてキャンセル＝長押しが確実に出る
+    const t = e.touches[0]
+    if (Math.abs(t.clientX - startPos.current.x) > 10 || Math.abs(t.clientY - startPos.current.y) > 10) cancelLP()
   }
   function cancelLP() { if (timer.current) { clearTimeout(timer.current); timer.current = null } }
   function commit() { const t = draft.trim(); if (t && t !== g) onRename(t); setEditing(false) }
@@ -2648,7 +2743,7 @@ function GenreRow({ g, checked, onToggle, onRename, dragging, dragHandleProps }:
   return (
     <div className={`${styles.genreFilterItem} ${styles.genreReorderItem} ${dragging ? styles.genreReorderItemDragging : ''}`} data-drag-key={g}>
       <span className={styles.genreReorderTap}
-        onTouchStart={startLP} onTouchEnd={cancelLP} onTouchMove={cancelLP} onTouchCancel={cancelLP}
+        onTouchStart={startLP} onTouchEnd={cancelLP} onTouchMove={moveLP} onTouchCancel={cancelLP}
         onClick={() => { if (longPressed.current) { longPressed.current = false; return } onToggle() }}>
         <span className={`${styles.genreFilterCheck} ${checked ? styles.genreFilterCheckOn : ''}`} />
         <span className={styles.genreFilterLabel}>{g}</span>
@@ -2669,8 +2764,8 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
   onRename: (oldName: string, newName: string) => void
 }) {
   const contRef = useRef<HTMLDivElement>(null)
-  // longPressMs=0：グリップ(☰)をつまんだ瞬間にドラッグ開始
-  const { draggingKey, makeHandleProps } = useDragReorder(genres, onReorder, contRef, 0)
+  // ネイティブtouchドラッグ（ドロップダウン内でも確実）
+  const { draggingKey, gripHandlers } = useTouchReorder(genres, onReorder, contRef)
 
   return (
     <div className={styles.genreFilterList} ref={contRef}>
@@ -2680,7 +2775,7 @@ function GenreReorderList({ genres, pending, onTogglePending, onReorder, onRenam
           onToggle={() => onTogglePending(g)}
           onRename={(newName) => onRename(g, newName)}
           dragging={draggingKey === g}
-          dragHandleProps={makeHandleProps(g)}
+          dragHandleProps={gripHandlers(g)}
         />
       ))}
     </div>

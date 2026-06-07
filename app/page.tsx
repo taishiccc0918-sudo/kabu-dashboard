@@ -2824,14 +2824,10 @@ function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
       setDraggingKey(null)
       if (commit && s.moved && s.target >= 0) {
         const ord = latest.current.genres
-        const home = ord.indexOf(s.key)
-        if (home >= 0 && s.target !== home) {
-          const next = ord.slice()
-          next.splice(home, 1)
-          const insertAt = s.target > home ? s.target - 1 : s.target
-          next.splice(insertAt, 0, s.key)
-          if (next.join('') !== ord.join('')) latest.current.onReorder(next)
-        }
+        const without = ord.filter(g => g !== s.key)
+        const insert = Math.max(0, Math.min(without.length, s.target))
+        const next = [...without.slice(0, insert), s.key, ...without.slice(insert)]
+        if (next.join('') !== ord.join('')) latest.current.onReorder(next)
       } else if (commit && !s.moved) {
         setDraft(s.key); setEditing(s.key)
       }
@@ -2865,14 +2861,16 @@ function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
     }
     if (Math.abs(dx) > 6 || Math.abs(dy) > 6) s.moved = true
     s.el.style.transform = `translate(${dx}px, ${dy}px) scale(1.12)`
-    let best = -1, bestD = Infinity
-    chipsEls().forEach((el, i) => {
+    // 挿入位置＝指より「前（読み順）」にある“他の”チップの数。これでチップ間に確実に入る。
+    let insert = 0
+    chipsEls().forEach((el) => {
+      if (el === s.el) return
       const r = el.getBoundingClientRect()
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2
-      const d = (cx - t.clientX) ** 2 + (cy - t.clientY) ** 2
-      if (d < bestD) { bestD = d; best = i }
+      if (t.clientY > r.bottom) { insert++; return }   // 指がこの行より下＝このチップの後ろ
+      if (t.clientY < r.top) return                     // 指がこの行より上＝このチップの前
+      if (t.clientX > r.left + r.width / 2) insert++    // 同じ行で中心より右＝後ろ
     })
-    s.target = best
+    s.target = insert
   }
 
   function commitRename(g: string) {

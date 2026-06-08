@@ -3274,11 +3274,13 @@ const StockManagerRow = React.memo(function StockManagerRow({
           <button
             onClick={onToggleSuperFav}
             className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
+            style={{ color: isSuperFav ? '#f43f5e' : '#94a3b8' }}
             title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
           >{isSuperFav ? '♥' : '♡'}</button>
           <button
             onClick={onToggleFav}
             className={isFav ? styles.favBtnOn : styles.favBtn}
+            style={{ color: isFav ? '#fbbf24' : '#94a3b8' }}
             title={isFav ? 'ウォッチ解除' : 'ウォッチ（目印）に追加'}
           ><EyeIcon on={isFav} size={16} /></button>
         </td>
@@ -4039,6 +4041,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={styles.tdStar} style={{background: stickyBg}}>
         <button
           className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
+          style={{ color: isSuperFav ? '#f43f5e' : '#94a3b8' }}
           onClick={e => { e.stopPropagation(); onToggleSuperFav() }}
           title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
         >{isSuperFav ? '♥' : '♡'}</button>
@@ -4212,6 +4215,7 @@ function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onT
     <div className={`${styles.spRow} ${styles['spBar_' + dayCls]}`} onClick={onClick}>
       <div className={styles.spRowTop}>
         <button className={`${styles.spRowFav} ${isSuperFav ? styles.spRowFavHeart : ''}`}
+          style={{ color: isSuperFav ? '#f43f5e' : '#94a3b8' }}
           onClick={e => { e.stopPropagation(); onToggleSuperFav(r.code) }} aria-label="超お気に入り（♥）に登録／解除">
           {isSuperFav ? '♥' : '♡'}
         </button>

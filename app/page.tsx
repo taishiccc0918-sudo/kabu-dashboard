@@ -3120,9 +3120,10 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
     <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
       <div className={styles.wlMobileRow}>
         <button onClick={onToggleSuperFav}
-          className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>♥</button>
+          className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>{isSuperFav ? '♥' : '♡'}</button>
         <button onClick={onToggleFav}
-          className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}><EyeIcon on={isFav} size={16} /></button>
+          className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}
+          style={isFav && isSuperFav ? { color: '#f97316' } : undefined}><EyeIcon on={isFav} size={16} /></button>
         <span className={styles.wlMobileCode} {...nameDragProps}>{code}</span>
         {/* 銘柄名：タップでリンク展開／長押しでドラッグ並べ替え */}
         <span
@@ -3287,11 +3288,12 @@ const StockManagerRow = React.memo(function StockManagerRow({
             onClick={onToggleSuperFav}
             className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
             title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
-          >♥</button>
+          >{isSuperFav ? '♥' : '♡'}</button>
           <button
             onClick={onToggleFav}
             className={isFav ? styles.favBtnOn : styles.favBtn}
-            title={isFav ? 'お気に入り解除' : 'お気に入りに追加'}
+            style={isFav && isSuperFav ? { color: '#f97316' } : undefined}
+            title={isFav ? (isSuperFav ? 'ウォッチ中（♥+👁）— 解除' : 'ウォッチ解除') : 'ウォッチ（目印）に追加'}
           ><EyeIcon on={isFav} size={16} /></button>
         </td>
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
@@ -4053,7 +4055,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
           className={isSuperFav ? styles.heartBtnOn : styles.heartBtn}
           onClick={e => { e.stopPropagation(); onToggleSuperFav() }}
           title={isSuperFav ? '超お気に入り解除' : '超お気に入りに追加'}
-        >♥</button>
+        >{isSuperFav ? '♥' : '♡'}</button>
         <span className={styles.starSymbol}><EyeIcon on size={13} /></span>
       </td>
       <td className={`${styles.tdCode} ${styles.stickyCol0}`} style={{background: stickyBg}}>{r.code}</td>

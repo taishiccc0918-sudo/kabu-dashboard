@@ -385,17 +385,22 @@ export default function Page() {
     }).catch(() => { /* 失敗しても無害 */ })
     return () => { cancelled = true }
   }, [])
-  // 廃番・コード変更でJPX一覧に無くなったお気に入り（名称未取得）を自動掃除。
-  // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）
+  // 廃番・コード変更で一覧に無くなったお気に入り（名称未取得）を自動掃除。
+  // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）。
+  // ★重要: お気に入りSetは日米共有なので、「いま表示中の市場のコードだけ」を掃除対象にする。
+  //   さもないと米国表示中(masterDB=米国)に日本株のお気に入りが全部「一覧に無い」と誤判定され消える。
+  //   日本コードは数字始まり / 米国ティッカーは英字始まりで分離する。
   useEffect(() => {
     if (Object.keys(masterDB).length < 3000) return
-    const orphans = Array.from(new Set([...favorites, ...superFavorites])).filter(c => !masterDB[c])
+    const inThisMarket = (c: string) => market === 'us' ? /^[A-Za-z]/.test(c) : /^[0-9]/.test(c)
+    const orphans = Array.from(new Set([...favorites, ...superFavorites]))
+      .filter(c => inThisMarket(c) && !masterDB[c])
     if (orphans.length === 0) return
     setFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('favorites', Array.from(n)); return n })
     setSuperFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('superFavorites', Array.from(n)); return n })
     orphans.forEach(c => { sbSyncFav(c, 'star', false); sbSyncFav(c, 'heart', false) })
-    console.log('[cleanup] JPX一覧に無いお気に入りを削除しました:', orphans)
-  }, [masterDB, favorites, superFavorites])
+    console.log('[cleanup] 一覧に無いお気に入りを削除しました:', orphans)
+  }, [masterDB, favorites, superFavorites, market])
 
   // ── Ctrl+Z でタブ履歴を戻る ────────────────────────────────────────
   const [tabHistory, setTabHistory] = useState<TabKey[]>([])

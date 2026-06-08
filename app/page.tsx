@@ -9,6 +9,7 @@ import {
 } from './lib/api'
 import { buildPerBand, PerBand, FyEps } from './lib/perBand'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii, fmtMcap, setDisplayMarket } from './lib/format'
+import { SP500, NDX100 } from './lib/usIndices'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
@@ -88,9 +89,12 @@ const FANG_PLUS = new Set(['META','AAPL','AMZN','NFLX','GOOGL','GOOG','MSFT','NV
 function usGroupMatch(key: string, r: { code: string; mcap: number }): boolean {
   if (key === 'mag7') return MAG7.has(r.code)
   if (key === 'fangplus') return FANG_PLUS.has(r.code)
+  if (key === 'sp500') return SP500.has(r.code)
+  if (key === 'ndx100') return NDX100.has(r.code)
   if (key === 'mega') return r.mcap >= 1_000_000   // 時価総額$1T以上(USD百万)
   return false
 }
+const US_GROUP_KEYS = new Set(['mag7','fangplus','sp500','ndx100','mega'])
 function getChartCache(code: string, mode: string): unknown[] | null {
   if (typeof window === 'undefined') return null
   try {
@@ -1206,8 +1210,10 @@ export default function Page() {
   const mktCounts = useMemo(() => {
     const c: Record<string, number> = { all: allRows.length }
     if (market === 'us') {
-      c.mag7 = allRows.filter(r => MAG7.has(r.code)).length
       c.fangplus = allRows.filter(r => FANG_PLUS.has(r.code)).length
+      c.mag7 = allRows.filter(r => MAG7.has(r.code)).length
+      c.ndx100 = allRows.filter(r => NDX100.has(r.code)).length
+      c.sp500 = allRows.filter(r => SP500.has(r.code)).length
       c.mega = allRows.filter(r => r.mcap >= 1_000_000).length
       for (const k of ['nasdaq','nyse','amex']) c[k] = allRows.filter(r => marketShort(r.market).cls === k).length
     } else {
@@ -1232,7 +1238,7 @@ export default function Page() {
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (filterFav   && !favorites.has(r.code))      return false
       if (mktFilter !== 'all') {
-        if (mktFilter === 'mag7' || mktFilter === 'fangplus' || mktFilter === 'mega') {
+        if (US_GROUP_KEYS.has(mktFilter)) {
           if (!usGroupMatch(mktFilter, r)) return false
         } else if (marketShort(r.market).cls !== mktFilter) return false
       }
@@ -1755,7 +1761,7 @@ export default function Page() {
               {/* PC: 市場ボタン群（市場で選択肢を切替）*/}
               <div className={`${styles.wlMktSegment} ${styles.spHide}`}>
                 {(market === 'us'
-                  ? [['all','全市場'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
+                  ? [['all','全市場'],['fangplus','FANG+'],['mag7','Mag7'],['ndx100','NASDAQ100'],['sp500','S&P500'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
                   : [['all','全市場'],['prime','プライム'],['standard','スタンダード'],['growth','グロース']]
                 ).map(([k,label]) => (
                   <button key={k}
@@ -1774,6 +1780,10 @@ export default function Page() {
                 <option value="all">全市場</option>
                 {market === 'us' ? (
                   <>
+                    <option value="fangplus">FANG+</option>
+                    <option value="mag7">Magnificent 7</option>
+                    <option value="ndx100">NASDAQ100</option>
+                    <option value="sp500">S&P500</option>
                     <option value="nasdaq">NASDAQ</option>
                     <option value="nyse">NYSE</option>
                     <option value="amex">AMEX</option>
@@ -1825,7 +1835,7 @@ export default function Page() {
             {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場）。市場で選択肢を切替 */}
             <div className={`${styles.filterGroup} ${styles.spHide}`}>
               {(market === 'us'
-                ? [['all','全市場'],['fangplus','FANG+'],['mag7','Magnificent7'],['mega','メガキャップ'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
+                ? [['all','全市場'],['fangplus','FANG+'],['mag7','Magnificent7'],['ndx100','NASDAQ100'],['sp500','S&P500'],['mega','メガキャップ'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
                 : [['all','全市場'],['prime','プライム'],['standard','スタンダード'],['growth','グロース']]
               ).map(([k,label]) => (
                 <button key={k}
@@ -1845,6 +1855,8 @@ export default function Page() {
                 <>
                   <option value="fangplus">FANG+ ({mktCounts.fangplus ?? 0})</option>
                   <option value="mag7">Magnificent 7 ({mktCounts.mag7 ?? 0})</option>
+                  <option value="ndx100">NASDAQ100 ({mktCounts.ndx100 ?? 0})</option>
+                  <option value="sp500">S&P500 ({mktCounts.sp500 ?? 0})</option>
                   <option value="mega">メガキャップ$1T+ ({mktCounts.mega ?? 0})</option>
                   <option value="nasdaq">NASDAQ ({mktCounts.nasdaq ?? 0})</option>
                   <option value="nyse">NYSE ({mktCounts.nyse ?? 0})</option>
@@ -2222,7 +2234,10 @@ function StockManager({
       if (!rec) return false
       if (showFavOnly   && !favorites.has(code))      return false
       if (showHeartOnly && !superFavorites.has(code)) return false
-      if (mktF !== 'all' && marketShort(rec.market).cls !== mktF) return false
+      if (mktF !== 'all') {
+        if (US_GROUP_KEYS.has(mktF)) { if (!usGroupMatch(mktF, { code, mcap: 0 })) return false }
+        else if (marketShort(rec.market).cls !== mktF) return false
+      }
       if (genreFilters.size > 0) {
         const genres = stockMeta[code]?.genres ?? []
         const matchRegular = genres.some(g => genreFilters.has(g))
@@ -2296,7 +2311,10 @@ function StockManager({
         const rec = masterDB[c]
         if (!rec) return false
         // フィルター解除後の状態を考慮
-        if (mktF !== 'all' && marketShort(rec.market).cls !== mktF) return false
+        if (mktF !== 'all') {
+        if (US_GROUP_KEYS.has(mktF)) { if (!usGroupMatch(mktF, { code, mcap: 0 })) return false }
+        else if (marketShort(rec.market).cls !== mktF) return false
+      }
         if (genreFilters.size > 0) {
           const genres = stockMeta[c]?.genres ?? []
           const matchRegular = genres.some(g => genreFilters.has(g))

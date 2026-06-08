@@ -43,7 +43,13 @@ export const US_KATAKANA: Record<string, string> = {
 }
 
 let _kana = false
+let _listener: ((on: boolean) => void) | null = null
 export function setKanaMode(on: boolean) { _kana = on }
+export function getKanaMode(): boolean { return _kana }
+// Page側で再描画用の setState を登録（銘柄名クリックから全表示を切替えるため）。
+export function registerKanaListener(fn: ((on: boolean) => void) | null) { _listener = fn }
+// どのコンポーネントからでも呼べるグローバル切替（同期で _kana を更新＋再描画通知）。
+export function toggleKanaGlobal() { _kana = !_kana; _listener?.(_kana) }
 // カナ表示ONかつ辞書にあればカタカナ、無ければ英語名のまま。
 export function usName(code: string, name: string): string {
   if (_kana) { const k = US_KATAKANA[code.toUpperCase()]; if (k) return k }

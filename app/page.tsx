@@ -10,7 +10,7 @@ import {
 import { buildPerBand, PerBand, FyEps } from './lib/perBand'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii, fmtMcap, setDisplayMarket } from './lib/format'
 import { SP500, NDX100 } from './lib/usIndices'
-import { usName, setKanaMode } from './lib/usKatakana'
+import { usName, setKanaMode, registerKanaListener, toggleKanaGlobal } from './lib/usKatakana'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
@@ -1034,6 +1034,8 @@ export default function Page() {
   useEffect(() => { setDisplayMarket(market) }, [market])
   // カナ表示モードをモジュールへ反映＋永続化（表示用関数 usName が参照）
   useEffect(() => { setKanaMode(kanaMode); if (themeLoaded.current) lsSet('kanaMode', kanaMode) }, [kanaMode])
+  // 銘柄名クリックなど、どこからでもカナ切替できるようリスナー登録
+  useEffect(() => { registerKanaListener(setKanaModeState); return () => registerKanaListener(null) }, [])
 
   const loadUsData = useCallback(async () => {
     const sb = getSb()
@@ -3196,7 +3198,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
           {...nameDragProps}
         >
-          {rec.name}
+          {usName(code, rec.name)}
           <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
         </span>
         {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
@@ -3354,7 +3356,13 @@ const StockManagerRow = React.memo(function StockManagerRow({
           ><EyeIcon on={isFav} size={16} /></button>
         </td>
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
-        <td className={styles.wlTd}><span className={styles.wlTdName}>{usName(code, rec.name)}</span></td>
+        <td className={styles.wlTd}>
+          <span className={styles.wlTdName}
+            onClick={isUsTicker(code) ? (e) => { e.stopPropagation(); toggleKanaGlobal() } : undefined}
+            style={isUsTicker(code) ? { cursor: 'pointer' } : undefined}
+            title={isUsTicker(code) ? 'クリックでカタカナ⇄英語' : undefined}
+          >{usName(code, rec.name)}</span>
+        </td>
         <td className={styles.wlTd}>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </td>
@@ -4123,7 +4131,9 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
         title={fin?.discDate ? `開示: ${fin.discDate.replace(/-/g,'/')} (${fin.perType === 'FY' ? 'FY通期' : fin.perType || '—'})` : undefined}
       >
-        {r.name || '—'}
+        {isUsTicker(r.code)
+          ? <span onClick={e => { e.stopPropagation(); toggleKanaGlobal() }} style={{ cursor: 'pointer' }} title="クリックでカタカナ⇄英語">{usName(r.code, r.name) || '—'}</span>
+          : (r.name || '—')}
         {fin?.discDate && isDataStale(fin.discDate) && (
           <span
             className={styles.staleIcon}

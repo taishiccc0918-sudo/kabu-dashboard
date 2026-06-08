@@ -434,12 +434,24 @@
   border: 1px solid var(--line); border-radius: var(--r-pill, 999px);
   overflow: hidden; background: var(--surface-1); margin-right: 8px;
 }
+.marketToggle { flex-shrink: 0; }
 .marketToggleBtn {
-  padding: 5px 11px; font-size: 12.5px; font-weight: 700;
+  padding: 5px 10px; font-size: 12px; font-weight: 700;
   background: transparent; color: var(--text-2); border: none; cursor: pointer; white-space: nowrap;
 }
 .marketToggleBtn:hover { color: var(--text-1); }
 .marketToggleActive { background: var(--accent); color: #fff; }
+
+/* ロゴは絶対に消さない（トグル追加で横幅が増えても左上ロゴを最優先で確保） */
+.logo { flex-shrink: 0; }
+.headerLeft { min-width: 0; }
+.lastUpdate { min-width: 0; }
+
+/* スマホ: トグルを小さく（旗＋短いラベル）してロゴと両立 */
+@media (max-width: 768px) {
+  .marketToggleBtn { padding: 4px 7px; font-size: 11px; }
+  .header { padding: 0 10px; gap: 6px; }
+}
 
 /* card genre badge (StockCard用) */
 .cardGenreBadge {
@@ -1590,6 +1602,10 @@
 .mktBtn_nasdaq.filterBtnActive   { border-color: var(--accent); color: var(--accent); background: rgba(20,184,166,0.1); }
 .mktBtn_nyse.filterBtnActive     { border-color: #60a5fa; color: #60a5fa; background: rgba(59,130,246,0.1); }
 .mktBtn_amex.filterBtnActive     { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
+.mktBtn_mag7.filterBtnActive     { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.12); }
+.mktBtn_mega.filterBtnActive     { border-color: #f43f5e; color: #f43f5e; background: rgba(244,63,94,0.10); }
+.filterSelect_mag7   { color: #f59e0b; border-color: #f59e0b; background: rgba(245,158,11,0.12); }
+.filterSelect_mega   { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,0.10); }
 
 /* ── TOOLTIP (th hover) ──────────────────────────── */
 .thTooltip { position: relative; }

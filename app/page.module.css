@@ -2263,11 +2263,12 @@
 .favBtn {
   background: none; border: none; cursor: pointer;
   font-size: 16px; padding: 2px 4px;
-  color: rgba(156,163,175,0.4);
+  color: #94a3b8;   /* OFF: 灰色（押すと色がつく） */
   transition: color .1s, transform .1s;
   line-height: 1;
 }
-.favBtn:hover { color: #fbbf24; transform: scale(1.15); }
+/* OFF時はホバーしても灰色のまま（ホバーでONの色になると「押したか分からない」ため）*/
+.favBtn:hover { color: #cbd5e1; transform: scale(1.15); }
 .favBtnOn {
   background: none; border: none; cursor: pointer;
   font-size: 16px; padding: 2px 4px;
@@ -2287,7 +2288,7 @@
   transition: color .1s, transform .1s;
   line-height: 1;
 }
-.heartBtn:hover { color: #f472b6; transform: scale(1.15); }
+.heartBtn:hover { color: #cbd5e1; transform: scale(1.15); }  /* OFF時はホバーでも灰色（赤にしない＝状態が分かる）*/
 .heartBtnOn {
   background: none; border: none; cursor: pointer;
   font-size: 15px; padding: 2px 2px;
@@ -2737,7 +2738,7 @@
 .wlMobileIconBtn:active { background: rgba(255,255,255,0.06); }
 /* ♥/★ボタンの色: wlMobileIconBtnのデフォルトcolor(var(--text-3))が上書きしないよう明示 */
 .wlMobileIconBtn.heartBtnOn { color: #f43f5e !important; filter: drop-shadow(0 0 4px rgba(244,63,94,0.45)); }
-.wlMobileIconBtn.heartBtn   { color: rgba(156,163,175,0.3) !important; }
+.wlMobileIconBtn.heartBtn   { color: #94a3b8 !important; }
 .wlMobileIconBtn.favBtnOn   { color: #fbbf24 !important; filter: drop-shadow(0 0 4px rgba(251,191,36,0.5)); }
 .wlMobileIconBtn.favBtn     { color: rgba(156,163,175,0.35) !important; }
 .wlMobileCode {
@@ -3325,10 +3326,11 @@
 .lightMode .genreEditToggleBtnOn { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(15,118,110,0.06) !important; }
 .lightMode .wlEditRow { background: rgba(15,118,110,0.04) !important; }
 .lightMode .wlEditTd { border-bottom-color: #cbd5e1 !important; }
-.lightMode .favBtn { color: rgba(0,0,0,0.2) !important; }
-.lightMode .heartBtn { color: rgba(0,0,0,0.15) !important; }
-.lightMode .heartBtn:hover { color: #f43f5e !important; }
-.lightMode .heartBtnOn { color: #f43f5e !important; }
+.lightMode .favBtn { color: #94a3b8 !important; }        /* OFF: 灰色 */
+.lightMode .favBtn:hover { color: #64748b !important; }  /* OFFはホバーでも灰色 */
+.lightMode .heartBtn { color: #94a3b8 !important; }      /* OFF: 灰色 */
+.lightMode .heartBtn:hover { color: #64748b !important; }/* OFFはホバーでも灰色（赤にしない）*/
+.lightMode .heartBtnOn { color: #f43f5e !important; }    /* ON: 赤 */
 .lightMode .starSymbol { color: rgba(180,130,0,0.5) !important; }
 .lightMode .infoLinkBtn { color: var(--accent-strong) !important; border-color: var(--accent) !important; background: rgba(15,118,110,0.07) !important; }
 

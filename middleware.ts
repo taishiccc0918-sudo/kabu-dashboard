@@ -33,5 +33,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // 静的ファイル・PWAアセット・listed-info（重いJPXフェッチ）は除外
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/listed-info|manifest.webmanifest|icon.svg|apple-icon|sw.js|icons.html).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/listed-info|api/us-master|manifest.webmanifest|icon.svg|apple-icon|sw.js|icons.html).*)'],
 }

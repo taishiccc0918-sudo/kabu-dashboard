@@ -8,7 +8,7 @@ import {
   findLatestBizDate, fetchMaster, fetchPrices, fetchAnnouncements, fetchAllFinancials, fetchDailyBars, fetchFyEpsForCode,
 } from './lib/api'
 import { buildPerBand, PerBand, FyEps } from './lib/perBand'
-import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii } from './lib/format'
+import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii, fmtMcap, setDisplayMarket } from './lib/format'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
@@ -234,6 +234,16 @@ export default function Page() {
   const [progress,   setProgress]   = useState(0)
   const [tab,        setTab]        = useState<TabKey>('dashboard')
   const [mktFilter,  setMktFilter]  = useState<string>('all')
+  // ── 市場切替（日本株 ⇄ 米国株）──────────────────────────────────
+  const [market, setMarket] = useState<'jp'|'us'>('jp')
+  const marketRef = useRef<'jp'|'us'>('jp')
+  // 各市場のデータセット(price/fin/perBand/master)をキャッシュして瞬時に往復切替
+  type MarketDataset = {
+    priceDB: Record<string, PriceRecord>; finDB: Record<string, FinRecord>
+    perBandDB: Record<string, PerBand | null>; masterDB: Record<string, MasterRecord>; lastUpdate: string
+  }
+  const marketDataRef = useRef<{ jp?: MarketDataset; us?: MarketDataset }>({})
+  const usLoadedRef = useRef(false)
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
@@ -493,8 +503,10 @@ export default function Page() {
       sb.from('memos').select('*').eq('user_id', userId), // '*' なら genres 列が未追加でも400にならない
     ])
     if (favData) {
-      const stars  = new Set(favData.filter(f => f.type === 'star').map(f => f.code as string))
-      const hearts = new Set(favData.filter(f => f.type === 'heart').map(f => f.code as string))
+      // 'US:' 接頭辞（米国株）は剥がして素のコードで保持（日米共有Set。表示側でコード形状により分離）
+      const strip = (c: string) => c.startsWith('US:') ? c.slice(3) : c
+      const stars  = new Set(favData.filter(f => f.type === 'star').map(f => strip(f.code as string)))
+      const hearts = new Set(favData.filter(f => f.type === 'heart').map(f => strip(f.code as string)))
       if (stars.size === 0 && hearts.size === 0) {
         // Supabase が空 = 初回ログイン → localStorage のデータを Supabase に移行
         const localStars  = ls<string[]>('favorites', [])
@@ -799,6 +811,7 @@ export default function Page() {
   priceDBRef.current = priceDB
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (marketRef.current === 'us') return  // 米国はバンドをサーバー事前計算で持つ（J-Quants取得を回避）
     if (!serverHasKey && !apiKey.trim()) return
     if (Object.keys(finDB).length === 0) return
     if (bandFetchingRef.current) return
@@ -893,6 +906,8 @@ export default function Page() {
         if (Object.keys(mDB).length) setMasterDB(mDB)
         const meta = metaRes.data as { biz_date?: string; updated_at?: string } | null
         const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
+        // 日本株データセットを退避（米国へ往復切替したときに即復元するため）
+        marketDataRef.current.jp = { priceDB: pDB, finDB: fDB, perBandDB: bDB, masterDB: Object.keys(mDB).length ? mDB : masterDB, lastUpdate: biz }
         setLastUpdate(biz); setDataLoaded(true); setStatus('ok'); cacheStaleRef.current = false
         autoFetchedRef.current = true   // サーバー版で表示済み → 自動ライブ取得は抑止（再読込ボタンで手動更新可）
         const upd = meta?.updated_at ? new Date(meta.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
@@ -908,6 +923,7 @@ export default function Page() {
   // ── 自動更新: ページ読み込み時にデータ取得（キャッシュがある場合はバックグラウンド更新）
   useEffect(() => {
     if (!mounted) return               // マウント完了を待つ
+    if (marketRef.current === 'us') return // 米国はJ-Quantsライブ取得を使わない
     if (liveSuppressedRef.current) return // Supabase事前計算を試行中/採用中 → ライブ取得しない
     if (autoFetchedRef.current) return // 1度だけ実行
     if (loading || bgFetching) return  // すでに取得中
@@ -922,8 +938,10 @@ export default function Page() {
   function sbSyncFav(code: string, type: 'star' | 'heart', add: boolean) {
     const u = userRef.current; const sb = getSb()
     if (!u || !sb) return
-    if (add) sb.from('favorites').upsert({ user_id: u.id, code, type }).then(() => {})
-    else sb.from('favorites').delete().eq('user_id', u.id).eq('code', code).eq('type', type).then(() => {})
+    // 米国株は 'US:' 接頭辞で保存（日本株cronがJ-Quantsに投げないよう分離。読込時に剥がす）
+    const dbCode = marketRef.current === 'us' ? `US:${code}` : code
+    if (add) sb.from('favorites').upsert({ user_id: u.id, code: dbCode, type }).then(() => {})
+    else sb.from('favorites').delete().eq('user_id', u.id).eq('code', dbCode).eq('type', type).then(() => {})
   }
   // メモ＋ジャンルをまとめてSupabaseに同期（ドメイン/端末をまたいで残る）
   function sbSyncMeta(code: string, meta: StockMeta) {
@@ -945,6 +963,7 @@ export default function Page() {
   // 手動の最新取得（重い・数分）。確認ポップで時点と所要を伝えてから実行
   function handleManualRefresh() {
     setShowMoreMenu(false)
+    if (marketRef.current === 'us') { usLoadedRef.current = false; marketDataRef.current.us = undefined; loadUsData(); return }
     if (loading || bgFetching) return
     const ok = window.confirm(
       `最新の株価・財務を取得して更新しますか？\n\n`
@@ -963,6 +982,60 @@ export default function Page() {
       requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('themeSwitching')))
     }
     setDarkMode(d => !d)
+  }
+
+  // ── 市場切替（日本株 ⇄ 米国株）─────────────────────────────────
+  useEffect(() => { setDisplayMarket(market) }, [market])
+
+  const loadUsData = useCallback(async () => {
+    const sb = getSb()
+    try {
+      const [snapRes, masterJson] = await Promise.all([
+        sb ? sb.from('us_stock_snapshot').select('ticker, price, fin, per_band, biz_date')
+           : Promise.resolve({ data: [] as unknown[] }),
+        fetch('/api/us-master').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+      ])
+      const rows = ((snapRes as { data?: unknown[] }).data ?? []) as { ticker: string; price: PriceRecord; fin: FinRecord | null; per_band: PerBand | null; biz_date: string }[]
+      const metaRes = sb ? await sb.from('us_snapshot_meta').select('biz_date, updated_at').eq('id', 1).maybeSingle() : { data: null }
+      const pDB: Record<string, PriceRecord> = {}, fDB: Record<string, FinRecord> = {}, bDB: Record<string, PerBand | null> = {}
+      for (const r of rows) { pDB[r.ticker] = r.price ?? { close: 0 }; if (r.fin) fDB[r.ticker] = r.fin; bDB[r.ticker] = r.per_band ?? null }
+      const mDB: Record<string, MasterRecord> = {}
+      for (const [t, rec] of Object.entries(masterJson as Record<string, { name: string; market: string }>)) if (rec?.name) mDB[t] = { name: rec.name, market: rec.market ?? '' }
+      for (const r of rows) if (!mDB[r.ticker]) mDB[r.ticker] = { name: r.ticker, market: '' }
+      const meta = (metaRes as { data?: { biz_date?: string } }).data
+      const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
+      marketDataRef.current.us = { priceDB: pDB, finDB: fDB, perBandDB: bDB, masterDB: mDB, lastUpdate: biz }
+      usLoadedRef.current = true
+      if (marketRef.current === 'us') {
+        setPriceDB(pDB); setFinDB(fDB); setPerBandDB(bDB); setMasterDB(mDB); setLastUpdate(biz)
+        setDataLoaded(true); setStatus('ok')
+        setStatusMsg(`米国株: ${rows.length}銘柄 / 基準日 ${biz}（実績はSEC・株価はStooq・無料運用）`)
+      }
+    } catch (e) {
+      console.warn('[us] 読込失敗', e)
+      if (marketRef.current === 'us') { setStatus('error'); setStatusMsg('米国株データの読込に失敗しました') }
+    }
+  }, [])
+
+  function switchMarket(target: 'jp'|'us') {
+    if (target === marketRef.current) return
+    // 現在のデータセットを退避してから切替
+    marketDataRef.current[marketRef.current] = { priceDB, finDB, perBandDB, masterDB, lastUpdate }
+    marketRef.current = target
+    setMarket(target)
+    setDisplayMarket(target)
+    lsSet('market', target)
+    setMktFilter('all')
+    setDetailCode(null)
+    if (target === 'us' && tab === 'news') setTab('dashboard')   // ニュースは米国v1非対応
+    const cached = marketDataRef.current[target]
+    if (cached) {
+      setPriceDB(cached.priceDB); setFinDB(cached.finDB); setPerBandDB(cached.perBandDB); setMasterDB(cached.masterDB); setLastUpdate(cached.lastUpdate)
+    } else if (target === 'us') {
+      setPriceDB({}); setFinDB({}); setPerBandDB({}); setMasterDB({})
+      setStatus('loading'); setStatusMsg('米国株データを読み込み中…')
+      loadUsData()
+    }
   }
 
   // ── お気に入り操作 ────────────────────────────────────────────────
@@ -1044,11 +1117,19 @@ export default function Page() {
     sbSyncMeta(code, meta) // メモ＋ジャンルをクラウドへ
   }
 
-  // ── allRows（★銘柄のみ） ──────────────────────────────────────────
-  const allRows = useMemo(
-    () => Array.from(favorites).map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta, perBandDB)),
-    [favorites, priceDB, finDB, masterDB, stockMeta, perBandDB]
-  )
+  // ── allRows ─────────────────────────────────────────────────────
+  // 日本株: ★銘柄のみ（従来どおり）。米国株: スナップショット全件(上位~300社)∪ 米国お気に入り＝そのまま閲覧できる。
+  // お気に入りSetは日米共有だが、日本株コードは数字始まり/米国ティッカーは英字始まりで自動分離する。
+  const allRows = useMemo(() => {
+    let codes: string[]
+    if (market === 'us') {
+      const favUs = Array.from(favorites).filter(c => /^[A-Za-z]/.test(c))
+      codes = Array.from(new Set([...Object.keys(priceDB), ...favUs]))
+    } else {
+      codes = Array.from(favorites).filter(c => /^[0-9]/.test(c))
+    }
+    return codes.map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta, perBandDB))
+  }, [market, favorites, priceDB, finDB, masterDB, stockMeta, perBandDB])
 
   const maxDiscDate = useMemo(() => {
     const dates = Object.values(finDB).map(f => f.discDate).filter(Boolean)
@@ -1399,6 +1480,19 @@ export default function Page() {
           )}</div>
         </div>
         <div className={styles.headerRight}>
+          {/* 市場切替（日本株 ⇄ 米国株）*/}
+          <div className={styles.marketToggle} role="group" aria-label="市場切替">
+            <button
+              className={`${styles.marketToggleBtn} ${market === 'jp' ? styles.marketToggleActive : ''}`}
+              onClick={() => switchMarket('jp')}
+              title="日本株を表示"
+            >🇯🇵 日本株</button>
+            <button
+              className={`${styles.marketToggleBtn} ${market === 'us' ? styles.marketToggleActive : ''}`}
+              onClick={() => switchMarket('us')}
+              title="米国株を表示"
+            >🇺🇸 米国株</button>
+          </div>
           {!apiKey && !serverHasKey && (
             <button className={styles.apiKeyWarning} onClick={() => setShowSettings(true)} title="⚙ をクリックしてAPIキーを設定してください">
               ⚙ APIキー未設定
@@ -1599,7 +1693,7 @@ export default function Page() {
         )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
-          {(['dashboard','news','report','watchlist'] as TabKey[]).map(t => (
+          {(market === 'us' ? (['dashboard','report','watchlist'] as TabKey[]) : (['dashboard','news','report','watchlist'] as TabKey[])).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
@@ -1623,13 +1717,16 @@ export default function Page() {
               >♥</button>
             </div>
             <div className={styles.filterDivider} />
-            {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場） */}
+            {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場）。市場で選択肢を切替 */}
             <div className={`${styles.filterGroup} ${styles.spHide}`}>
-              {(['all','prime','standard','growth'] as const).map(k => (
+              {(market === 'us'
+                ? [['all','全市場'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
+                : [['all','全市場'],['prime','プライム'],['standard','スタンダード'],['growth','グロース']]
+              ).map(([k,label]) => (
                 <button key={k}
                   className={`${styles.filterBtn} ${styles['mktBtn_'+k]} ${mktFilter === k ? styles.filterBtnActive : ''}`}
                   onClick={() => setMktFilter(k)}
-                >{{all:'全市場',prime:'プライム',standard:'スタンダード',growth:'グロース'}[k]}</button>
+                >{label}</button>
               ))}
             </div>
             <select
@@ -1639,9 +1736,19 @@ export default function Page() {
               aria-label="市場で絞り込み"
             >
               <option value="all">全市場</option>
-              <option value="prime">プライム</option>
-              <option value="standard">スタンダード</option>
-              <option value="growth">グロース</option>
+              {market === 'us' ? (
+                <>
+                  <option value="nasdaq">NASDAQ</option>
+                  <option value="nyse">NYSE</option>
+                  <option value="amex">AMEX</option>
+                </>
+              ) : (
+                <>
+                  <option value="prime">プライム</option>
+                  <option value="standard">スタンダード</option>
+                  <option value="growth">グロース</option>
+                </>
+              )}
             </select>
             <div className={styles.filterDivider} />
             <div className={styles.filterGenreWrap}>
@@ -1897,7 +2004,7 @@ export default function Page() {
       </div>
 
       {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
-      <BottomNav tab={tab} onSelect={setTab} />
+      <BottomNav tab={tab} onSelect={setTab} market={market} />
       <InstallPrompt />
       {welcomeOpen && (
         <WelcomeOnboarding
@@ -3906,7 +4013,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       </td>
       <td className={styles.tdGenres}>{r.genres.map(g => <span key={g} className={styles.genreBadge}>{g}</span>)}</td>
       <td><span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span></td>
-      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('mcap', r, fin)}>{r.mcap ? r.mcap.toLocaleString() : '—'}</td>}
+      {showDetail && <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('mcap', r, fin)}>{r.mcap ? fmtMcap(r.mcap) : '—'}</td>}
       <td className={`${styles.tdNum} ${styles.hasTooltip}`} title={cellFormula('close', r, fin)}>{r.close ? r.close.toLocaleString() : '—'}</td>
       <td className={`${styles.tdPct} ${styles.hasTooltip}`} style={{ background: pctBg(r.chg1d), color: pctCellColor(r.chg1d) }} title={cellFormula('chg1d', r, fin)}>{fmtPct(r.chg1d)}</td>
       {([['chg1w', r.chg1w], ['chg3m', r.chg3m], ['chg1y', r.chg1y]] as const).map(([k, v]) => (
@@ -4003,11 +4110,9 @@ function EarningsDateCell({ code, date, onSave, fin }: {
   )
 }
 
-// 時価総額を短く（1兆円以上は「○.○兆」表記）
+// 時価総額を短く。市場でユニットが違う（日本=億/兆、米国=$M/$B/$T）ので fmtMcap に委譲。
 function mcapShort(v: number): string {
-  if (!v) return '—'
-  if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
-  return Math.round(v).toLocaleString() + '億'
+  return fmtMcap(v)
 }
 
 // 並べ替え中の指標を各行の右上に出す（例: 値上がり1年なら +123%、配当なら 3.2% 等）
@@ -4177,8 +4282,8 @@ function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () =
 }
 
 // ─── BottomNav（SP専用・固定ボトムナビ）──────────────────────────────
-function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => void }) {
-  const items: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+function BottomNav({ tab, onSelect, market }: { tab: TabKey; onSelect: (t: TabKey) => void; market?: 'jp'|'us' }) {
+  const allItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'ダッシュ', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/>
@@ -4204,6 +4309,8 @@ function BottomNav({ tab, onSelect }: { tab: TabKey; onSelect: (t: TabKey) => vo
       </svg>
     ) },
   ]
+  // 米国株v1ではニュースタブを出さない
+  const items = market === 'us' ? allItems.filter(it => it.key !== 'news') : allItems
   const isActive = (k: TabKey) => tab === k || (k === 'dashboard' && tab === 'card')
   return (
     <nav className={styles.bottomNav} aria-label="メインナビゲーション">
@@ -4235,7 +4342,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
           <span className={styles.mobileMetaItem}>PER {r.perF ? fmtN(r.perF) : '—'}</span>
           <span className={styles.mobileMetaItem}>PBR {r.pbr ? fmtN(r.pbr) : '—'}</span>
           <span className={styles.mobileMetaItem}>配当 {r.divY ? fmtPct(r.divY) : '—'}</span>
-          {r.mcap ? <span className={styles.mobileMetaItem}>{r.mcap.toLocaleString()}億</span> : null}
+          {r.mcap ? <span className={styles.mobileMetaItem}>{fmtMcap(r.mcap)}</span> : null}
         </div>
       </div>
       <div className={styles.mobileRowRight}>
@@ -4327,7 +4434,7 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
         </div>
         <div className={styles.cardRight}>
           <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={38} radius={9} />
-          {r.mcap ? <div className={styles.cardMcap}>{r.mcap.toLocaleString()}億</div> : null}
+          {r.mcap ? <div className={styles.cardMcap}>{fmtMcap(r.mcap)}</div> : null}
         </div>
       </div>
       <div className={styles.cardPriceRow}>

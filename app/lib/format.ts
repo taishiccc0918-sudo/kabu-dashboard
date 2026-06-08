@@ -43,7 +43,30 @@ export function marketShort(mkt: string): { label: string; cls: string } {
   if (mkt.includes('プライム'))     return { label: 'プライム',     cls: 'prime' }
   if (mkt.includes('スタンダード')) return { label: 'スタンダード', cls: 'standard' }
   if (mkt.includes('グロース'))     return { label: 'グロース',     cls: 'growth' }
+  // 米国市場（取引所名から自動判別。呼び出し側の変更不要）
+  const u = mkt.toUpperCase()
+  if (u.includes('NASDAQ'))                                   return { label: 'NASDAQ', cls: 'nasdaq' }
+  if (u.includes('NYSE') && (u.includes('AMERICAN') || u.includes('MKT'))) return { label: 'NYSE American', cls: 'amex' }
+  if (u.includes('NYSE'))                                     return { label: 'NYSE',   cls: 'nyse' }
+  if (u.includes('AMEX') || u.includes('BATS') || u.includes('CBOE'))      return { label: 'AMEX',   cls: 'amex' }
   return { label: mkt.slice(0, 6) || '—', cls: 'other' }
+}
+
+// ── 時価総額の表示（市場でユニットが違う: 日本=億円 / 米国=USD百万）──────
+// トグルはグローバルなので、表示専用のカレント市場をモジュール変数で持つ
+// （多数の表示コンポーネントに market を配線せずに済ませる軽量策）。
+let _displayMarket: 'jp' | 'us' = 'jp'
+export function setDisplayMarket(m: 'jp' | 'us') { _displayMarket = m }
+// v は JP=億円 / US=USD百万。短縮表記で返す。
+export function fmtMcap(v: number | null | undefined): string {
+  if (v == null || v === 0 || !isFinite(v)) return '—'
+  if (_displayMarket === 'us') {
+    if (v >= 1_000_000) return '$' + (v / 1_000_000).toFixed(2) + 'T'  // 兆ドル
+    if (v >= 1_000)     return '$' + (v / 1_000).toFixed(1) + 'B'      // 十億ドル
+    return '$' + Math.round(v).toLocaleString() + 'M'
+  }
+  if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
+  return Math.round(v).toLocaleString() + '億'
 }
 
 // 全角英数字・記号を半角に（例: Ｓｙｎｓｐｅｃｔｉｖｅ → Synspective）。

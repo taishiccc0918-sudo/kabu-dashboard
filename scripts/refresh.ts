@@ -195,7 +195,8 @@ async function getUniverse(): Promise<string[]> {
     const { data, error } = await sb.from('favorites').select('code')
     if (error) throw error
     const set = new Set<string>(FALLBACK_WATCHLIST)
-    for (const r of (data ?? []) as { code: string }[]) if (r.code) set.add(r.code)
+    // 'US:' 接頭辞は米国株のお気に入り（refresh-us.ts が担当）。J-QuantsにUSティッカーを投げないよう除外。
+    for (const r of (data ?? []) as { code: string }[]) if (r.code && !r.code.startsWith('US:')) set.add(r.code)
     return Array.from(set)
   } catch (e) {
     console.warn('favorites取得失敗 → フォールバックリスト使用:', (e as Error).message)

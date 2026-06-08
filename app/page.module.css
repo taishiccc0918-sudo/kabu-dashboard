@@ -423,9 +423,23 @@
   white-space: nowrap; flex-shrink: 0;
 }
 /* 市場タグは色を抑えてニュートラルに（ガチャガチャ感の解消。区別は文字で） */
-.mkt_prime, .mkt_standard, .mkt_growth, .mkt_other {
+.mkt_prime, .mkt_standard, .mkt_growth, .mkt_other,
+.mkt_nasdaq, .mkt_nyse, .mkt_amex {
   background: var(--surface-2); color: var(--text-2);
 }
+
+/* ── 市場切替トグル（日本株 ⇄ 米国株）──────────────────────── */
+.marketToggle {
+  display: inline-flex; align-items: center; gap: 0;
+  border: 1px solid var(--line); border-radius: var(--r-pill, 999px);
+  overflow: hidden; background: var(--surface-1); margin-right: 8px;
+}
+.marketToggleBtn {
+  padding: 5px 11px; font-size: 12.5px; font-weight: 700;
+  background: transparent; color: var(--text-2); border: none; cursor: pointer; white-space: nowrap;
+}
+.marketToggleBtn:hover { color: var(--text-1); }
+.marketToggleActive { background: var(--accent); color: #fff; }
 
 /* card genre badge (StockCard用) */
 .cardGenreBadge {
@@ -1239,6 +1253,9 @@
 .filterSelect_prime    { color: var(--accent); border-color: var(--accent); background: rgba(20,184,166,0.10); }
 .filterSelect_standard { color: #34d399; border-color: #34d399; background: rgba(16,185,129,0.10); }
 .filterSelect_growth   { color: #a78bfa; border-color: #a78bfa; background: rgba(139,92,246,0.10); }
+.filterSelect_nasdaq   { color: var(--accent); border-color: var(--accent); background: rgba(20,184,166,0.10); }
+.filterSelect_nyse     { color: #60a5fa; border-color: #60a5fa; background: rgba(59,130,246,0.10); }
+.filterSelect_amex     { color: #a78bfa; border-color: #a78bfa; background: rgba(139,92,246,0.10); }
 
 /* SP検索トグル（アイコン→タップで検索窓を開く。キーボード暴発防止） */
 .spSearchToggle {
@@ -1570,6 +1587,9 @@
 .mktBtn_prime.filterBtnActive    { border-color: var(--accent); color: var(--accent); background: rgba(20,184,166,0.1); }
 .mktBtn_standard.filterBtnActive { border-color: #34d399; color: #34d399; background: rgba(16,185,129,0.1); }
 .mktBtn_growth.filterBtnActive   { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
+.mktBtn_nasdaq.filterBtnActive   { border-color: var(--accent); color: var(--accent); background: rgba(20,184,166,0.1); }
+.mktBtn_nyse.filterBtnActive     { border-color: #60a5fa; color: #60a5fa; background: rgba(59,130,246,0.1); }
+.mktBtn_amex.filterBtnActive     { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
 
 /* ── TOOLTIP (th hover) ──────────────────────────── */
 .thTooltip { position: relative; }

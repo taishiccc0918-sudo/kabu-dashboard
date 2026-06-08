@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "refresh": "tsx scripts/refresh.ts",
+    "refresh:us": "tsx scripts/refresh-us.ts",
+    "refresh:us-master": "tsx scripts/refresh-us-master.ts",
     "refresh:news": "tsx scripts/refresh-news.ts",
     "refresh:logos": "tsx scripts/refresh-logos.ts",
     "edinet:probe": "tsx scripts/edinet-probe.ts",

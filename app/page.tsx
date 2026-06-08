@@ -307,7 +307,7 @@ export default function Page() {
   const [wlSearch, setWlSearch] = useState('')
   const [wlShowFavOnly, setWlShowFavOnly] = useState(false)
   const [wlShowHeartOnly, setWlShowHeartOnly] = useState(false)
-  const [wlMktF, setWlMktF] = useState<'all'|'prime'|'standard'|'growth'>('all')
+  const [wlMktF, setWlMktF] = useState<string>('all')
   const [wlPage, setWlPage] = useState(1)
   const [wlShowBulkAdd, setWlShowBulkAdd] = useState(false)
   const [wlBulkText, setWlBulkText] = useState('')
@@ -904,16 +904,20 @@ export default function Page() {
         for (const r of rows) { pDB[r.code] = r.price ?? { close: 0 }; if (r.fin) fDB[r.code] = r.fin; bDB[r.code] = r.per_band ?? null }
         const mDB: Record<string, MasterRecord> = {}
         for (const [code, rec] of Object.entries(listed as Record<string, { name: string; market: string }>)) if (rec?.name && rec?.market) mDB[code] = rec
-        setPriceDB(pDB); setFinDB(fDB); setPerBandDB(bDB)
-        if (Object.keys(mDB).length) setMasterDB(mDB)
         const meta = metaRes.data as { biz_date?: string; updated_at?: string } | null
         const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
-        // 日本株データセットを退避（米国へ往復切替したときに即復元するため）
+        // 日本株データセットを退避（米国へ往復切替したときに即復元するため・常にキャッシュ）
         marketDataRef.current.jp = { priceDB: pDB, finDB: fDB, perBandDB: bDB, masterDB: Object.keys(mDB).length ? mDB : masterDB, lastUpdate: biz }
-        setLastUpdate(biz); setDataLoaded(true); setStatus('ok'); cacheStaleRef.current = false
+        cacheStaleRef.current = false
         autoFetchedRef.current = true   // サーバー版で表示済み → 自動ライブ取得は抑止（再読込ボタンで手動更新可）
-        const upd = meta?.updated_at ? new Date(meta.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
-        setStatusMsg(`サーバー更新済み (${rows.length}銘柄 / 基準日 ${biz}${upd ? ` / ${upd}更新` : ''}) — 毎平日16:30に自動更新（引け後の決算開示・データ反映を待つため）。最新が必要なら「再読込」`)
+        // ロード完了が遅れて米国表示中に解決した場合に米国を上書きしないようガード
+        if (marketRef.current === 'jp') {
+          setPriceDB(pDB); setFinDB(fDB); setPerBandDB(bDB)
+          if (Object.keys(mDB).length) setMasterDB(mDB)
+          setLastUpdate(biz); setDataLoaded(true); setStatus('ok')
+          const upd = meta?.updated_at ? new Date(meta.updated_at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+          setStatusMsg(`サーバー更新済み (${rows.length}銘柄 / 基準日 ${biz}${upd ? ` / ${upd}更新` : ''}) — 毎平日16:30に自動更新（引け後の決算開示・データ反映を待つため）。最新が必要なら「再読込」`)
+        }
       } catch (e) {
         console.warn('[snapshot] 読込失敗 → ライブ取得にフォールバック', e)
         liveSuppressedRef.current = false
@@ -1019,10 +1023,40 @@ export default function Page() {
     }
   }, [])
 
+  // 日本株データを再読込（市場を往復したときの復元用）。stock_snapshot＋listed-info を読む。
+  const loadJpData = useCallback(async () => {
+    const sb = getSb()
+    try {
+      const [snapRes, listed] = await Promise.all([
+        sb ? sb.from('stock_snapshot').select('code, price, fin, per_band, biz_date') : Promise.resolve({ data: [] as unknown[] }),
+        fetch('/api/listed-info').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+      ])
+      const rows = ((snapRes as { data?: unknown[] }).data ?? []) as { code: string; price: PriceRecord; fin: FinRecord | null; per_band: PerBand | null; biz_date: string }[]
+      const metaRes = sb ? await sb.from('snapshot_meta').select('biz_date, updated_at').eq('id', 1).maybeSingle() : { data: null }
+      const pDB: Record<string, PriceRecord> = {}, fDB: Record<string, FinRecord> = {}, bDB: Record<string, PerBand | null> = {}
+      for (const r of rows) { pDB[r.code] = r.price ?? { close: 0 }; if (r.fin) fDB[r.code] = r.fin; bDB[r.code] = r.per_band ?? null }
+      const mDB: Record<string, MasterRecord> = {}
+      for (const [code, rec] of Object.entries(listed as Record<string, { name: string; market: string }>)) if (rec?.name && rec?.market) mDB[code] = rec
+      const meta = (metaRes as { data?: { biz_date?: string } }).data
+      const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
+      marketDataRef.current.jp = { priceDB: pDB, finDB: fDB, perBandDB: bDB, masterDB: Object.keys(mDB).length ? mDB : masterDB, lastUpdate: biz }
+      if (marketRef.current === 'jp') {
+        setPriceDB(pDB); setFinDB(fDB); setPerBandDB(bDB)
+        if (Object.keys(mDB).length) setMasterDB(mDB)
+        setLastUpdate(biz); setDataLoaded(true); setStatus('ok')
+      }
+    } catch (e) {
+      console.warn('[jp] 再読込失敗', e)
+      if (marketRef.current === 'jp') setStatus('error')
+    }
+  }, [masterDB])
+
   function switchMarket(target: 'jp'|'us') {
     if (target === marketRef.current) return
-    // 現在のデータセットを退避してから切替
-    marketDataRef.current[marketRef.current] = { priceDB, finDB, perBandDB, masterDB, lastUpdate }
+    // 現在のデータセットを退避（中身がある時だけ＝空で良いキャッシュを潰さない）
+    if (Object.keys(priceDB).length > 0) {
+      marketDataRef.current[marketRef.current] = { priceDB, finDB, perBandDB, masterDB, lastUpdate }
+    }
     marketRef.current = target
     setMarket(target)
     setDisplayMarket(target)
@@ -1031,12 +1065,14 @@ export default function Page() {
     setDetailCode(null)
     if (target === 'us' && tab === 'news') setTab('dashboard')   // ニュースは米国v1非対応
     const cached = marketDataRef.current[target]
-    if (cached) {
+    if (cached && Object.keys(cached.priceDB).length > 0) {
+      // キャッシュがあれば即復元（往復が瞬時）
       setPriceDB(cached.priceDB); setFinDB(cached.finDB); setPerBandDB(cached.perBandDB); setMasterDB(cached.masterDB); setLastUpdate(cached.lastUpdate)
-    } else if (target === 'us') {
+    } else {
+      // キャッシュ無し → 対象市場をSupabaseからロードしてDBが消えないようにする
       setPriceDB({}); setFinDB({}); setPerBandDB({}); setMasterDB({})
-      setStatus('loading'); setStatusMsg('米国株データを読み込み中…')
-      loadUsData()
+      setStatus('loading'); setStatusMsg(target === 'us' ? '米国株データを読み込み中…' : '日本株データを読み込み中…')
+      if (target === 'us') loadUsData(); else loadJpData()
     }
   }
 
@@ -1667,26 +1703,39 @@ export default function Page() {
                 onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
                 title="ウォッチ（目印）の銘柄だけ表示"
               ><EyeIcon on={wlShowFavOnly} size={16} /></button>
-              {/* PC: 市場ボタン群 */}
+              {/* PC: 市場ボタン群（市場で選択肢を切替）*/}
               <div className={`${styles.wlMktSegment} ${styles.spHide}`}>
-                {(['all','prime','standard','growth'] as const).map(k => (
+                {(market === 'us'
+                  ? [['all','全市場'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
+                  : [['all','全市場'],['prime','プライム'],['standard','スタンダード'],['growth','グロース']]
+                ).map(([k,label]) => (
                   <button key={k}
                     className={`${styles.wlMktBtn} ${styles['wlMktBtn_' + k]} ${wlMktF === k ? styles.wlMktBtnActive : ''}`}
                     onClick={() => { setWlMktF(k); setWlPage(1) }}
-                  >{{all:'全市場',prime:'プライム',standard:'スタンダード',growth:'グロース'}[k]}</button>
+                  >{label}</button>
                 ))}
               </div>
               {/* SP: 市場プルダウン＋ジャンルプルダウン（横スクロールのチップ列を廃止して統合） */}
               <select
                 className={`${styles.filterSelect} ${styles.wlMktSelect} ${wlMktF !== 'all' ? styles['filterSelect_' + wlMktF] : ''}`}
                 value={wlMktF}
-                onChange={e => { setWlMktF(e.target.value as 'all' | 'prime' | 'standard' | 'growth'); setWlPage(1) }}
+                onChange={e => { setWlMktF(e.target.value); setWlPage(1) }}
                 aria-label="市場で絞り込み"
               >
                 <option value="all">全市場</option>
-                <option value="prime">プライム</option>
-                <option value="standard">スタンダード</option>
-                <option value="growth">グロース</option>
+                {market === 'us' ? (
+                  <>
+                    <option value="nasdaq">NASDAQ</option>
+                    <option value="nyse">NYSE</option>
+                    <option value="amex">AMEX</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="prime">プライム</option>
+                    <option value="standard">スタンダード</option>
+                    <option value="growth">グロース</option>
+                  </>
+                )}
               </select>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
               <button
@@ -2122,9 +2171,7 @@ function StockManager({
       if (!rec) return false
       if (showFavOnly   && !favorites.has(code))      return false
       if (showHeartOnly && !superFavorites.has(code)) return false
-      if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
-      if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
-      if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+      if (mktF !== 'all' && marketShort(rec.market).cls !== mktF) return false
       if (genreFilters.size > 0) {
         const genres = stockMeta[code]?.genres ?? []
         const matchRegular = genres.some(g => genreFilters.has(g))
@@ -2198,9 +2245,7 @@ function StockManager({
         const rec = masterDB[c]
         if (!rec) return false
         // フィルター解除後の状態を考慮
-        if (mktF === 'prime'    && !rec.market.includes('プライム'))     return false
-        if (mktF === 'standard' && !rec.market.includes('スタンダード')) return false
-        if (mktF === 'growth'   && !rec.market.includes('グロース'))     return false
+        if (mktF !== 'all' && marketShort(rec.market).cls !== mktF) return false
         if (genreFilters.size > 0) {
           const genres = stockMeta[c]?.genres ?? []
           const matchRegular = genres.some(g => genreFilters.has(g))

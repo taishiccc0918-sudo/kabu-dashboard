@@ -1687,11 +1687,13 @@ export default function Page() {
             <div className={styles.wlTbRow2}>
               <button
                 className={`${styles.wlIconFilterBtn} ${styles.wlIconFilterBtnHeart} ${wlShowHeartOnly ? styles.wlIconFilterBtnHeartActive : ''}`}
+                style={{ color: wlShowHeartOnly ? '#f43f5e' : '#94a3b8', borderColor: wlShowHeartOnly ? '#f43f5e' : undefined }}
                 onClick={() => { setWlShowHeartOnly(h => !h); setWlPage(1) }}
                 title="超お気に入り（♥）のみ表示"
-              >♥</button>
+              >{wlShowHeartOnly ? '♥' : '♡'}</button>
               <button
                 className={`${styles.wlIconFilterBtn} ${wlShowFavOnly ? styles.wlIconFilterBtnActive : ''}`}
+                style={{ color: wlShowFavOnly ? '#fbbf24' : '#94a3b8', borderColor: wlShowFavOnly ? '#f59e0b' : undefined }}
                 onClick={() => { setWlShowFavOnly(f => !f); setWlPage(1) }}
                 title="ウォッチ（目印）の銘柄だけ表示"
               ><EyeIcon on={wlShowFavOnly} size={16} /></button>
@@ -1759,9 +1761,10 @@ export default function Page() {
             <div className={styles.filterGroup}>
               <button
                 className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
+                style={!filterHeart ? { color: '#94a3b8' } : undefined}
                 onClick={() => setFilterHeart(h => !h)}
                 title="超お気に入り（♥）銘柄のみ表示"
-              >♥</button>
+              >{filterHeart ? '♥' : '♡'}</button>
             </div>
             <div className={styles.filterDivider} />
             {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場）。市場で選択肢を切替 */}

@@ -1808,11 +1808,14 @@
   cursor: pointer; transition: all .12s; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.wlIconFilterBtn:hover { color: var(--text-1); border-color: var(--accent); background: rgba(20,184,166,0.1); }
+/* ホバーは色を変えない（ON/OFF表示を邪魔しない）＝わずかな背景のみ。
+   以前は hover でアクティブ色(赤/緑)になり、カーソル/タッチで色が残って
+   「押しても枠が赤/緑のまま」に見えていた。 */
+.wlIconFilterBtn:hover { background: rgba(255,255,255,0.07); }
 .wlIconFilterBtnActive {
   border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.15);
 }
-.wlIconFilterBtnHeart:hover { border-color: #f43f5e; color: #f43f5e; background: rgba(244,63,94,0.1); }
+.wlIconFilterBtnHeart:hover { background: rgba(244,63,94,0.05); }
 .wlIconFilterBtnHeartActive {
   border-color: #f43f5e !important; color: #f43f5e !important;
   background: rgba(244,63,94,0.12) !important;
@@ -2301,8 +2304,8 @@
 .heartBtn:active   { transform: scale(1.35); transition: transform 0.08s; }
 
 /* ── ハート/スターフィルターボタン（常時色付き） ──────── */
-.heartFilterBtn { color: #f43f5e !important; font-size: 16px; }
-.heartFilterBtn:hover { color: #fb7185 !important; background: rgba(244,63,94,0.08) !important; }
+.heartFilterBtn { color: #94a3b8 !important; font-size: 16px; }  /* OFF=灰色（♡）。ONは下のActiveで赤 */
+.heartFilterBtn:hover { background: rgba(244,63,94,0.08) !important; }
 .heartFilterBtnActive {
   border-color: #f43f5e !important;
   color: #fff !important;
@@ -3350,9 +3353,9 @@
 
 /* ── ライトモード: 銘柄管理ヘッダーフィルター ─── */
 .lightMode .wlIconFilterBtn { border-color: #94a3b8 !important; background: #f8fafc !important; color: #475569 !important; }
-.lightMode .wlIconFilterBtn:hover { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(15,118,110,0.07) !important; }
+.lightMode .wlIconFilterBtn:hover { background: rgba(15,118,110,0.06) !important; }
 .lightMode .wlIconFilterBtnActive { border-color: #d97706 !important; color: #b45309 !important; background: rgba(217,119,6,0.1) !important; }
-.lightMode .wlIconFilterBtnHeart:hover { border-color: #e11d48 !important; color: #e11d48 !important; background: rgba(225,29,72,0.07) !important; }
+.lightMode .wlIconFilterBtnHeart:hover { background: rgba(225,29,72,0.06) !important; }
 .lightMode .wlIconFilterBtnHeartActive { border-color: #e11d48 !important; color: #be123c !important; background: rgba(225,29,72,0.1) !important; }
 .lightMode .wlHeaderSearch { background: #fff !important; border-color: #94a3b8 !important; color: #1e293b !important; }
 .lightMode .wlHeaderSearch::placeholder { color: #94a3b8 !important; }

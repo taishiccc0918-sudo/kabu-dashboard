@@ -41,6 +41,37 @@ function getSb() {
   return _sbClient
 }
 
+// 米国ティッカー判定（英字始まり）。日本株コードは数字始まり。
+function isUsTicker(code: string): boolean { return /^[A-Za-z]/.test(code) }
+
+// 外部リンク（市場で行き先を切替）。米国株は米国の情報源へ（日本のkabutan/四季報は米国非対応＝壊れるため）。
+function externalLinks(code: string, name: string): { label: string; domain: string; href: string }[] {
+  if (isUsTicker(code)) {
+    const t = encodeURIComponent(code)
+    const q = encodeURIComponent((name || code) + ' stock')
+    return [
+      { label: 'Yahoo Finance', domain: 'finance.yahoo.com', href: `https://finance.yahoo.com/quote/${t}` },
+      { label: 'StockAnalysis', domain: 'stockanalysis.com', href: `https://stockanalysis.com/stocks/${t}/` },
+      { label: 'TradingView',   domain: 'tradingview.com',   href: `https://www.tradingview.com/symbols/${t}/` },
+      { label: 'SEC EDGAR',     domain: 'sec.gov',           href: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker=${t}&type=10-K&dateb=&owner=include&count=40` },
+      { label: 'X検索',         domain: 'x.com',             href: `https://x.com/search?q=%24${t}&f=live` },
+      { label: 'Google',        domain: 'google.com',        href: `https://www.google.com/search?q=${q}` },
+      { label: 'YouTube',       domain: 'youtube.com',       href: `https://www.youtube.com/results?search_query=${q}` },
+    ]
+  }
+  return [
+    { label: '四季報',      domain: 'shikiho.toyokeizai.net', href: `https://shikiho.toyokeizai.net/stocks/${code}` },
+    { label: 'かぶたん',    domain: 'kabutan.jp',             href: `https://kabutan.jp/stock/?code=${code}` },
+    { label: 'X検索',       domain: 'x.com',                  href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + name)}&f=live` },
+    { label: 'Yahoo Finance', domain: 'finance.yahoo.co.jp',  href: `https://finance.yahoo.co.jp/quote/${code}.T` },
+    { label: 'IRBank',      domain: 'irbank.net',            href: `https://irbank.net/${code}` },
+    { label: 'みんかぶ',    domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${code}` },
+    { label: 'バフェットコード', domain: 'buffett-code.com', href: `https://www.buffett-code.com/company/${code}` },
+    { label: 'TradingView', domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
+    { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code)}` },
+  ]
+}
+
 function localDateStr(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -51,6 +82,15 @@ const CACHE_STALE_MS = 12 * 60 * 60 * 1000 // 12時間でstale判定
 const GENRE_UNSET = '__UNSET__'              // ジャンル未設定フィルター用マーカー
 // 米国株のテーマ・グルーピング（市場フィルターの拡張）
 const MAG7 = new Set(['AAPL','MSFT','GOOGL','GOOG','AMZN','NVDA','META','TSLA'])  // Magnificent 7
+// NYSE FANG+ 指数の構成（10銘柄前後・指数の代表構成。時期で入替あり）
+const FANG_PLUS = new Set(['META','AAPL','AMZN','NFLX','GOOGL','GOOG','MSFT','NVDA','AMD','CRWD'])
+// 米国の市場/テーマ絞り込みキー → 判定関数（exchangeはmarketShortで判定）
+function usGroupMatch(key: string, r: { code: string; mcap: number }): boolean {
+  if (key === 'mag7') return MAG7.has(r.code)
+  if (key === 'fangplus') return FANG_PLUS.has(r.code)
+  if (key === 'mega') return r.mcap >= 1_000_000   // 時価総額$1T以上(USD百万)
+  return false
+}
 function getChartCache(code: string, mode: string): unknown[] | null {
   if (typeof window === 'undefined') return null
   try {
@@ -1161,6 +1201,20 @@ export default function Page() {
     return codes.map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta, perBandDB))
   }, [market, favorites, priceDB, finDB, masterDB, stockMeta, perBandDB])
 
+  // 市場フィルターの件数（読み込み済み銘柄ベース）。ボタンに「NASDAQ (12)」のように表示。
+  const mktCounts = useMemo(() => {
+    const c: Record<string, number> = { all: allRows.length }
+    if (market === 'us') {
+      c.mag7 = allRows.filter(r => MAG7.has(r.code)).length
+      c.fangplus = allRows.filter(r => FANG_PLUS.has(r.code)).length
+      c.mega = allRows.filter(r => r.mcap >= 1_000_000).length
+      for (const k of ['nasdaq','nyse','amex']) c[k] = allRows.filter(r => marketShort(r.market).cls === k).length
+    } else {
+      for (const k of ['prime','standard','growth']) c[k] = allRows.filter(r => marketShort(r.market).cls === k).length
+    }
+    return c
+  }, [allRows, market])
+
   const maxDiscDate = useMemo(() => {
     const dates = Object.values(finDB).map(f => f.discDate).filter(Boolean)
     return dates.length > 0 ? [...dates].sort().at(-1)! : ''
@@ -1177,9 +1231,9 @@ export default function Page() {
       if (filterHeart && !superFavorites.has(r.code)) return false
       if (filterFav   && !favorites.has(r.code))      return false
       if (mktFilter !== 'all') {
-        if (mktFilter === 'mag7') { if (!MAG7.has(r.code)) return false }
-        else if (mktFilter === 'mega') { if (!(r.mcap >= 1_000_000)) return false }  // 時価総額$1T以上(USD百万)
-        else if (marketShort(r.market).cls !== mktFilter) return false
+        if (mktFilter === 'mag7' || mktFilter === 'fangplus' || mktFilter === 'mega') {
+          if (!usGroupMatch(mktFilter, r)) return false
+        } else if (marketShort(r.market).cls !== mktFilter) return false
       }
       if (genreFilters.size > 0) {
         const matchRegular = r.genres.some(g => genreFilters.has(g))
@@ -1770,13 +1824,13 @@ export default function Page() {
             {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場）。市場で選択肢を切替 */}
             <div className={`${styles.filterGroup} ${styles.spHide}`}>
               {(market === 'us'
-                ? [['all','全市場'],['mag7','Magnificent7'],['mega','メガキャップ'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
+                ? [['all','全市場'],['fangplus','FANG+'],['mag7','Magnificent7'],['mega','メガキャップ'],['nasdaq','NASDAQ'],['nyse','NYSE'],['amex','AMEX']]
                 : [['all','全市場'],['prime','プライム'],['standard','スタンダード'],['growth','グロース']]
               ).map(([k,label]) => (
                 <button key={k}
                   className={`${styles.filterBtn} ${styles['mktBtn_'+k]} ${mktFilter === k ? styles.filterBtnActive : ''}`}
                   onClick={() => setMktFilter(k)}
-                >{label}</button>
+                >{label}{mktCounts[k] != null ? ` (${mktCounts[k]})` : ''}</button>
               ))}
             </div>
             <select
@@ -1785,20 +1839,21 @@ export default function Page() {
               onChange={e => setMktFilter(e.target.value)}
               aria-label="市場で絞り込み"
             >
-              <option value="all">全市場</option>
+              <option value="all">全市場 ({mktCounts.all ?? 0})</option>
               {market === 'us' ? (
                 <>
-                  <option value="mag7">Magnificent 7</option>
-                  <option value="mega">メガキャップ($1T+)</option>
-                  <option value="nasdaq">NASDAQ</option>
-                  <option value="nyse">NYSE</option>
-                  <option value="amex">AMEX</option>
+                  <option value="fangplus">FANG+ ({mktCounts.fangplus ?? 0})</option>
+                  <option value="mag7">Magnificent 7 ({mktCounts.mag7 ?? 0})</option>
+                  <option value="mega">メガキャップ$1T+ ({mktCounts.mega ?? 0})</option>
+                  <option value="nasdaq">NASDAQ ({mktCounts.nasdaq ?? 0})</option>
+                  <option value="nyse">NYSE ({mktCounts.nyse ?? 0})</option>
+                  <option value="amex">AMEX ({mktCounts.amex ?? 0})</option>
                 </>
               ) : (
                 <>
-                  <option value="prime">プライム</option>
-                  <option value="standard">スタンダード</option>
-                  <option value="growth">グロース</option>
+                  <option value="prime">プライム ({mktCounts.prime ?? 0})</option>
+                  <option value="standard">スタンダード ({mktCounts.standard ?? 0})</option>
+                  <option value="growth">グロース ({mktCounts.growth ?? 0})</option>
                 </>
               )}
             </select>
@@ -3094,17 +3149,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
     if (draft !== meta.memo) onSaveMeta({ ...meta, memo: draft, memoUpdatedAt: draft.trim() ? new Date().toISOString() : undefined })
   }
 
-  const links = [
-    { label: '四季報',      href: `https://shikiho.toyokeizai.net/stocks/${code}` },
-    { label: 'かぶたん',    href: `https://kabutan.jp/stock/?code=${code}` },
-    { label: 'Yahoo',       href: `https://finance.yahoo.co.jp/quote/${code}.T` },
-    { label: 'IRBank',      href: `https://irbank.net/${code}` },
-    { label: 'みんかぶ',   href: `https://minkabu.jp/stock/${code}` },
-    { label: 'バフェットコード', href: `https://www.buffett-code.com/company/${code}` },
-    { label: 'TradingView', href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
-    { label: 'X検索',       href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + rec.name)}&f=live` },
-    { label: '公式IR',      href: `https://www.google.com/search?q=${encodeURIComponent(code + ' ' + rec.name + ' IR 投資家情報')}` },
-  ]
+  const links = externalLinks(code, rec.name)
 
   return (
     <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
@@ -3208,17 +3253,7 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
       >🔗</button>
       {open && (
         <div className={styles.linkDropMenu}>
-          {[
-            { label: '四季報',      domain: 'shikiho.toyokeizai.net', href: `https://shikiho.toyokeizai.net/stocks/${code}` },
-            { label: 'かぶたん',    domain: 'kabutan.jp',             href: `https://kabutan.jp/stock/?code=${code}` },
-            { label: 'X検索',       domain: 'x.com',                  href: `https://x.com/search?q=${encodeURIComponent(code + ' ' + name)}&f=live` },
-            { label: 'Yahoo Finance', domain: 'finance.yahoo.co.jp',  href: `https://finance.yahoo.co.jp/quote/${code}.T` },
-            { label: 'IRBank',      domain: 'irbank.net',            href: `https://irbank.net/${code}` },
-            { label: 'みんかぶ',    domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${code}` },
-            { label: 'バフェットコード', domain: 'buffett-code.com', href: `https://www.buffett-code.com/company/${code}` },
-            { label: 'TradingView', domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${code}` },
-            { label: 'YouTube',     domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' ' + code)}` },
-          ].map(l => (
+          {externalLinks(code, name).map(l => (
             <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className={styles.linkDropItem}>
               <img className={styles.linkDropIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={16} height={16} loading="lazy" />
               <span>{l.label}</span>
@@ -4533,14 +4568,9 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
         </div>
       )}
       <div className={styles.cardLinks} onClick={e => e.stopPropagation()}>
-        <a className={styles.cardLinkBtn} href={`https://shikiho.toyokeizai.net/stocks/${r.code}`} target="_blank" rel="noopener noreferrer">四季報</a>
-        <a className={styles.cardLinkBtn} href={`https://kabutan.jp/stock/?code=${r.code}`} target="_blank" rel="noopener noreferrer">かぶたん</a>
-        <a className={styles.cardLinkBtn} href={`https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live`} target="_blank" rel="noopener noreferrer">X検索</a>
-        <a className={styles.cardLinkBtn} href={`https://finance.yahoo.co.jp/quote/${r.code}.T`} target="_blank" rel="noopener noreferrer">Yahoo</a>
-        <a className={styles.cardLinkBtn} href={`https://irbank.net/${r.code}`} target="_blank" rel="noopener noreferrer">IRBank</a>
-        <a className={styles.cardLinkBtn} href={`https://minkabu.jp/stock/${r.code}`} target="_blank" rel="noopener noreferrer">みんかぶ</a>
-        <a className={styles.cardLinkBtn} href={`https://www.buffett-code.com/company/${r.code}`} target="_blank" rel="noopener noreferrer">バフェットコード</a>
-        <a className={styles.cardLinkBtn} href={`https://jp.tradingview.com/chart/?symbol=TSE:${r.code}`} target="_blank" rel="noopener noreferrer">TradingView</a>
+        {externalLinks(r.code, r.name || '').map(l => (
+          <a key={l.label} className={styles.cardLinkBtn} href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
+        ))}
       </div>
     </div>
   )
@@ -5703,17 +5733,7 @@ function DetailPanel({
       </Section>
       <Section title="リンク">
         <div className={styles.detailLinks}>
-          {[
-            { label: '四季報',     domain: 'shikiho.toyokeizai.net', href: `https://shikiho.toyokeizai.net/stocks/${r.code}` },
-            { label: 'かぶたん',   domain: 'kabutan.jp',             href: `https://kabutan.jp/stock/?code=${r.code}` },
-            { label: 'X検索',      domain: 'x.com',                  href: `https://x.com/search?q=${encodeURIComponent(r.code + ' ' + (r.name || ''))}&f=live` },
-            { label: 'Yahoo',      domain: 'finance.yahoo.co.jp',    href: `https://finance.yahoo.co.jp/quote/${r.code}.T` },
-            { label: 'IRBank',     domain: 'irbank.net',            href: `https://irbank.net/${r.code}` },
-            { label: 'みんかぶ',   domain: 'minkabu.jp',            href: `https://minkabu.jp/stock/${r.code}` },
-            { label: 'バフェットコード', domain: 'buffett-code.com', href: `https://www.buffett-code.com/company/${r.code}` },
-            { label: 'TradingView',domain: 'tradingview.com',       href: `https://jp.tradingview.com/chart/?symbol=TSE:${r.code}` },
-            { label: 'YouTube',    domain: 'youtube.com',           href: `https://www.youtube.com/results?search_query=${encodeURIComponent((r.name || '') + ' ' + r.code)}` },
-          ].map(l => (
+          {externalLinks(r.code, r.name || '').map(l => (
             <a key={l.label} className={styles.detailLinkBtn} href={l.href} target="_blank" rel="noopener noreferrer">
               <img className={styles.detailLinkIcon} src={`https://www.google.com/s2/favicons?domain=${l.domain}&sz=64`} alt="" width={18} height={18} loading="lazy" />
               <span className={styles.detailLinkLabel}>{l.label}</span>

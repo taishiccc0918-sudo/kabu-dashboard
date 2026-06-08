@@ -1603,6 +1603,8 @@
 .mktBtn_nyse.filterBtnActive     { border-color: #60a5fa; color: #60a5fa; background: rgba(59,130,246,0.1); }
 .mktBtn_amex.filterBtnActive     { border-color: #a78bfa; color: #a78bfa; background: rgba(139,92,246,0.1); }
 .mktBtn_mag7.filterBtnActive     { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.12); }
+.mktBtn_fangplus.filterBtnActive { border-color: #8b5cf6; color: #a78bfa; background: rgba(139,92,246,0.12); }
+.filterSelect_fangplus { color: #a78bfa; border-color: #8b5cf6; background: rgba(139,92,246,0.12); }
 .mktBtn_mega.filterBtnActive     { border-color: #f43f5e; color: #f43f5e; background: rgba(244,63,94,0.10); }
 .filterSelect_mag7   { color: #f59e0b; border-color: #f59e0b; background: rgba(245,158,11,0.12); }
 .filterSelect_mega   { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,0.10); }

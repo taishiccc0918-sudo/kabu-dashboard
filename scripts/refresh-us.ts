@@ -14,8 +14,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { buildPerBand } from '../app/lib/perBand'
 import {
-  fetchCompanyFacts, buildFinUS, fetchUsDaily, buildPriceUS, fetchFmpForwardEps, usSleep,
+  fetchCompanyFacts, buildFinUS, fetchUsDaily, buildPriceUS, fetchFmpForwardEps, usSleep, fetchSecSic,
 } from '../app/lib/usApi'
+import { SP500, NDX100 } from '../app/lib/usIndices'
 
 function normalizeUrl(raw: string): string {
   let u = (raw ?? '').trim().replace(/^["'`\s]+|["'`\s]+$/g, '').replace(/\s+/g, '').replace(/\/+$/, '')
@@ -62,8 +63,8 @@ async function getUniverse(): Promise<{ ticker: string; cik: string }[]> {
     for (const r of chunk) if (r.ticker && r.cik) cikByTicker.set(r.ticker, r.cik)
     if (chunk.length < 1000) break
   }
-  // お気に入り（US:）を追加
-  const set = new Set<string>(TOP_US)
+  // 深掘り対象 = TOP_US ∪ S&P500 ∪ NASDAQ100 ∪ お気に入り（約550社・全て時価総額＋全指標が付く）
+  const set = new Set<string>([...TOP_US, ...SP500, ...NDX100])
   try {
     const { data } = await sb.from('favorites').select('code').like('code', 'US:%')
     for (const r of (data ?? []) as { code: string }[]) {
@@ -110,7 +111,10 @@ async function refreshOne(ticker: string, cik: string, fromISO: string, toISO: s
 
   // マスターに mcap を反映（時価総額の表示に使用）
   const mcap = price.mcap ?? 0
-  return { ticker, cik, price, fin, per_band: band, mcap }
+  // 業種(SIC)＝簡易「事業内容」
+  let sicLabel = '', sic = ''
+  try { const s = await fetchSecSic(cik); if (s) { sicLabel = s.sicLabel; sic = s.sic } } catch { /* noop */ }
+  return { ticker, cik, price, fin, per_band: band, mcap, sic, sicLabel }
 }
 
 async function main() {
@@ -143,11 +147,16 @@ async function main() {
     for (const r of results) {
       if (!r) continue
       rows.push({ ticker: r.ticker, price: r.price, fin: r.fin, per_band: r.per_band, biz_date: bizDate, updated_at: new Date().toISOString() })
-      if (r.mcap > 0) masterUpd.push({ ticker: r.ticker, mcap: r.mcap, updated_at: new Date().toISOString() })
+      if (r.mcap > 0 || r.sicLabel) {
+        const m: Record<string, unknown> = { ticker: r.ticker, updated_at: new Date().toISOString() }
+        if (r.mcap > 0) m.mcap = r.mcap
+        if (r.sicLabel) { m.sic = r.sic; m.sic_label = r.sicLabel }
+        masterUpd.push(m)
+      }
     }
     done += batch.length
     if (done % 20 === 0 || done >= universe.length) console.log(`  ${Math.min(done, universe.length)}/${universe.length}`)
-    await usSleep(250) // EDGAR ≤10req/s ＆ Stooq への配慮
+    await usSleep(350) // EDGAR ≤10req/s（companyfacts＋submissionsで1社2回）＆ 配慮
   }
 
   for (let i = 0; i < rows.length; i += 25) {

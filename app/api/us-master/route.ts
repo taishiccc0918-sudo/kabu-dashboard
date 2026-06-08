@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
     const sb = createClient(url, anon, { auth: { persistSession: false } })
     const PAGE = 1000
     const MAX_PAGES = 30
-    const out: Record<string, { name: string; market: string; mcap: number | null }> = {}
+    const out: Record<string, { name: string; market: string; mcap: number | null; sicLabel: string | null }> = {}
     for (let p = 0; p < MAX_PAGES; p++) {
       const { data, error } = await sb
         .from('us_master')
@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest) {
       const chunk = (data ?? []) as Row[]
       for (const r of chunk) {
         if (!r.ticker) continue
-        out[r.ticker] = { name: r.name ?? r.ticker, market: r.exchange ?? '', mcap: r.mcap ?? null }
+        out[r.ticker] = { name: r.name ?? r.ticker, market: r.exchange ?? '', mcap: r.mcap ?? null, sicLabel: r.sic_label ?? null }
       }
       if (chunk.length < PAGE) break
     }

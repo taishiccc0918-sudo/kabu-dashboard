@@ -150,5 +150,6 @@ export function buildStockRow(
     nySalesGr:  f?.nySalesGr ?? null,
     judgment:   '',  // [旧: getJudgment(perFAt(prev1m)) → page.tsx の判定エンジンに移行]
     perBand:    perBandDB?.[code] ?? null,
+    sicLabel:   m?.sicLabel,
   }
 }

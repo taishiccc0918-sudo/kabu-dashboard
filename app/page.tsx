@@ -1050,7 +1050,7 @@ export default function Page() {
       const pDB: Record<string, PriceRecord> = {}, fDB: Record<string, FinRecord> = {}, bDB: Record<string, PerBand | null> = {}
       for (const r of rows) { pDB[r.ticker] = r.price ?? { close: 0 }; if (r.fin) fDB[r.ticker] = r.fin; bDB[r.ticker] = r.per_band ?? null }
       const mDB: Record<string, MasterRecord> = {}
-      for (const [t, rec] of Object.entries(masterJson as Record<string, { name: string; market: string }>)) if (rec?.name) mDB[t] = { name: rec.name, market: rec.market ?? '' }
+      for (const [t, rec] of Object.entries(masterJson as Record<string, { name: string; market: string; sicLabel?: string }>)) if (rec?.name) mDB[t] = { name: rec.name, market: rec.market ?? '', sicLabel: rec.sicLabel ?? undefined }
       for (const r of rows) if (!mDB[r.ticker]) mDB[r.ticker] = { name: r.ticker, market: '' }
       const meta = (metaRes as { data?: { biz_date?: string } }).data
       const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
@@ -5665,6 +5665,7 @@ function DetailPanel({
       </div>
       <div className={styles.detailBadgeRow}>
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
+        {r.sicLabel && <span className={styles.detailSic} title="SEC業種（事業内容の目安）">{r.sicLabel}</span>}
       </div>
       <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
         {r.close ? r.close.toLocaleString() : '—'}

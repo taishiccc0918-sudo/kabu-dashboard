@@ -144,6 +144,21 @@ function latestVal(cf: CompanyFacts, candidates: string[], unit: string, opts: {
   return arr.length ? arr[arr.length - 1].val : 0
 }
 
+// SEC submissions から業種（SIC説明）を取得＝米国版の簡易「事業内容」。
+// 例: 'Semiconductors & Related Devices' / 'Electronic Computers'。
+export async function fetchSecSic(cik: string): Promise<{ sic: string; sicLabel: string } | null> {
+  const padded = String(cik).replace(/\D/g, '').padStart(10, '0')
+  const url = `https://data.sec.gov/submissions/CIK${padded}.json`
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': SEC_UA, 'Accept-Encoding': 'gzip, deflate' } })
+    if (!res.ok) return null
+    const j = await res.json() as { sic?: string; sicDescription?: string }
+    const sicLabel = (j.sicDescription ?? '').trim()
+    if (!sicLabel) return null
+    return { sic: String(j.sic ?? ''), sicLabel }
+  } catch { return null }
+}
+
 // FinRecord 形に組み立てる（日本株と同じ構造・予想系はnull）。fyEps はバンドのレール用。
 export function buildFinUS(cf: CompanyFacts): { fin: FinRecord; shOut: number } {
   const eps    = latestVal(cf, ['EarningsPerShareDiluted', 'EarningsPerShareBasic', 'IncomeLossFromContinuingOperationsPerDilutedShare'], 'USD/shares')

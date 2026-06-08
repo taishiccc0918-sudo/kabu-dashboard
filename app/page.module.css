@@ -2282,16 +2282,16 @@
 /* ── ハートボタン（超お気に入り）─────────────────── */
 .heartBtn {
   background: none; border: none; cursor: pointer;
-  font-size: 13px; padding: 2px 2px;
-  color: rgba(156,163,175,0.3);
+  font-size: 15px; padding: 2px 2px;
+  color: #94a3b8;   /* OFF: はっきり見える灰色の輪郭♡（押せると分かる） */
   transition: color .1s, transform .1s;
   line-height: 1;
 }
 .heartBtn:hover { color: #f472b6; transform: scale(1.15); }
 .heartBtnOn {
   background: none; border: none; cursor: pointer;
-  font-size: 13px; padding: 2px 2px;
-  color: #f43f5e;
+  font-size: 15px; padding: 2px 2px;
+  color: #f43f5e;   /* ON: 赤の塗りつぶし♥ */
   transition: color .1s, transform .15s;
   line-height: 1;
 }

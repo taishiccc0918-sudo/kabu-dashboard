@@ -385,22 +385,9 @@ export default function Page() {
     }).catch(() => { /* 失敗しても無害 */ })
     return () => { cancelled = true }
   }, [])
-  // 廃番・コード変更で一覧に無くなったお気に入り（名称未取得）を自動掃除。
-  // ガード: 上場一覧が十分ロードされている時のみ実行（誤って全消ししないため）。
-  // ★重要: お気に入りSetは日米共有なので、「いま表示中の市場のコードだけ」を掃除対象にする。
-  //   さもないと米国表示中(masterDB=米国)に日本株のお気に入りが全部「一覧に無い」と誤判定され消える。
-  //   日本コードは数字始まり / 米国ティッカーは英字始まりで分離する。
-  useEffect(() => {
-    if (Object.keys(masterDB).length < 3000) return
-    const inThisMarket = (c: string) => market === 'us' ? /^[A-Za-z]/.test(c) : /^[0-9]/.test(c)
-    const orphans = Array.from(new Set([...favorites, ...superFavorites]))
-      .filter(c => inThisMarket(c) && !masterDB[c])
-    if (orphans.length === 0) return
-    setFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('favorites', Array.from(n)); return n })
-    setSuperFavorites(prev => { const n = new Set(prev); orphans.forEach(c => n.delete(c)); lsSet('superFavorites', Array.from(n)); return n })
-    orphans.forEach(c => { sbSyncFav(c, 'star', false); sbSyncFav(c, 'heart', false) })
-    console.log('[cleanup] 一覧に無いお気に入りを削除しました:', orphans)
-  }, [masterDB, favorites, superFavorites, market])
+  // ［廃止］お気に入りの自動掃除（廃番コードの除去）は、日米切替でお気に入りを誤削除する
+  //   事故を繰り返したため撤去。削除は手動操作のみとし、データ消失リスクをゼロにする。
+  //   （一覧に無い銘柄は名称未取得で表示されるだけ＝無害。必要なら将来「表示時だけ非表示」で対応）
 
   // ── Ctrl+Z でタブ履歴を戻る ────────────────────────────────────────
   const [tabHistory, setTabHistory] = useState<TabKey[]>([])
@@ -3123,7 +3110,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>{isSuperFav ? '♥' : '♡'}</button>
         <button onClick={onToggleFav}
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}
-          style={isFav && isSuperFav ? { color: '#f97316' } : undefined}><EyeIcon on={isFav} size={16} /></button>
+          ><EyeIcon on={isFav} size={16} /></button>
         <span className={styles.wlMobileCode} {...nameDragProps}>{code}</span>
         {/* 銘柄名：タップでリンク展開／長押しでドラッグ並べ替え */}
         <span
@@ -3292,8 +3279,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
           <button
             onClick={onToggleFav}
             className={isFav ? styles.favBtnOn : styles.favBtn}
-            style={isFav && isSuperFav ? { color: '#f97316' } : undefined}
-            title={isFav ? (isSuperFav ? 'ウォッチ中（♥+👁）— 解除' : 'ウォッチ解除') : 'ウォッチ（目印）に追加'}
+            title={isFav ? 'ウォッチ解除' : 'ウォッチ（目印）に追加'}
           ><EyeIcon on={isFav} size={16} /></button>
         </td>
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>

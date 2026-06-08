@@ -392,6 +392,7 @@ export default function Page() {
   // よく開く銘柄は詳細を開いた瞬間に0秒表示になる。プロキシのレート制限(60/分)に余裕を持たせ約40件/分で実行。
   useEffect(() => {
     if (chartPrefetchedRef.current) return
+    if (marketRef.current === 'us') return  // 米国はチャートを/api/us-chartで都度取得（J-Quants先読み不要）
     if (!dataLoaded || !(apiKey || serverHasKey)) return
     const mode = globalChartMode
     // ♥（よく見る）を優先し、続けて★も先読み。未キャッシュのみ。
@@ -3540,8 +3541,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
   code: string; apiKey: string; serverHasKey?: boolean; refreshKey?: number
   mode: ChartMode; onModeChange: (m: ChartMode) => void
 }) {
-  // サーバーにJ-Quantsキーがあれば、クライアントキー未入力でもプロキシ経由で取得できる
-  const canFetch = !!apiKey || serverHasKey
+  // 米国株はYahoo経由(/api/us-chart)で取得＝J-Quantsキー不要。日本株はJ-Quants(キー/サーバーキー)。
+  const isUs = isUsTicker(code)
+  const canFetch = isUs || !!apiKey || serverHasKey
   const [cachedData, setCachedData] = useState<Record<ChartMode, SeriesData[] | null>>({ '3months': null, '1year': null, '3years': null })
   const [errored, setErrored] = useState<Record<ChartMode, boolean>>({ '3months': false, '1year': false, '3years': false })
   const [chartLoading, setChartLoading] = useState(false)
@@ -3596,7 +3598,9 @@ function MiniChart({ code, apiKey, serverHasKey = false, refreshKey = 0, mode, o
     const toStr = fmt(today)
     const idxInterval: 'd'|'w' = mode === '3years' ? 'w' : 'd'
     const path = encodeURIComponent(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`)
-    const url = `/api/jquants?path=${path}`
+    const url = isUs
+      ? `/api/us-chart?ticker=${encodeURIComponent(code)}&from=${fromStr}&to=${toStr}`
+      : `/api/jquants?path=${path}`
     // 自社株の日足をパース（3ヶ月/1年=日次、3年=週次サンプリング）
     const parseStock = (json: unknown): { prices: number[]; dates: string[] } => {
       const fromISO = `${fromStr.slice(0,4)}-${fromStr.slice(4,6)}-${fromStr.slice(6,8)}`

@@ -441,6 +441,8 @@
 }
 .marketToggleBtn:hover { color: var(--text-1); }
 .marketToggleActive { background: var(--accent); color: #fff; }
+/* カナ表示トグル（単独ボタンなので枠をつける）*/
+.kanaToggleBtn { border: 1px solid var(--line); border-radius: var(--r-pill, 999px); margin-right: 8px; min-width: 34px; }
 
 /* ロゴは絶対に消さない（トグル追加で横幅が増えても左上ロゴを最優先で確保） */
 .logo { flex-shrink: 0; }

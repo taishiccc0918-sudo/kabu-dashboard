@@ -10,6 +10,7 @@ import {
 import { buildPerBand, PerBand, FyEps } from './lib/perBand'
 import { buildStockRow, fmtN, fmtPct, pctClass, pctBg, pctCellColor, marketShort, daysSince, isDataStale, halfWidthAscii, fmtMcap, setDisplayMarket } from './lib/format'
 import { SP500, NDX100 } from './lib/usIndices'
+import { usName, setKanaMode } from './lib/usKatakana'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 
@@ -290,6 +291,7 @@ export default function Page() {
   }
   const marketDataRef = useRef<{ jp?: MarketDataset; us?: MarketDataset }>({})
   const usLoadedRef = useRef(false)
+  const [kanaMode, setKanaModeState] = useState(false)  // 米国株名のカタカナ表示
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
   const [mcapMin,    setMcapMin]    = useState<string>('')
   const [perFMax,    setPerFMax]    = useState<string>('')
@@ -658,6 +660,7 @@ export default function Page() {
   useEffect(() => {
     const savedDark = localStorage.getItem('darkMode')
     if (savedDark !== null) setDarkMode(savedDark !== 'false')
+    const savedKana = ls<boolean>('kanaMode', false); setKanaMode(savedKana); setKanaModeState(savedKana)  // カナ表示の復元
     themeLoaded.current = true  // 読込完了後のみ保存を許可（以後のトグルは永続化）
     // 並べ替えの復元（最後に選んだ順を維持）
     const savedSortKey = ls<SortKeyEx | null>('sortKey', null)
@@ -1029,6 +1032,8 @@ export default function Page() {
 
   // ── 市場切替（日本株 ⇄ 米国株）─────────────────────────────────
   useEffect(() => { setDisplayMarket(market) }, [market])
+  // カナ表示モードをモジュールへ反映＋永続化（表示用関数 usName が参照）
+  useEffect(() => { setKanaMode(kanaMode); if (themeLoaded.current) lsSet('kanaMode', kanaMode) }, [kanaMode])
 
   const loadUsData = useCallback(async () => {
     const sb = getSb()
@@ -1588,6 +1593,13 @@ export default function Page() {
               title="米国株を表示"
             >🇺🇸 米国株</button>
           </div>
+          {market === 'us' && (
+            <button
+              className={`${styles.marketToggleBtn} ${styles.kanaToggleBtn} ${kanaMode ? styles.marketToggleActive : ''}`}
+              onClick={() => { const nv = !kanaMode; setKanaMode(nv); setKanaModeState(nv) }}
+              title="社名をカタカナ表示に切替（主要銘柄のみ。辞書に無い銘柄は英語のまま）"
+            >{kanaMode ? 'A' : 'カナ'}</button>
+          )}
           {!apiKey && !serverHasKey && (
             <button className={styles.apiKeyWarning} onClick={() => setShowSettings(true)} title="⚙ をクリックしてAPIキーを設定してください">
               ⚙ APIキー未設定
@@ -3342,7 +3354,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
           ><EyeIcon on={isFav} size={16} /></button>
         </td>
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
-        <td className={styles.wlTd}><span className={styles.wlTdName}>{rec.name}</span></td>
+        <td className={styles.wlTd}><span className={styles.wlTdName}>{usName(code, rec.name)}</span></td>
         <td className={styles.wlTd}>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </td>
@@ -4280,7 +4292,7 @@ function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onT
           {isSuperFav ? '♥' : '♡'}
         </button>
         <span className={styles.spRowId}>
-          <span className={styles.spRowName}>{r.name || '—'}</span>
+          <span className={styles.spRowName}>{usName(r.code, r.name) || '—'}</span>
           <span className={styles.spRowMeta}>
             <span className={styles.spRowCode}>{r.code}</span>
             <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
@@ -4447,7 +4459,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </div>
-        <div className={styles.mobileName}>{r.name || '—'}</div>
+        <div className={styles.mobileName}>{usName(r.code, r.name) || '—'}</div>
         <div className={styles.mobileMetaRow}>
           <span className={styles.mobileMetaItem}>PER {r.perF ? fmtN(r.perF) : '—'}</span>
           <span className={styles.mobileMetaItem}>PBR {r.pbr ? fmtN(r.pbr) : '—'}</span>
@@ -4538,7 +4550,7 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
       <div className={styles.cardHeader}>
         <div>
           <div className={styles.cardCode}>{r.code}</div>
-          <div className={styles.cardName}>{r.name || '—'}</div>
+          <div className={styles.cardName}>{usName(r.code, r.name) || '—'}</div>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
           {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
@@ -5638,7 +5650,7 @@ function DetailPanel({
         <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={44} radius={10} />
         <div className={styles.detailHeadText}>
           <div className={styles.detailCode}>{r.code}</div>
-          <div className={styles.detailName}>{r.name || '—'}</div>
+          <div className={styles.detailName}>{usName(r.code, r.name) || '—'}</div>
         </div>
       </div>
       <div className={styles.detailBadgeRow}>

@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 
 // 全米上場マスター（us_master）を全件返す。日本株の /api/listed-info に相当。
 // 件数が多い(~10k)ため range でページ分割して集める。匿名キーで読み取り（公開データ）。
-export const revalidate = 86400 // 1日キャッシュ（マスターは週次更新）
+// 注意: ビルド時に静的プリレンダされると「テーブル空のまま固定」されてしまうため force-dynamic。
+// クライアントは1セッション1回しか呼ばないので毎リクエストSupabase照会でも負荷は小さい。
+export const dynamic = 'force-dynamic'
 
 type Row = { ticker: string; name: string | null; exchange: string | null; mcap: number | null; sic_label: string | null }
 

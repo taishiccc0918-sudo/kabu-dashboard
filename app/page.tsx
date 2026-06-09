@@ -2260,6 +2260,8 @@ function StockManager({
   const [wlHighlightCode,   setWlHighlightCode]   = useState<string | null>(null)
   // K4: パネル開閉を親で一本化（同時に1つだけ開く＝別の行を開くと前のは閉じる）
   const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
+  // 検索ワードを変えたら開いているジャンル/メモ等のパネルを閉じる（次の銘柄を探しやすく）
+  useEffect(() => { setOpenPanel(null) }, [wlSearch])
   // 列見出し「ジャンル」タップでジャンルごとにグルーピング表示
   const [groupByGenre, setGroupByGenre] = useState(false)
   const wlListRef = useRef<HTMLDivElement>(null)
@@ -5699,6 +5701,8 @@ function DetailPanel({
   const [editingDate, setEditingDate] = useState(false)
   const [dateVal, setDateVal] = useState(earningsDate)
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
+  // 未登録（財務データも株価も無い）＝検索で開いただけの銘柄。空欄だらけにせず案内に切替。
+  const noData = !f && !(r.close && r.close > 0)
 
   useEffect(() => { setLocalMemo(memo) }, [memo])
 
@@ -5717,14 +5721,26 @@ function DetailPanel({
         <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         {r.sicLabel && <span className={styles.detailSic} title="SEC業種（事業内容の目安）">{r.sicLabel}</span>}
       </div>
-      <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
-        {r.close ? r.close.toLocaleString() : '—'}
-      </div>
-      <div className={styles.detailSubPrice}>
-        前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
-      </div>
+      {noData && (
+        <div className={styles.detailUnregistered}>
+          この銘柄はまだ登録されていません。<br />
+          <b>★（目印）を押して登録</b>すると、<b>次回のデータ更新後</b>に株価・指標・チャートが表示されます。<br />
+          下の<b>リンク</b>は今すぐ使えます。
+        </div>
+      )}
+      {!noData && (
+        <div className={`${styles.detailPrice} ${styles[pctClass(r.chg1d)]}`}>
+          {r.close ? r.close.toLocaleString() : '—'}
+        </div>
+      )}
+      {!noData && (
+        <div className={styles.detailSubPrice}>
+          前日比: <span className={styles[pctClass(r.chg1d)]}>{fmtPct(r.chg1d)}</span>
+        </div>
+      )}
       {r.bizDesc && <Section title="事業内容"><div className={styles.detailBizDesc}>{r.bizDesc}</div></Section>}
-      <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} serverHasKey={serverHasKey} mode={chartMode} onModeChange={onChartModeChange} /></Section>
+      {!noData && <Section title="チャート"><MiniChart code={r.code} apiKey={apiKey} serverHasKey={serverHasKey} mode={chartMode} onModeChange={onChartModeChange} /></Section>}
+      {!noData && (
       <Section title="株価変化率">
         <Grid2 items={[
           ['前日比', r.chg1d, fmtPct(r.chg1d), pctClass(r.chg1d)],
@@ -5733,6 +5749,8 @@ function DetailPanel({
           ['1年',    r.chg1y, fmtPct(r.chg1y), pctClass(r.chg1y)],
         ]} />
       </Section>
+      )}
+      {!noData && (
       <Section title="PER位置（過去1年レンジ）">
         <div style={{ margin: '2px 0 12px' }}><PerBandBar band={r.perBand} likePer={r.likePer} big /></div>
         <Grid2 items={[
@@ -5742,6 +5760,8 @@ function DetailPanel({
           ['1年の最高PER', null, r.perBand?.highPER != null ? fmtN(r.perBand.highPER) + '倍' : '—', ''],
         ]} />
       </Section>
+      )}
+      {!noData && (
       <Section title="バリュー指標">
         <Grid2 items={[
           ['PBR',        null, r.pbr  ? fmtN(r.pbr)  : '—', ''],
@@ -5749,10 +5769,11 @@ function DetailPanel({
           ['配当利回り', null, r.divY ? fmtPct(r.divY): '—', r.divY && r.divY > 0.03 ? 'up' : ''],
           ['EPS今期成長率',null, r.epsCurGr !== null ? fmtPct(r.epsCurGr) : '—', pctClass(r.epsCurGr)],
           ['PEGレシオ',  null, r.peg  ? fmtN(r.peg,2) : '—', r.peg != null && r.peg > 0 && r.peg < 1 ? 'up' : ''],
-          ['時価総額(億)',null, r.mcap ? r.mcap.toLocaleString() : '—', ''],
+          ['時価総額',   null, r.mcap ? fmtMcap(r.mcap) : '—', ''],
           ['来期売上成長',null, r.nySalesGr !== null ? fmtPct(r.nySalesGr) : '—', pctClass(r.nySalesGr)],
         ]} />
       </Section>
+      )}
       {f && (
         <Section title={`財務データ${f.discDate ? ` (開示: ${f.discDate})` : ''}`}>
           <Grid2 items={[
@@ -5765,7 +5786,7 @@ function DetailPanel({
           ]} />
         </Section>
       )}
-      {!isUsTicker(r.code) && <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>}
+      {!isUsTicker(r.code) && !noData && <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>}
       <Section title="メモ">
         <textarea className={styles.detailMemo} value={localMemo}
           onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />

@@ -447,6 +447,7 @@
 .detailSic { display: inline-block; margin-left: 8px; padding: 2px 8px; font-size: 11.5px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); }
 .detailBizDesc { font-size: 13px; line-height: 1.7; color: var(--text-1); }
 .newsTitleEn { font-size: 11px; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+.detailUnregistered { margin: 10px 0 4px; padding: 12px 14px; font-size: 13px; line-height: 1.7; color: var(--text-2); background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: 10px; }
 /* 読み込み中（経過秒つき） */
 .loadingProgress { display: inline-flex; align-items: center; gap: 10px; padding: 18px 8px; color: var(--text-2); font-size: 13.5px; }
 .loadingSpinner { width: 16px; height: 16px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: kabuSpin 0.8s linear infinite; flex-shrink: 0; }

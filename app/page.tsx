@@ -1713,6 +1713,14 @@ export default function Page() {
               title="時価総額・PBR・ROE・営業利益率・配当・EPS成長率 の表示を切替（PC表のみ）"
               style={{padding:'4px 10px'}}
             >{showDetail ? '指標を絞る' : '＋ 詳細指標'}</button>
+            {market === 'us' && (
+              <button
+                className={`${styles.filterToggleBtn} ${kanaMode ? styles.filterToggleBtnActive : ''}`}
+                onClick={() => { const nv = !kanaMode; setKanaMode(nv); setKanaModeState(nv) }}
+                title="社名を英語⇄カタカナ表示（全社対応）"
+                style={{padding:'4px 10px'}}
+              >{kanaMode ? 'Ａ 英語' : 'ア カナ'}</button>
+            )}
           </>
         )}
         {tab === 'card' && (

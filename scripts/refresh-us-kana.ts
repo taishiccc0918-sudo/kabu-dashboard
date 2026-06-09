@@ -87,11 +87,22 @@ async function geminiKana(batch: { ticker: string; name: string }[]): Promise<Re
     '・余計な注釈は付けない。\n\n' + list
   const model = await resolveModel()
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
-  const res = await fetch(url, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 4096 } }),
-  })
-  if (!res.ok) throw new Error(`gemini ${res.status}`)
+  // タイムアウト(ハング防止)＋429/503はバックオフ再試行（レート制限対策）
+  let res: Response | null = null
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const ctrl = new AbortController()
+    const to = setTimeout(() => ctrl.abort(), 45000)
+    try {
+      res = await fetch(url, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctrl.signal,
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 4096 } }),
+      })
+    } catch (e) { clearTimeout(to); if (attempt === 4) throw e; await sleep(3000 * (attempt + 1)); continue }
+    clearTimeout(to)
+    if (res.status === 429 || res.status === 503 || res.status === 500) { await sleep(8000 * (attempt + 1)); continue }
+    break
+  }
+  if (!res || !res.ok) throw new Error(`gemini ${res?.status ?? 'no-res'}`)
   const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
   let text = (json.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? '').join('').trim()
   text = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim()
@@ -117,7 +128,7 @@ async function main() {
     } catch (e) { console.warn(`[chunk ${i}] ${(e as Error).message}`) }
     done += batch.length
     if (done % 600 === 0 || done >= pending.length) console.log(`  ${Math.min(done, pending.length)}/${pending.length}（生成 ${updates.length}）`)
-    await sleep(1200) // Gemini レート配慮
+    await sleep(4500) // Gemini 無料枠のRPM制限に配慮（約13req/分）
     // 逐次保存（途中失敗しても進捗を残す）
     if (updates.length >= 300) {
       const { error } = await sb.from('us_master').upsert(updates.splice(0, updates.length), { onConflict: 'ticker' })

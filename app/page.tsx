@@ -2425,7 +2425,7 @@ function StockManager({
               <th className={styles.wlTh} style={{width:190, cursor: market === 'us' ? 'pointer' : undefined}}
                 onClick={market === 'us' ? () => toggleKanaGlobal() : undefined}
                 title={market === 'us' ? 'クリックで社名を英語⇄カタカナ表示' : undefined}
-              >銘柄名{market === 'us' ? ' ⇄かな' : ''}</th>
+              >銘柄名{market === 'us' ? ' ⇄カナ' : ''}</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
               <th className={styles.wlTh} style={{width:160}}>
                 ジャンル
@@ -2508,7 +2508,7 @@ function StockManager({
             onClick={market === 'us' ? () => toggleKanaGlobal() : undefined}
             style={market === 'us' ? { cursor: 'pointer' } : undefined}
             title={market === 'us' ? 'クリックで社名を英語⇄カタカナ' : undefined}
-          >銘柄名{market === 'us' ? ' ⇄かな' : ''}</span>
+          >銘柄名{market === 'us' ? ' ⇄カナ' : ''}</span>
           <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
             onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
             ジャンル{groupByGenre ? ' ✓' : ' ⇅'}

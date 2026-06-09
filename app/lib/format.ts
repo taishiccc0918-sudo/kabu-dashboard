@@ -65,7 +65,8 @@ export function fmtMcap(v: number | null | undefined): string {
     if (v >= 1_000)     return '$' + (v / 1_000).toFixed(1) + 'B'      // 十億ドル
     return '$' + Math.round(v).toLocaleString() + 'M'
   }
-  if (v >= 10000) return (v / 10000).toFixed(1) + '兆'
+  // 1000億(=0.1兆)以上は兆表記（桁が多くて数えにくいので 0.5兆 / 25.4兆 のように）
+  if (v >= 1000) return (v / 10000).toFixed(1) + '兆'
   return Math.round(v).toLocaleString() + '億'
 }
 

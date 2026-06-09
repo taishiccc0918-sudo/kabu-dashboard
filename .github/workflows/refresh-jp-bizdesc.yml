@@ -1,0 +1,24 @@
+name: refresh-jp-bizdesc
+
+# 日本株 事業内容（冒頭3行）の生成。お気に入り∪ウォッチのみ・差分のみ。手動＋月次。
+on:
+  schedule:
+    - cron: '0 10 1 * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-jp-bizdesc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:jp-bizdesc
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

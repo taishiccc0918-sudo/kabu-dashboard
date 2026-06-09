@@ -933,10 +933,11 @@ export default function Page() {
     if (!sb) { liveSuppressedRef.current = false; return }
     ;(async () => {
       try {
-        const [snapRes, metaRes, listed] = await Promise.all([
+        const [snapRes, metaRes, listed, descRes] = await Promise.all([
           sb.from('stock_snapshot').select('code, price, fin, per_band, biz_date'),
           sb.from('snapshot_meta').select('biz_date, count, updated_at').eq('id', 1).maybeSingle(),
           fetch('/api/listed-info').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+          sb.from('jp_company_desc').select('code, biz_desc'),
         ])
         const rows = (snapRes.data ?? []) as { code: string; price: PriceRecord; fin: FinRecord | null; per_band: PerBand | null; biz_date: string }[]
         if (rows.length === 0) { liveSuppressedRef.current = false; if (!autoFetchedRef.current && (serverHasKey || apiKey.trim())) { autoFetchedRef.current = true; fetchAll(dataLoaded ? { silent: true } : undefined) } return }
@@ -944,6 +945,7 @@ export default function Page() {
         for (const r of rows) { pDB[r.code] = r.price ?? { close: 0 }; if (r.fin) fDB[r.code] = r.fin; bDB[r.code] = r.per_band ?? null }
         const mDB: Record<string, MasterRecord> = {}
         for (const [code, rec] of Object.entries(listed as Record<string, { name: string; market: string }>)) if (rec?.name && rec?.market) mDB[code] = rec
+        for (const d of ((descRes.data ?? []) as { code: string; biz_desc: string }[])) if (mDB[d.code] && d.biz_desc) mDB[d.code] = { ...mDB[d.code], bizDesc: d.biz_desc }
         const meta = metaRes.data as { biz_date?: string; updated_at?: string } | null
         const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
         // 日本株データセットを退避（米国へ往復切替したときに即復元するため・常にキャッシュ）
@@ -1071,9 +1073,10 @@ export default function Page() {
   const loadJpData = useCallback(async () => {
     const sb = getSb()
     try {
-      const [snapRes, listed] = await Promise.all([
+      const [snapRes, listed, descRes] = await Promise.all([
         sb ? sb.from('stock_snapshot').select('code, price, fin, per_band, biz_date') : Promise.resolve({ data: [] as unknown[] }),
         fetch('/api/listed-info').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        sb ? sb.from('jp_company_desc').select('code, biz_desc') : Promise.resolve({ data: [] as unknown[] }),
       ])
       const rows = ((snapRes as { data?: unknown[] }).data ?? []) as { code: string; price: PriceRecord; fin: FinRecord | null; per_band: PerBand | null; biz_date: string }[]
       const metaRes = sb ? await sb.from('snapshot_meta').select('biz_date, updated_at').eq('id', 1).maybeSingle() : { data: null }
@@ -1081,6 +1084,7 @@ export default function Page() {
       for (const r of rows) { pDB[r.code] = r.price ?? { close: 0 }; if (r.fin) fDB[r.code] = r.fin; bDB[r.code] = r.per_band ?? null }
       const mDB: Record<string, MasterRecord> = {}
       for (const [code, rec] of Object.entries(listed as Record<string, { name: string; market: string }>)) if (rec?.name && rec?.market) mDB[code] = rec
+      for (const d of (((descRes as { data?: unknown[] }).data ?? []) as { code: string; biz_desc: string }[])) if (mDB[d.code] && d.biz_desc) mDB[d.code] = { ...mDB[d.code], bizDesc: d.biz_desc }
       const meta = (metaRes as { data?: { biz_date?: string } }).data
       const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
       marketDataRef.current.jp = { priceDB: pDB, finDB: fDB, perBandDB: bDB, masterDB: Object.keys(mDB).length ? mDB : masterDB, lastUpdate: biz }

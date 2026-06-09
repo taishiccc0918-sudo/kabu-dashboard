@@ -2182,6 +2182,21 @@ export default function Page() {
 // ─── StockManager（銘柄管理画面）────────────────────────────────────
 const PER_PAGE = 100
 
+// 読み込み中の表示（経過秒＋目安）。米国株は約1万社で数秒〜十数秒かかるため。
+function LoadingProgress({ market }: { market?: 'jp'|'us' }) {
+  const [sec, setSec] = useState(0)
+  useEffect(() => { const t = setInterval(() => setSec(s => s + 1), 1000); return () => clearInterval(t) }, [])
+  const est = market === 'us' ? 18 : 6
+  const remain = Math.max(0, est - sec)
+  const label = market === 'us' ? '米国株 約1万社を読み込み中' : '銘柄マスタ読込中'
+  return (
+    <div className={styles.loadingProgress}>
+      <span className={styles.loadingSpinner} aria-hidden />
+      <span>{label}… <b>{sec}</b>秒経過{remain > 0 ? `（あと約${remain}秒）` : '（まもなく完了）'}</span>
+    </div>
+  )
+}
+
 function StockManager({
   masterDB, favorites, superFavorites, stockMeta,
   allGenreOptions: managedGenreOptions,
@@ -2451,7 +2466,7 @@ function StockManager({
           </thead>
           <tbody>
             {allCodes.length === 0 ? (
-              <tr><td colSpan={6} className={styles.emptyCell}>銘柄マスタ読込中...</td></tr>
+              <tr><td colSpan={6} className={styles.emptyCell}><LoadingProgress market={market} /></td></tr>
             ) : pageCodes.length === 0 ? (
               <tr><td colSpan={6} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : pageCodes.map(code => (
@@ -2524,7 +2539,7 @@ function StockManager({
           <span className={styles.wlSpHdrMemo}>メモ</span>
         </div>
         {allCodes.length === 0
-          ? <div className={styles.emptyCell}>銘柄マスタ読込中...</div>
+          ? <div className={styles.emptyCell}><LoadingProgress market={market} /></div>
           : pageCodes.length === 0
           ? <div className={styles.emptyCell}>該当銘柄なし</div>
           : pageCodes.map(code => (
@@ -5019,7 +5034,10 @@ function NewsSection({ code, name }: { code: string; name: string }) {
     let cancelled = false
     setArticles(null); setErr(null)
 
-    fetch(`/api/news?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`)
+    const newsUrl = isUsTicker(code)
+      ? `/api/us-news?ticker=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`
+      : `/api/news?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`
+    fetch(newsUrl)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then((d: { articles?: NewsArticle[] }) => {
         if (cancelled) return

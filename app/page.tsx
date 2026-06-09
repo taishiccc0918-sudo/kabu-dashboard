@@ -1106,6 +1106,7 @@ export default function Page() {
     setDisplayMarket(target)
     lsSet('market', target)
     setMktFilter('all')
+    setWlMktF('all')   // 銘柄管理の市場フィルタもリセット（US指数フィルタのまま日本に来て全消えするのを防ぐ＝重要）
     setDetailCode(null)
     if (target === 'us' && tab === 'news') setTab('dashboard')   // ニュースは米国v1非対応
     const cached = marketDataRef.current[target]
@@ -1158,14 +1159,24 @@ export default function Page() {
   const tabRef = useRef(tab); tabRef.current = tab
   function toggleFavorite(code: string) {
     pushUndo()
+    const removing = favorites.has(code)
     setFavorites(prev => {
       const next = new Set(prev)
-      const adding = !next.has(code)
-      if (adding) next.add(code); else next.delete(code)
+      if (removing) next.delete(code); else next.add(code)
       lsSet('favorites', Array.from(next))
-      sbSyncFav(code, 'star', adding)
+      sbSyncFav(code, 'star', !removing)
       return next
     })
+    // 目印(★)を外したら ♥ も外す（「♥だけ付いて目印が無い」状態を作らない）
+    if (removing) {
+      setSuperFavorites(prev => {
+        if (!prev.has(code)) return prev
+        const next = new Set(prev); next.delete(code)
+        lsSet('superFavorites', Array.from(next))
+        sbSyncFav(code, 'heart', false)
+        return next
+      })
+    }
   }
   function toggleSuperFavorite(code: string) {
     pushUndo()
@@ -1595,13 +1606,6 @@ export default function Page() {
               title="米国株を表示"
             >🇺🇸 米国株</button>
           </div>
-          {market === 'us' && (
-            <button
-              className={`${styles.marketToggleBtn} ${styles.kanaToggleBtn} ${kanaMode ? styles.marketToggleActive : ''}`}
-              onClick={() => { const nv = !kanaMode; setKanaMode(nv); setKanaModeState(nv) }}
-              title="社名をカタカナ表示に切替（主要銘柄のみ。辞書に無い銘柄は英語のまま）"
-            >{kanaMode ? 'A' : 'カナ'}</button>
-          )}
           {!apiKey && !serverHasKey && (
             <button className={styles.apiKeyWarning} onClick={() => setShowSettings(true)} title="⚙ をクリックしてAPIキーを設定してください">
               ⚙ APIキー未設定
@@ -2080,6 +2084,8 @@ export default function Page() {
             setWlDropdownActive={setWlDropdownActive}
             onFilteredCountChange={setWlFilteredCount}
             onRegisterScrollFn={(fn) => { wlScrollFnRef.current = fn }}
+            market={market}
+            onOpenDetail={(code) => setDetailCode(code)}
           />
         )}
       </main>
@@ -2182,8 +2188,10 @@ function StockManager({
   showBulkAdd, setShowBulkAdd,
   bulkText, setBulkText,
   wlShowDropdown, wlDropdownResults, wlDropdownActive, setWlDropdownActive,
-  onFilteredCountChange, onRegisterScrollFn,
+  onFilteredCountChange, onRegisterScrollFn, market, onOpenDetail,
 }: {
+  market: 'jp'|'us'
+  onOpenDetail: (code: string) => void
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
   superFavorites: Set<string>
@@ -2414,7 +2422,10 @@ function StockManager({
             <tr>
               <th className={styles.wlTh} style={{width:64}}>♥ ★</th>
               <th className={styles.wlTh} style={{width:68}}>コード</th>
-              <th className={styles.wlTh} style={{width:190}}>銘柄名</th>
+              <th className={styles.wlTh} style={{width:190, cursor: market === 'us' ? 'pointer' : undefined}}
+                onClick={market === 'us' ? () => toggleKanaGlobal() : undefined}
+                title={market === 'us' ? 'クリックで社名を英語⇄カタカナ表示' : undefined}
+              >銘柄名{market === 'us' ? ' ⇄かな' : ''}</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
               <th className={styles.wlTh} style={{width:160}}>
                 ジャンル
@@ -2452,6 +2463,7 @@ function StockManager({
                 earningsDate={earningsDates[code] ?? ''}
                 onSaveEarningsDate={onSaveEarningsDate}
                 highlighted={wlHighlightCode === code}
+                onOpenDetail={onOpenDetail}
               />
             ))}
           </tbody>
@@ -3300,9 +3312,10 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted,
+  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted, onOpenDetail,
 }: {
   code: string
+  onOpenDetail?: (code: string) => void
   rec: MasterRecord
   isFav: boolean
   isSuperFav: boolean
@@ -3358,9 +3371,9 @@ const StockManagerRow = React.memo(function StockManagerRow({
         <td className={styles.wlTd}><span className={styles.wlChipCode}>{code}</span></td>
         <td className={styles.wlTd}>
           <span className={styles.wlTdName}
-            onClick={isUsTicker(code) ? (e) => { e.stopPropagation(); toggleKanaGlobal() } : undefined}
-            style={isUsTicker(code) ? { cursor: 'pointer' } : undefined}
-            title={isUsTicker(code) ? 'クリックでカタカナ⇄英語' : undefined}
+            onClick={onOpenDetail ? (e) => { e.stopPropagation(); onOpenDetail(code) } : undefined}
+            style={onOpenDetail ? { cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' } : undefined}
+            title={onOpenDetail ? 'クリックで詳細（チャート・ニュース）を開く' : undefined}
           >{usName(code, rec.name)}</span>
         </td>
         <td className={styles.wlTd}>
@@ -4131,9 +4144,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
         title={fin?.discDate ? `開示: ${fin.discDate.replace(/-/g,'/')} (${fin.perType === 'FY' ? 'FY通期' : fin.perType || '—'})` : undefined}
       >
-        {isUsTicker(r.code)
-          ? <span onClick={e => { e.stopPropagation(); toggleKanaGlobal() }} style={{ cursor: 'pointer' }} title="クリックでカタカナ⇄英語">{usName(r.code, r.name) || '—'}</span>
-          : (r.name || '—')}
+        {usName(r.code, r.name) || '—'}
         {fin?.discDate && isDataStale(fin.discDate) && (
           <span
             className={styles.staleIcon}

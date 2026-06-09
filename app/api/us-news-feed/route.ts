@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchUsStockNews } from '@/app/lib/news-us'
+import { fetchUsStockNews, translateTitlesJa } from '@/app/lib/news-us'
 import type { Article } from '@/app/lib/news'
 
 // 米国株お気に入りのニュースをまとめて取得し新着順に返す（一覧フィード用・ライブ）。
@@ -44,7 +44,12 @@ export async function POST(req: NextRequest) {
       seen.add(key); merged.push(item)
     }
     merged.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0))
-    return NextResponse.json({ items: merged.slice(0, 3000), count: merged.length })
+    const items = merged.slice(0, 3000)
+    // 上位（表示されやすい）ぶんのタイトルを日本語訳。残りは原文（クライアントで表示時はtitleJa||title）。
+    const TRANSLATE = 120
+    const ja = await translateTitlesJa(items.slice(0, TRANSLATE).map(a => a.title))
+    items.slice(0, TRANSLATE).forEach((a, i) => { a.titleJa = ja[i] })
+    return NextResponse.json({ items, count: merged.length })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[us-news-feed] error:', msg)

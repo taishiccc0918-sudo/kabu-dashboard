@@ -44,12 +44,38 @@ function isRelevant(title: string, core: string, ticker: string): boolean {
   return words.slice(0, 2).every(w => t.includes(w)) || (words[0] ? t.includes(words[0]) : false)
 }
 
+// 主要メディア（米国投資家がよく見る一次・大手）。表示順で優先する。
+const MAJOR_US_SOURCES = ['reuters', 'bloomberg', 'cnbc', 'wall street journal', 'wsj', 'financial times', 'barron', 'marketwatch', 'the motley fool', 'forbes', 'business insider', 'associated press', 'yahoo finance', 'investor', '日経', 'nikkei', 'bloomberg.co.jp']
+
+// 無料のGoogle翻訳(gtx)でタイトルを日本語化。失敗時は原文のまま。
+async function translateOne(text: string): Promise<string> {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 kabu-dashboard' }, next: { revalidate: 86400 } })
+    if (!res.ok) return text
+    const j = await res.json() as unknown[]
+    const segs = (j[0] as unknown[]) ?? []
+    const ja = segs.map(s => (Array.isArray(s) ? (s[0] as string) : '')).join('')
+    return ja || text
+  } catch { return text }
+}
+export async function translateTitlesJa(titles: string[]): Promise<string[]> {
+  const out: string[] = new Array(titles.length)
+  let idx = 0
+  const CONC = 8
+  async function run() { while (idx < titles.length) { const i = idx++; out[i] = await translateOne(titles[i]) } }
+  await Promise.all(Array.from({ length: Math.min(CONC, titles.length) }, run))
+  return out
+}
+
 export async function fetchUsStockNews(name: string, ticker: string, fresh = false): Promise<Article[]> {
   const core = coreName(name) || ticker
-  const query = `"${core}" (stock OR shares OR earnings OR NASDAQ OR NYSE OR revenue) when:120d`
-  const xml = await fetchRss(query, fresh)
-  if (!xml) return []
-  const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || []
+  // ①投資系クエリ ②一般ニュース（Reuters/Bloomberg等の大手も拾う）の2本を統合
+  const [xml1, xml2] = await Promise.all([
+    fetchRss(`"${core}" (stock OR shares OR earnings OR results OR revenue OR Nasdaq OR NYSE) when:120d`, fresh),
+    fetchRss(`"${core}" (Reuters OR Bloomberg OR CNBC OR business OR company) when:120d`, fresh),
+  ])
+  const items = [...(xml1.match(/<item>([\s\S]*?)<\/item>/g) || []), ...(xml2.match(/<item>([\s\S]*?)<\/item>/g) || [])]
   const out: Article[] = []
   const seen = new Set<string>()
   for (const item of items) {

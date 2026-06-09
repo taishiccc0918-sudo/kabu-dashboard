@@ -5000,7 +5000,7 @@ function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
 // ─── NewsSection ─────────────────────────────────────────────────────
 // 銘柄別ニュース（GoogleニュースRSS / 無料・キー不要）。
 // 公開から3日以内の記事に「NEW」を付ける（何度開いても表示される）。
-type NewsArticle = { title: string; link: string; source: string; sourceUrl: string; pubDate: string }
+type NewsArticle = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; titleJa?: string }
 const NEWS_NEW_WINDOW_MS = 3 * 24 * 60 * 60 * 1000 // 直近3日以内をNEW扱い
 const NEWS_MAX_AGE_MS = 95 * 24 * 60 * 60 * 1000 // 直近約3ヶ月のみ表示（Yahoo常設ページ等の古い記事を除外）
 
@@ -5118,7 +5118,8 @@ function NewsSection({ code, name }: { code: string; name: string }) {
                 <span className={styles.newsSource}>{a.source || 'ニュース'}</span>
                 <span className={styles.newsTime}>{fmtRelTime(a.pubDate)}</span>
               </div>
-              <div className={styles.newsTitle}>{a.title}</div>
+              <div className={styles.newsTitle}>{a.titleJa || a.title}</div>
+              {a.titleJa && a.titleJa !== a.title && <div className={styles.newsTitleEn}>{a.title}</div>}
             </a>
           )
         })}
@@ -5148,7 +5149,7 @@ function ScrollTopButton() {
 }
 
 // ─── NewsFeed（お気に入り銘柄のニュース一覧タブ） ─────────────────────
-type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean; disc: boolean }
+type FeedItem = { title: string; link: string; source: string; sourceUrl: string; pubDate: string; code: string; name: string; ir: boolean; disc: boolean; titleJa?: string }
 type FeedScope = 'all' | 'hearts'
 const IR_FILTER = '__IR__'     // 企業公式サイト発
 const DISC_FILTER = '__DISC__' // 決算・適時開示（媒体不問）
@@ -5552,8 +5553,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes, mark
             <div key={a.link || i} className={styles.feedItem}>
               <a className={styles.feedItemTitle} href={a.link} target="_blank" rel="noopener noreferrer">
                 {isNew && <span className={styles.newsBadge}>NEW</span>}
-                {a.title}
+                {a.titleJa || a.title}
               </a>
+              {a.titleJa && a.titleJa !== a.title && <div className={styles.newsTitleEn}>{a.title}</div>}
               <div className={styles.feedItemMeta}>
                 <span className={styles.feedMetaLeft}>
                   {fav && <img className={styles.feedFavicon} src={fav} alt="" loading="lazy" />}
@@ -5759,7 +5761,7 @@ function DetailPanel({
           ]} />
         </Section>
       )}
-      <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>
+      {!isUsTicker(r.code) && <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>}
       <Section title="メモ">
         <textarea className={styles.detailMemo} value={localMemo}
           onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />

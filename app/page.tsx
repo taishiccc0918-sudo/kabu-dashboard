@@ -2504,7 +2504,11 @@ function StockManager({
           <span className={styles.wlSpHdrHeart}>♥</span>
           <span className={styles.wlSpHdrStar} title="ウォッチ"><EyeIcon on size={13} /></span>
           <span className={styles.wlSpHdrCode}>コード</span>
-          <span className={styles.wlSpHdrName}>銘柄名</span>
+          <span className={styles.wlSpHdrName}
+            onClick={market === 'us' ? () => toggleKanaGlobal() : undefined}
+            style={market === 'us' ? { cursor: 'pointer' } : undefined}
+            title={market === 'us' ? 'クリックで社名を英語⇄カタカナ' : undefined}
+          >銘柄名{market === 'us' ? ' ⇄かな' : ''}</span>
           <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
             onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
             ジャンル{groupByGenre ? ' ✓' : ' ⇅'}
@@ -2532,7 +2536,7 @@ function StockManager({
               openType={openPanel?.code === code ? openPanel.type : null}
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
               dragging={stockDrag.draggingKey === code}
-              nameDragProps={stockDrag.makeHandleProps(code, { onTap: () => setOpenPanel(p => (p?.code === code && p.type === 'links') ? null : { code, type: 'links' }) })}
+              nameDragProps={stockDrag.makeHandleProps(code, { onTap: () => onOpenDetail(code) })}
               onReorderGenres={onReorderGenres}
               onRenameGenre={handleRename}
             />
@@ -3205,13 +3209,12 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}
           ><EyeIcon on={isFav} size={16} /></button>
         <span className={styles.wlMobileCode} {...nameDragProps}>{code}</span>
-        {/* 銘柄名：タップでリンク展開／長押しでドラッグ並べ替え */}
+        {/* 銘柄名：タップで詳細（チャート等）を開く／長押しでドラッグ並べ替え */}
         <span
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
           {...nameDragProps}
         >
           {usName(code, rec.name)}
-          <span className={styles.wlMobileNameCaret}>{showLinks ? ' ▲' : ' ▾'}</span>
         </span>
         {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
         {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}

@@ -27,6 +27,41 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: fal
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const CHUNK = 60
 
+// 利用可能なモデルを実際に問い合わせて、generateContent対応のflash系を選ぶ（モデル名の404を回避）。
+let RESOLVED_MODEL = ''
+async function resolveModel(): Promise<string> {
+  if (RESOLVED_MODEL) return RESOLVED_MODEL
+  // まず設定モデル＋候補を直接試す
+  const candidates = [GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash', 'gemini-pro-latest']
+  // ListModels で実在モデルを取得して候補を補強
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(GEMINI_API_KEY)}&pageSize=100`)
+    if (res.ok) {
+      const j = await res.json() as { models?: { name?: string; supportedGenerationMethods?: string[] }[] }
+      const flash = (j.models ?? [])
+        .filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+        .map(m => (m.name ?? '').replace(/^models\//, ''))
+        .filter(Boolean)
+      // flash優先で候補先頭に
+      const flashFirst = flash.filter(n => /flash/i.test(n)).concat(flash.filter(n => !/flash/i.test(n)))
+      candidates.unshift(...flashFirst)
+      console.log('利用可能モデル(先頭5):', flashFirst.slice(0, 5).join(', '))
+    } else {
+      console.warn('ListModels失敗:', res.status, '→ 候補を直接試行')
+    }
+  } catch (e) { console.warn('ListModels例外:', (e as Error).message) }
+  // 候補を1つずつ軽く叩いて200になるものを採用
+  for (const m of Array.from(new Set(candidates)).filter(Boolean)) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
+      const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }], generationConfig: { maxOutputTokens: 5 } }) })
+      if (res.ok) { RESOLVED_MODEL = m; console.log('採用モデル:', m); return m }
+    } catch { /* next */ }
+  }
+  throw new Error('使えるGeminiモデルが見つかりません（APIキー/Generative Language API有効化を確認）')
+}
+
 // name_kana が未設定の銘柄を集める
 async function getPending(): Promise<{ ticker: string; name: string }[]> {
   const out: { ticker: string; name: string }[] = []
@@ -50,7 +85,8 @@ async function geminiKana(batch: { ticker: string; name: string }[]): Promise<Re
     '・一般に通用する読み（例: Apple Inc.→アップル, NVIDIA→エヌビディア, Berkshire Hathaway→バークシャー・ハサウェイ）。\n' +
     '・社名種別(Inc./Corp./Ltd.等)や末尾の法人格は省く。不明なものは英語発音に忠実なカタカナで。\n' +
     '・余計な注釈は付けない。\n\n' + list
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
+  const model = await resolveModel()
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
   const res = await fetch(url, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 4096 } }),
@@ -64,6 +100,7 @@ async function geminiKana(batch: { ticker: string; name: string }[]): Promise<Re
 }
 
 async function main() {
+  try { await resolveModel() } catch (e) { console.error((e as Error).message); process.exit(1) }
   let pending = await getPending()
   if (MAX > 0) pending = pending.slice(0, MAX)
   console.log(`カタカナ未生成: ${pending.length} 銘柄を処理します`)

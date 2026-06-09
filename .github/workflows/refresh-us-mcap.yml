@@ -1,0 +1,25 @@
+name: refresh-us-mcap
+
+# 米国株 時価総額の広域取得（軽量版・us_master全銘柄）。週次＋手動。
+# 発行済株式数(EDGAR companyconcept) × 株価(Yahoo) → us_master.mcap。
+on:
+  schedule:
+    - cron: '0 7 * * 2'   # 火曜 07:00 UTC（マスター更新の翌日あたり）
+  workflow_dispatch:
+
+jobs:
+  refresh-us-mcap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:us-mcap
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}

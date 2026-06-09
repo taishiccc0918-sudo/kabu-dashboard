@@ -144,6 +144,41 @@ function latestVal(cf: CompanyFacts, candidates: string[], unit: string, opts: {
   return arr.length ? arr[arr.length - 1].val : 0
 }
 
+// 軽量: 発行済株式数だけを companyconcept から取得（companyfactsは重いので時価総額一括用に分離）。
+export async function fetchSharesOutstanding(cik: string): Promise<number> {
+  const padded = String(cik).replace(/\D/g, '').padStart(10, '0')
+  const concepts: [string, string][] = [
+    ['dei', 'EntityCommonStockSharesOutstanding'],
+    ['us-gaap', 'CommonStockSharesOutstanding'],
+    ['us-gaap', 'CommonStockSharesIssued'],
+  ]
+  for (const [ns, concept] of concepts) {
+    try {
+      const url = `https://data.sec.gov/api/xbrl/companyconcept/CIK${padded}/${ns}/${concept}.json`
+      const res = await fetch(url, { headers: { 'User-Agent': SEC_UA, 'Accept-Encoding': 'gzip, deflate' } })
+      if (!res.ok) continue
+      const j = await res.json() as { units?: Record<string, { end?: string; val?: number }[]> }
+      const arr = j.units?.shares ?? []
+      let best = 0, bestEnd = ''
+      for (const e of arr) { if (typeof e.val === 'number' && (e.end ?? '') >= bestEnd) { bestEnd = e.end ?? ''; best = e.val } }
+      if (best > 0) return best
+    } catch { /* try next */ }
+  }
+  return 0
+}
+
+// 軽量: 最新株価だけを Yahoo chart の meta から取得（range=1d）。
+export async function fetchYahooPrice(ticker: string): Promise<number> {
+  const sym = toSec(ticker)
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 kabu-dashboard' } })
+    if (!res.ok) return 0
+    const j = await res.json() as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number } }> } }
+    return num(j.chart?.result?.[0]?.meta?.regularMarketPrice)
+  } catch { return 0 }
+}
+
 // SEC submissions から業種（SIC説明）を取得＝米国版の簡易「事業内容」。
 // 例: 'Semiconductors & Related Devices' / 'Electronic Computers'。
 export async function fetchSecSic(cik: string): Promise<{ sic: string; sicLabel: string } | null> {

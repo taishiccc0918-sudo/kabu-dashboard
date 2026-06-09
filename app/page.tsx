@@ -1108,7 +1108,6 @@ export default function Page() {
     setMktFilter('all')
     setWlMktF('all')   // 銘柄管理の市場フィルタもリセット（US指数フィルタのまま日本に来て全消えするのを防ぐ＝重要）
     setDetailCode(null)
-    if (target === 'us' && tab === 'news') setTab('dashboard')   // ニュースは米国v1非対応
     const cached = marketDataRef.current[target]
     if (cached && Object.keys(cached.priceDB).length > 0) {
       // キャッシュがあれば即復元（往復が瞬時）
@@ -1833,7 +1832,7 @@ export default function Page() {
         )}
         <div className={styles.spacer} />
         <div className={`${styles.tabGroup} ${styles.spHide}`}>
-          {(market === 'us' ? (['dashboard','report','watchlist'] as TabKey[]) : (['dashboard','news','report','watchlist'] as TabKey[])).map(t => (
+          {(['dashboard','news','report','watchlist'] as TabKey[]).map(t => (
             <button
               key={t}
               className={`${styles.tabBtn} ${tab === t ? styles.tabBtnActive : ''}`}
@@ -2045,11 +2044,12 @@ export default function Page() {
 
         {tab === 'news' && (
           <NewsFeed
-            heartCodes={Array.from(superFavorites)}
-            starCodes={Array.from(favorites)}
+            heartCodes={Array.from(superFavorites).filter(c => market === 'us' ? /^[A-Za-z]/.test(c) : /^[0-9]/.test(c))}
+            starCodes={Array.from(favorites).filter(c => market === 'us' ? /^[A-Za-z]/.test(c) : /^[0-9]/.test(c))}
             nameOf={(code) => allRows.find(r => r.code === code)?.name || masterDB[code]?.name || code}
             onClickCode={(code) => setDetailCode(code)}
             onHotCodes={setNewsHotCodes}
+            market={market}
           />
         )}
 
@@ -4479,7 +4479,7 @@ function BottomNav({ tab, onSelect, market }: { tab: TabKey; onSelect: (t: TabKe
     ) },
   ]
   // 米国株v1ではニュースタブを出さない
-  const items = market === 'us' ? allItems.filter(it => it.key !== 'news') : allItems
+  const items = allItems
   const isActive = (k: TabKey) => tab === k || (k === 'dashboard' && tab === 'card')
   return (
     <nav className={styles.bottomNav} aria-label="メインナビゲーション">
@@ -5253,9 +5253,9 @@ function stockHaystack(name: string, code: string): string {
   return loosen(name) + ' ' + loosen(toRomaji(name)) + ' ' + code.toLowerCase()
 }
 
-async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean): Promise<FeedItem[]> {
+async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean, market: 'jp'|'us' = 'jp'): Promise<FeedItem[]> {
   if (stocks.length === 0) return []
-  const res = await fetch('/api/news-feed', {
+  const res = await fetch(market === 'us' ? '/api/us-news-feed' : '/api/news-feed', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stocks, fresh }),
@@ -5290,10 +5290,11 @@ function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
   return cleanFeed([...a, ...b])
 }
 
-function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes }: {
+function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes, market = 'jp' }: {
   heartCodes: string[]; starCodes: string[]
   nameOf: (code: string) => string; onClickCode: (code: string) => void
   onHotCodes?: (codes: Set<string>) => void
+  market?: 'jp'|'us'
 }) {
   const [scope, setScope] = useState<FeedScope>('all')
   const [items, setItems] = useState<FeedItem[] | null>(feedCache?.items ?? null)
@@ -5336,16 +5337,16 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes }: {
   const liveFanout = useCallback(async (fresh: boolean) => {
     const hearts = heartCodes.map(c => ({ code: c, name: nameOf(c) }))
     if (!fresh) setPhase(`お気に入り(♥${hearts.length})を取得中…`)
-    let all = cleanFeed(await postNewsFeed(hearts, fresh))
+    let all = cleanFeed(await postNewsFeed(hearts, fresh, market))
     setItems(all)
     const rest = starCodes.filter(c => !heartSet.has(c)).map(c => ({ code: c, name: nameOf(c) }))
     if (rest.length > 0) {
       if (!fresh) setPhase(`他のウォッチ銘柄(${rest.length})も取得中…`)
-      all = mergeFeed(all, await postNewsFeed(rest, fresh))
+      all = mergeFeed(all, await postNewsFeed(rest, fresh, market))
       setItems(all)
     }
     return all
-  }, [heartCodes, starCodes, heartSet, nameOf])
+  }, [heartCodes, starCodes, heartSet, nameOf, market])
 
   const load = useCallback(async (fresh: boolean) => {
     if (!fresh && feedCache && feedCache.key === loadKey) {
@@ -5360,6 +5361,9 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes }: {
         // 更新ボタン: 最新をライブ取得
         setPhase('最新を取得中…')
         all = await liveFanout(true)
+      } else if (market === 'us') {
+        // 米国は蓄積DB無し→ライブ取得（お気に入り横断）
+        all = await liveFanout(false)
       } else {
         // 初回: 蓄積DBを即表示。未蓄積ならライブ取得にフォールバック。
         setPhase('読み込み中…')

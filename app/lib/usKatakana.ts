@@ -50,9 +50,13 @@ export function getKanaMode(): boolean { return _kana }
 export function registerKanaListener(fn: ((on: boolean) => void) | null) { _listener = fn }
 // どのコンポーネントからでも呼べるグローバル切替（同期で _kana を更新＋再描画通知）。
 export function toggleKanaGlobal() { _kana = !_kana; _listener?.(_kana) }
-// カナ表示ONかつ辞書にあればカタカナ、無ければ英語名のまま。
-export function usName(code: string, name: string): string {
-  if (_kana) { const k = US_KATAKANA[code.toUpperCase()]; if (k) return k }
+// カナ表示ONのとき: 保存済みカナ(kana) > 内蔵辞書 > 英語名 の順。
+// kana は us_master.name_kana（Gemini一括生成・全銘柄）由来。
+export function usName(code: string, name: string, kana?: string): string {
+  if (_kana) {
+    if (kana && kana.trim()) return kana
+    const k = US_KATAKANA[code.toUpperCase()]; if (k) return k
+  }
   return name
 }
 export function hasKatakana(code: string): boolean { return !!US_KATAKANA[code.toUpperCase()] }

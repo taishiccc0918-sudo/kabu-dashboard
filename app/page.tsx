@@ -1050,7 +1050,7 @@ export default function Page() {
       const pDB: Record<string, PriceRecord> = {}, fDB: Record<string, FinRecord> = {}, bDB: Record<string, PerBand | null> = {}
       for (const r of rows) { pDB[r.ticker] = r.price ?? { close: 0 }; if (r.fin) fDB[r.ticker] = r.fin; bDB[r.ticker] = r.per_band ?? null }
       const mDB: Record<string, MasterRecord> = {}
-      for (const [t, rec] of Object.entries(masterJson as Record<string, { name: string; market: string; sicLabel?: string }>)) if (rec?.name) mDB[t] = { name: rec.name, market: rec.market ?? '', sicLabel: rec.sicLabel ?? undefined }
+      for (const [t, rec] of Object.entries(masterJson as Record<string, { name: string; market: string; sicLabel?: string; nameKana?: string }>)) if (rec?.name) mDB[t] = { name: rec.name, market: rec.market ?? '', sicLabel: rec.sicLabel ?? undefined, nameKana: rec.nameKana ?? undefined }
       for (const r of rows) if (!mDB[r.ticker]) mDB[r.ticker] = { name: r.ticker, market: '' }
       const meta = (metaRes as { data?: { biz_date?: string } }).data
       const biz = meta?.biz_date ?? rows[0]?.biz_date ?? ''
@@ -3214,7 +3214,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
           className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
           {...nameDragProps}
         >
-          {usName(code, rec.name)}
+          {usName(code, rec.name, rec.nameKana)}
         </span>
         {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
         {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
@@ -3377,7 +3377,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
             onClick={onOpenDetail ? (e) => { e.stopPropagation(); onOpenDetail(code) } : undefined}
             style={onOpenDetail ? { cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' } : undefined}
             title={onOpenDetail ? 'クリックで詳細（チャート・ニュース）を開く' : undefined}
-          >{usName(code, rec.name)}</span>
+          >{usName(code, rec.name, rec.nameKana)}</span>
         </td>
         <td className={styles.wlTd}>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
@@ -4147,7 +4147,7 @@ function TableRow({ row: r, idx, fin, earningsDates, onSaveEarningsDate, onClick
       <td className={`${styles.tdName} ${styles.stickyCol1} ${fin?.discDate ? styles.hasTooltip : ''}`} style={{background: stickyNameBg}}
         title={fin?.discDate ? `開示: ${fin.discDate.replace(/-/g,'/')} (${fin.perType === 'FY' ? 'FY通期' : fin.perType || '—'})` : undefined}
       >
-        {usName(r.code, r.name) || '—'}
+        {usName(r.code, r.name, r.nameKana) || '—'}
         {fin?.discDate && isDataStale(fin.discDate) && (
           <span
             className={styles.staleIcon}
@@ -4316,7 +4316,7 @@ function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onT
           {isSuperFav ? '♥' : '♡'}
         </button>
         <span className={styles.spRowId}>
-          <span className={styles.spRowName}>{usName(r.code, r.name) || '—'}</span>
+          <span className={styles.spRowName}>{usName(r.code, r.name, r.nameKana) || '—'}</span>
           <span className={styles.spRowMeta}>
             <span className={styles.spRowCode}>{r.code}</span>
             <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
@@ -4483,7 +4483,7 @@ function MobileRow({ row: r, onClick }: { row: StockRow; onClick: () => void }) 
           <span className={styles.mobileCode}>{r.code}</span>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </div>
-        <div className={styles.mobileName}>{usName(r.code, r.name) || '—'}</div>
+        <div className={styles.mobileName}>{usName(r.code, r.name, r.nameKana) || '—'}</div>
         <div className={styles.mobileMetaRow}>
           <span className={styles.mobileMetaItem}>PER {r.perF ? fmtN(r.perF) : '—'}</span>
           <span className={styles.mobileMetaItem}>PBR {r.pbr ? fmtN(r.pbr) : '—'}</span>
@@ -4574,7 +4574,7 @@ function StockCard({ row: r, apiKey, serverHasKey = false, onClick, refreshKey =
       <div className={styles.cardHeader}>
         <div>
           <div className={styles.cardCode}>{r.code}</div>
-          <div className={styles.cardName}>{usName(r.code, r.name) || '—'}</div>
+          <div className={styles.cardName}>{usName(r.code, r.name, r.nameKana) || '—'}</div>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
           {r.genres[0] && <span className={styles.cardGenreBadge}>{r.genres[0]}</span>}
         </div>
@@ -5674,7 +5674,7 @@ function DetailPanel({
         <CompanyLogo code={r.code} name={r.name} genre={r.genres[0]} size={44} radius={10} />
         <div className={styles.detailHeadText}>
           <div className={styles.detailCode}>{r.code}</div>
-          <div className={styles.detailName}>{usName(r.code, r.name) || '—'}</div>
+          <div className={styles.detailName}>{usName(r.code, r.name, r.nameKana) || '—'}</div>
         </div>
       </div>
       <div className={styles.detailBadgeRow}>

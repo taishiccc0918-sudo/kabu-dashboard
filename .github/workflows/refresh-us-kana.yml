@@ -1,0 +1,25 @@
+name: refresh-us-kana
+
+# 米国株 社名カタカナの一括生成（全銘柄統一・差分のみ）。手動＋月次。
+# us_master の英語社名を Gemini でカタカナ化し name_kana に保存。一度生成すれば使い回す。
+on:
+  schedule:
+    - cron: '0 8 1 * *'   # 毎月1日 08:00 UTC（新規上場ぶんの差分）
+  workflow_dispatch:
+
+jobs:
+  refresh-us-kana:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:us-kana
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

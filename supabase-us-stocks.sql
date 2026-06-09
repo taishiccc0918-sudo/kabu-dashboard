@@ -19,8 +19,14 @@ create table if not exists public.us_master (
   sic         text,               -- SIC業種コード（深掘り層のみ。無ければnull）
   sic_label   text,               -- SIC業種名（"何の会社か"。深掘り層のみ）
   mcap        numeric,            -- 時価総額（USD百万。算出できた銘柄のみ。無ければnull）
+  name_kana   text,               -- 社名カタカナ（全銘柄。refresh-us-kana がGeminiで一括生成）
   updated_at  timestamptz default now()
 );
+-- 既にテーブルがある場合の列追加（再実行用・冪等）
+alter table public.us_master add column if not exists name_kana text;
+alter table public.us_master add column if not exists sic text;
+alter table public.us_master add column if not exists sic_label text;
+alter table public.us_master add column if not exists mcap numeric;
 
 -- 深掘りスナップショット（日本株 stock_snapshot と同じ JSONB 構造で再利用）
 create table if not exists public.us_stock_snapshot (

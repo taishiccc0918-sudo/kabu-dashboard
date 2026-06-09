@@ -150,6 +150,7 @@ export interface MasterRecord {
   name: string
   market: string
   sicLabel?: string   // 米国: SEC業種（簡易事業内容）
+  nameKana?: string   // 米国: カタカナ社名（us_master.name_kana）
 }
 export interface StockRow {
   code: string
@@ -178,6 +179,7 @@ export interface StockRow {
   judgment: string
   perBand?: import('./perBand').PerBand | null  // 四季報式PERバンド（page側で算出して付与）
   sicLabel?: string   // 米国: SEC業種（簡易事業内容）
+  nameKana?: string   // 米国: カタカナ社名
 }
 export type SortKey = keyof StockRow
 export type FilterKey = 'all' | 'buy'

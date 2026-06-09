@@ -152,5 +152,6 @@ export function buildStockRow(
     judgment:   '',  // [旧: getJudgment(perFAt(prev1m)) → page.tsx の判定エンジンに移行]
     perBand:    perBandDB?.[code] ?? null,
     sicLabel:   m?.sicLabel,
+    nameKana:   m?.nameKana,
   }
 }

@@ -1,0 +1,24 @@
+name: refresh-us-bizdesc
+
+# 米国株 事業内容（本文）の生成。業種/時価総額がある実事業会社のみ・差分のみ。手動＋月次。
+on:
+  schedule:
+    - cron: '0 9 1 * *'
+  workflow_dispatch:
+
+jobs:
+  refresh-us-bizdesc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run refresh:us-bizdesc
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

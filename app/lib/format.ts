@@ -153,5 +153,6 @@ export function buildStockRow(
     perBand:    perBandDB?.[code] ?? null,
     sicLabel:   m?.sicLabel,
     nameKana:   m?.nameKana,
+    bizDesc:    m?.bizDesc,
   }
 }

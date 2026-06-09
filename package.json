@@ -13,6 +13,7 @@
     "refresh:us-master": "tsx scripts/refresh-us-master.ts",
     "refresh:us-mcap": "tsx scripts/refresh-us-mcap.ts",
     "refresh:us-kana": "tsx scripts/refresh-us-kana.ts",
+    "refresh:us-bizdesc": "tsx scripts/refresh-us-bizdesc.ts",
     "refresh:news": "tsx scripts/refresh-news.ts",
     "refresh:logos": "tsx scripts/refresh-logos.ts",
     "edinet:probe": "tsx scripts/edinet-probe.ts",

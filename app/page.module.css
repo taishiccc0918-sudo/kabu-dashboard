@@ -445,6 +445,7 @@
 .kanaToggleBtn { border: 1px solid var(--line); border-radius: var(--r-pill, 999px); margin-right: 8px; min-width: 34px; }
 /* 詳細パネルの米国SEC業種（事業内容の目安） */
 .detailSic { display: inline-block; margin-left: 8px; padding: 2px 8px; font-size: 11.5px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-pill, 999px); }
+.detailBizDesc { font-size: 13px; line-height: 1.7; color: var(--text-1); }
 
 /* ロゴは絶対に消さない（トグル追加で横幅が増えても左上ロゴを最優先で確保） */
 .logo { flex-shrink: 0; }

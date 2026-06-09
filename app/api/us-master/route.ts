@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 // クライアントは1セッション1回しか呼ばないので毎リクエストSupabase照会でも負荷は小さい。
 export const dynamic = 'force-dynamic'
 
-type Row = { ticker: string; name: string | null; exchange: string | null; mcap: number | null; sic_label: string | null; name_kana: string | null }
+type Row = { ticker: string; name: string | null; exchange: string | null; mcap: number | null; sic_label: string | null; name_kana: string | null; biz_desc: string | null }
 
 export async function GET(_req: NextRequest) {
   const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
@@ -17,17 +17,17 @@ export async function GET(_req: NextRequest) {
     const sb = createClient(url, anon, { auth: { persistSession: false } })
     const PAGE = 1000
     const MAX_PAGES = 30
-    const out: Record<string, { name: string; market: string; mcap: number | null; sicLabel: string | null; nameKana: string | null }> = {}
+    const out: Record<string, { name: string; market: string; mcap: number | null; sicLabel: string | null; nameKana: string | null; bizDesc: string | null }> = {}
     for (let p = 0; p < MAX_PAGES; p++) {
       const { data, error } = await sb
         .from('us_master')
-        .select('ticker,name,exchange,mcap,sic_label,name_kana')
+        .select('ticker,name,exchange,mcap,sic_label,name_kana,biz_desc')
         .range(p * PAGE, p * PAGE + PAGE - 1)
       if (error) throw error
       const chunk = (data ?? []) as Row[]
       for (const r of chunk) {
         if (!r.ticker) continue
-        out[r.ticker] = { name: r.name ?? r.ticker, market: r.exchange ?? '', mcap: r.mcap ?? null, sicLabel: r.sic_label ?? null, nameKana: r.name_kana ?? null }
+        out[r.ticker] = { name: r.name ?? r.ticker, market: r.exchange ?? '', mcap: r.mcap ?? null, sicLabel: r.sic_label ?? null, nameKana: r.name_kana ?? null, bizDesc: r.biz_desc ?? null }
       }
       if (chunk.length < PAGE) break
     }

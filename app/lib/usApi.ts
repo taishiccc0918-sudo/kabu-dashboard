@@ -151,6 +151,10 @@ export async function fetchSharesOutstanding(cik: string): Promise<number> {
     ['dei', 'EntityCommonStockSharesOutstanding'],
     ['us-gaap', 'CommonStockSharesOutstanding'],
     ['us-gaap', 'CommonStockSharesIssued'],
+    // フォールバック: 加重平均株式数（多くの企業が開示）。最新の値を使う。
+    ['us-gaap', 'WeightedAverageNumberOfDilutedSharesOutstanding'],
+    ['us-gaap', 'WeightedAverageNumberOfSharesOutstandingBasic'],
+    ['dei', 'EntityCommonStockSharesOutstanding'],
   ]
   for (const [ns, concept] of concepts) {
     try {

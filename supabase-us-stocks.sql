@@ -27,6 +27,7 @@ alter table public.us_master add column if not exists name_kana text;
 alter table public.us_master add column if not exists sic text;
 alter table public.us_master add column if not exists sic_label text;
 alter table public.us_master add column if not exists mcap numeric;
+alter table public.us_master add column if not exists biz_desc text;   -- 事業内容(本文・Gemini生成)
 
 -- 深掘りスナップショット（日本株 stock_snapshot と同じ JSONB 構造で再利用）
 create table if not exists public.us_stock_snapshot (

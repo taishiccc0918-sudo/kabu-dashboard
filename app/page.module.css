@@ -1187,10 +1187,10 @@
 .spList { display: flex; flex-direction: column; }
 /* 1行 = 上段(銘柄+現在値+並べ替え値) + 下段(PER位置バー)。境界をはっきり・ゼブラで識別 */
 .spRow {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 8px 10px 9px;
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 12px 13px 13px;
   background: var(--surface-0);
-  border-bottom: 1px solid var(--line-strong);   /* 行の区切りをはっきり */
+  border-bottom: 1px solid var(--line);           /* 区切りは控えめに（余白で分ける） */
   border-left: 3px solid var(--flat);             /* 当日の方向を左帯で表現 */
   cursor: pointer; box-sizing: border-box;
 }
@@ -1229,7 +1229,6 @@
 }
 .spRowMeta { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .spRowCode { font-size: 11px; color: var(--text-2); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
-.spRowNews { font-size: 11px; flex-shrink: 0; line-height: 1; }
 
 /* 現在値 + 前日比 */
 .spRowPriceCol { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
@@ -2757,19 +2756,39 @@
 .wlMobileIconBtn.heartBtn   { color: #94a3b8 !important; }
 .wlMobileIconBtn.favBtnOn   { color: #fbbf24 !important; filter: drop-shadow(0 0 4px rgba(251,191,36,0.5)); }
 .wlMobileIconBtn.favBtn     { color: rgba(156,163,175,0.35) !important; }
-.wlMobileCode {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; color: var(--text-3); flex-shrink: 0; width: 38px;
+/* 閲覧モード：名前を主役（上段）＋コード/ジャンルを下段に小さく＝スッキリ */
+.wlMobileMain {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  padding: 4px 2px; cursor: pointer;
 }
 .wlMobileName {
-  font-size: 13px; font-weight: 600; color: var(--text-1);
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block; font-size: 14px; font-weight: 600; color: var(--text-1);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25;
 }
+.wlMobileSub { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; }
+.wlMobileCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-3); flex-shrink: 0;
+}
+/* 下段のジャンルは枠なしの薄い文字＝詰まって見えないように */
+.wlMobileSubGenre { font-size: 11px; color: var(--text-3); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wlMobileSubGenre::before { content: '·'; margin-right: 6px; color: var(--line-strong); }
 .wlMobileGenre {
   font-size: 10.5px; color: var(--text-2); background: var(--surface-2);
   border: 1px solid var(--line-strong); border-radius: 3px; padding: 1px 5px; flex-shrink: 0; white-space: nowrap;
 }
 .wlMobileGenreMore { font-size: 10px; color: var(--text-3); flex-shrink: 0; }
+
+/* SP: 編集トグル（iSpeedの右上ペンシル相当）＝ヘッダー右端 */
+.wlSpHdrGrip { width: 34px; flex-shrink: 0; }
+.wlSpHdrSpacer { flex: 0 0 auto; width: 8px; }
+.wlSpEditToggle {
+  margin-left: auto; flex-shrink: 0;
+  background: var(--surface-1); border: 1px solid var(--line-strong); color: var(--text-2);
+  border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; letter-spacing: 0;
+}
+.wlSpEditToggleOn { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 /* SP銘柄管理: 行内ジャンル編集（付け外し・新規追加） */
 .wlMobileGenreEdit { padding: 8px 10px 10px; border-top: 1px solid var(--line); }
 .wlMobileGenreSearch {

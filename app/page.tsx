@@ -324,7 +324,6 @@ export default function Page() {
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [showFilterBar, setShowFilterBar] = useState(false)
   const [perHintOpen, setPerHintOpen] = useState(true)  // ダッシュのPER位置バー説明ヒント（閉じたら記憶）
-  const [newsHotCodes, setNewsHotCodes] = useState<Set<string>>(new Set())  // 直近ニュースありの銘柄（ニュースタブ閲覧後に反映）
   const [welcomeOpen, setWelcomeOpen] = useState(false)  // 初回オンボーディング（まず銘柄管理で登録を促す）
   const [showFavLegend, setShowFavLegend] = useState(false)  // ♥/👁 の意味の説明ポップ
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -422,15 +421,6 @@ export default function Page() {
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* 失敗しても通常動作 */ })
     }
-  }, [])
-  // 起動時に「直近ニュースのある銘柄」を軽量取得→ダッシュの📰マークに反映（ニュースタブ未閲覧でも出る）
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/news-hot').then(r => r.json()).then((d: { codes?: string[] }) => {
-      if (cancelled || !d?.codes?.length) return
-      setNewsHotCodes(new Set(d.codes))
-    }).catch(() => { /* 失敗しても無害 */ })
-    return () => { cancelled = true }
   }, [])
   // ［廃止］お気に入りの自動掃除（廃番コードの除去）は、日米切替でお気に入りを誤削除する
   //   事故を繰り返したため撤去。削除は手動操作のみとし、データ消失リスクをゼロにする。
@@ -1991,7 +1981,6 @@ export default function Page() {
                     row={r}
                     sortKey={sortKey}
                     earnDate={earningsDates[r.code] || finDB[r.code]?.nextAnnouncementDate || ''}
-                    hasNews={newsHotCodes.has(r.code)}
                     isFav={favorites.has(r.code)}
                     isSuperFav={superFavorites.has(r.code)}
                     onToggleFav={toggleFavorite}
@@ -2052,7 +2041,6 @@ export default function Page() {
             starCodes={Array.from(favorites).filter(c => market === 'us' ? /^[A-Za-z]/.test(c) : /^[0-9]/.test(c))}
             nameOf={(code) => allRows.find(r => r.code === code)?.name || masterDB[code]?.name || code}
             onClickCode={(code) => setDetailCode(code)}
-            onHotCodes={setNewsHotCodes}
             market={market}
           />
         )}
@@ -2264,6 +2252,10 @@ function StockManager({
   useEffect(() => { setOpenPanel(null) }, [wlSearch])
   // 列見出し「ジャンル」タップでジャンルごとにグルーピング表示
   const [groupByGenre, setGroupByGenre] = useState(false)
+  // SP: 閲覧モード / 編集モード（iSpeedの右上ペンシル相当）。編集中だけ並べ替え・ジャンル/メモ編集が出る
+  const [editMode, setEditMode] = useState(false)
+  // 編集を終えたら開きっぱなしのパネルを閉じる
+  useEffect(() => { if (!editMode) setOpenPanel(null) }, [editMode])
   const wlListRef = useRef<HTMLDivElement>(null)
 
   const allCodes = useMemo(() => Object.keys(masterDB).sort(), [masterDB])
@@ -2528,8 +2520,10 @@ function StockManager({
 
       {/* SP: コンパクト1行リスト（銘柄名を長押しでドラッグ並べ替え） */}
       <div className={`${styles.wlSpList} ${styles.mobileOnly}`} ref={wlListRef}>
-        {/* SP: 固定列ヘッダー（「ジャンル」タップでジャンルごとに並べ替え） */}
+        {/* SP: 固定列ヘッダー＋右上に「編集」トグル（iSpeedのペンシル相当）。
+            閲覧モードはスッキリ＝♥/👁/コード/銘柄名のみ。編集モードでジャンル/メモ列が出る */}
         <div className={styles.wlSpStickyHeader}>
+          {editMode && <span className={styles.wlSpHdrGrip} aria-hidden />}
           <span className={styles.wlSpHdrHeart}>♥</span>
           <span className={styles.wlSpHdrStar} title="ウォッチ"><EyeIcon on size={13} /></span>
           <span className={styles.wlSpHdrCode}>コード</span>
@@ -2538,11 +2532,20 @@ function StockManager({
             style={market === 'us' ? { cursor: 'pointer' } : undefined}
             title={market === 'us' ? 'クリックで社名を英語⇄カタカナ' : undefined}
           >銘柄名{market === 'us' ? ' ⇄カナ' : ''}</span>
-          <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
-            onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
-            ジャンル{groupByGenre ? ' ✓' : ' ⇅'}
-          </button>
-          <span className={styles.wlSpHdrMemo}>メモ</span>
+          {editMode ? (
+            <>
+              <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
+                onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
+                ジャンル{groupByGenre ? ' ✓' : ' ⇅'}
+              </button>
+              <span className={styles.wlSpHdrMemo}>メモ</span>
+            </>
+          ) : <span className={styles.wlSpHdrSpacer} />}
+          <button
+            className={`${styles.wlSpEditToggle} ${editMode ? styles.wlSpEditToggleOn : ''}`}
+            onClick={() => setEditMode(v => !v)}
+            title={editMode ? '編集を終える' : '並べ替え・ジャンル・メモを編集'}
+          >{editMode ? '完了' : '✏ 編集'}</button>
         </div>
         {allCodes.length === 0
           ? <div className={styles.emptyCell}><LoadingProgress market={market} /></div>
@@ -2565,9 +2568,11 @@ function StockManager({
               openType={openPanel?.code === code ? openPanel.type : null}
               onTogglePanel={(type) => setOpenPanel(p => (p?.code === code && p.type === type) ? null : { code, type })}
               dragging={stockDrag.draggingKey === code}
-              nameDragProps={stockDrag.makeHandleProps(code, { onTap: () => onOpenDetail(code) })}
+              nameDragProps={stockDrag.makeHandleProps(code)}
               onReorderGenres={onReorderGenres}
               onRenameGenre={handleRename}
+              editMode={editMode}
+              onOpenDetail={() => onOpenDetail(code)}
             />
           ))
         }
@@ -3192,7 +3197,7 @@ function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre, editMode, onOpenDetail }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -3208,6 +3213,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   nameDragProps?: React.HTMLAttributes<HTMLElement>
   onReorderGenres: (next: string[]) => void
   onRenameGenre: (oldName: string, newName: string) => void
+  editMode: boolean
+  onOpenDetail: () => void
 }) {
   const editingMemo = openType === 'memo'
   const editingGenre = openType === 'genre'
@@ -3232,28 +3239,41 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   return (
     <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
       <div className={styles.wlMobileRow}>
+        {/* 編集モードのみ：つかんで並べ替えるグリップ */}
+        {editMode && (
+          <span className={styles.wlReorderGrip} {...nameDragProps} title="ドラッグして並べ替え">
+            <GripIcon size={16} />
+          </span>
+        )}
         <button onClick={onToggleSuperFav}
           className={`${styles.wlMobileIconBtn} ${isSuperFav ? styles.heartBtnOn : styles.heartBtn}`}>{isSuperFav ? '♥' : '♡'}</button>
         <button onClick={onToggleFav}
           className={`${styles.wlMobileIconBtn} ${isFav ? styles.favBtnOn : styles.favBtn}`}
           ><EyeIcon on={isFav} size={16} /></button>
-        <span className={styles.wlMobileCode} {...nameDragProps}>{code}</span>
-        {/* 銘柄名：タップで詳細（チャート等）を開く／長押しでドラッグ並べ替え */}
-        <span
-          className={`${styles.wlMobileName} ${styles.wlMobileNameTap}`}
-          {...nameDragProps}
+        {/* 閲覧モード：行タップで詳細。名前を主役・コード/ジャンルは下に小さく＝スッキリ */}
+        <div
+          className={styles.wlMobileMain}
+          onClick={editMode ? undefined : onOpenDetail}
         >
-          {usName(code, rec.name, rec.nameKana)}
-        </span>
-        {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileGenre}>{g}</span>)}
-        {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
-        <button className={`${styles.wlMobileEditBtn} ${genres.length ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => onTogglePanel('genre')}
-          title="ジャンル編集">🏷</button>
-        <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
-          onClick={() => onTogglePanel('memo')}
-          title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
-        >✏</button>
+          <span className={styles.wlMobileName}>{usName(code, rec.name, rec.nameKana)}</span>
+          <span className={styles.wlMobileSub}>
+            <span className={styles.wlMobileCode}>{code}</span>
+            {genres.slice(0, 2).map(g => <span key={g} className={styles.wlMobileSubGenre}>{g}</span>)}
+            {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
+          </span>
+        </div>
+        {/* 編集モードのみ：ジャンル／メモの編集ボタン */}
+        {editMode && (
+          <>
+            <button className={`${styles.wlMobileEditBtn} ${genres.length ? styles.wlMobileEditBtnActive : ''}`}
+              onClick={() => onTogglePanel('genre')}
+              title="ジャンル編集">🏷</button>
+            <button className={`${styles.wlMobileEditBtn} ${meta.memo ? styles.wlMobileEditBtnActive : ''}`}
+              onClick={() => onTogglePanel('memo')}
+              title={meta.memo ? meta.memo.slice(0, 30) : 'メモなし'}
+            >✏</button>
+          </>
+        )}
       </div>
       {/* ジャンル編集（付け外し・新規追加・並べ替え・改名） */}
       {editingGenre && (
@@ -4314,8 +4334,8 @@ function sortMetricDisplay(r: StockRow, sortKey: SortKeyEx | null): { value: str
 }
 
 // ─── SpStockRow（SP専用・1銘柄1行。"いつ買うか"＝PER位置バーが主役）──────────
-function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
-  row: StockRow; sortKey: SortKeyEx | null; earnDate?: string; hasNews?: boolean
+function SpStockRow({ row: r, sortKey, earnDate, isFav, isSuperFav, onToggleFav, onToggleSuperFav, onClick }: {
+  row: StockRow; sortKey: SortKeyEx | null; earnDate?: string
   isFav: boolean; isSuperFav: boolean
   onToggleFav: (code: string) => void; onToggleSuperFav: (code: string) => void
   onClick: () => void
@@ -4349,7 +4369,6 @@ function SpStockRow({ row: r, sortKey, earnDate, hasNews, isFav, isSuperFav, onT
           <span className={styles.spRowMeta}>
             <span className={styles.spRowCode}>{r.code}</span>
             <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
-            {hasNews && <span className={styles.spRowNews} title="直近の新着ニュースあり">📰</span>}
           </span>
         </span>
         <span className={styles.spRowPriceCol}>
@@ -5297,10 +5316,9 @@ function mergeFeed(a: FeedItem[], b: FeedItem[]): FeedItem[] {
   return cleanFeed([...a, ...b])
 }
 
-function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes, market = 'jp' }: {
+function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, market = 'jp' }: {
   heartCodes: string[]; starCodes: string[]
   nameOf: (code: string) => string; onClickCode: (code: string) => void
-  onHotCodes?: (codes: Set<string>) => void
   market?: 'jp'|'us'
 }) {
   const [scope, setScope] = useState<FeedScope>('all')
@@ -5323,18 +5341,6 @@ function NewsFeed({ heartCodes, starCodes, nameOf, onClickCode, onHotCodes, mark
   const [mediaOpen, setMediaOpen] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(feedLastFetched)
   const [visible, setVisible] = useState(FEED_DISPLAY_STEP) // 「もっと見る」で増やす表示件数
-  // ダッシュの「新着あり」マーク用: 直近(NEW窓=3日)のニュースがある銘柄コードを親へ通知（追加取得なし）
-  useEffect(() => {
-    if (!items || !onHotCodes) return
-    const now = Date.now()
-    const hot = new Set<string>()
-    for (const a of items) {
-      const t = new Date(a.pubDate).getTime()
-      if (a.code && !Number.isNaN(t) && now - t < NEWS_NEW_WINDOW_MS) hot.add(a.code)
-    }
-    onHotCodes(hot)
-  }, [items, onHotCodes])
-
   // ♥（スコープ絞り込みは表示側で行う。読み込みは全お気に入りを一括で扱う）
   const heartSet = useMemo(() => new Set(heartCodes), [heartCodes])
   const allCodes = useMemo(() => Array.from(new Set([...starCodes, ...heartCodes])), [starCodes, heartCodes])

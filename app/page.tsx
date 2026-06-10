@@ -1720,7 +1720,7 @@ export default function Page() {
                 onClick={() => { const nv = !kanaMode; setKanaMode(nv); setKanaModeState(nv) }}
                 title="社名を英語⇄カタカナ表示（全社対応）"
                 style={{padding:'4px 10px'}}
-              >{kanaMode ? 'Ａ 英語' : 'ア カナ'}</button>
+              >{kanaMode ? 'A' : 'カナ'}</button>
             )}
           </>
         )}

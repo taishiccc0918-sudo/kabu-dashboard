@@ -2303,7 +2303,15 @@ function StockManager({
     })
     // 列見出し「ジャンル」タップ時：ジャンルごとにグルーピング（ジャンルの並び順を優先、未設定は末尾）
     if (groupByGenre) {
+      // 公式の並び順(managedGenreOptions)を優先しつつ、そこに無いジャンルも必ず順位を持たせる
+      // （順位が無いと全部「未設定扱い」になりグルーピングが効かない不具合の防止）
       const grank = new Map(managedGenreOptions.map((g, i) => [g, i]))
+      let nextRank = managedGenreOptions.length
+      for (const code of list) {
+        for (const g of (stockMeta[code]?.genres ?? [])) {
+          if (!grank.has(g)) grank.set(g, nextRank++)
+        }
+      }
       const primaryRank = (code: string) => {
         const gs = stockMeta[code]?.genres ?? []
         let best = Infinity
@@ -2515,7 +2523,7 @@ function StockManager({
       <div className={styles.wlSpGenreRow}>
         <span className={styles.wlSpGenreRowLabel}>ジャンル</span>
         <GenreFilterDropdown
-          label="ジャンルで絞り込む・並べ替え"
+          label="ジャンルで絞り込む"
           genres={managedGenreOptions}
           activeFilters={genreFilters}
           onApply={f => { setGenreFilters(f); setPage(1) }}
@@ -2606,6 +2614,7 @@ function StockManager({
               onRenameGenre={handleRename}
               editMode={editMode}
               reorderable={wlSort === 'manual'}
+              rightText={wlSort === 'mcapDesc' ? (mcapMap[code] ? fmtMcap(mcapMap[code]) : '—') : undefined}
               onOpenDetail={() => onOpenDetail(code)}
             />
           ))
@@ -3231,7 +3240,7 @@ function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre, editMode, reorderable, onOpenDetail }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre, editMode, reorderable, rightText, onOpenDetail }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -3249,6 +3258,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   onRenameGenre: (oldName: string, newName: string) => void
   editMode: boolean
   reorderable: boolean
+  rightText?: string
   onOpenDetail: () => void
 }) {
   const editingMemo = openType === 'memo'
@@ -3297,6 +3307,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
             {genres.length > 2 && <span className={styles.wlMobileGenreMore}>+{genres.length - 2}</span>}
           </span>
         </div>
+        {/* 並べ替え中の指標値（例: 時価総額）を右に表示＝並んでいることが一目で分かる */}
+        {rightText && <span className={styles.wlMobileRight}>{rightText}</span>}
         {/* 編集モードのみ：ジャンル／メモの編集ボタン */}
         {editMode && (
           <>

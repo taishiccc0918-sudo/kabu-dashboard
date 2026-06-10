@@ -353,6 +353,7 @@ export default function Page() {
   const [wlShowFavOnly, setWlShowFavOnly] = useState(false)
   const [wlShowHeartOnly, setWlShowHeartOnly] = useState(false)
   const [wlMktF, setWlMktF] = useState<string>('all')
+  const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')  // 銘柄管理の並べ替え（ツールバーと共有）
   const [wlPage, setWlPage] = useState(1)
   const [wlShowBulkAdd, setWlShowBulkAdd] = useState(false)
   const [wlBulkText, setWlBulkText] = useState('')
@@ -1829,6 +1830,20 @@ export default function Page() {
                 title="コードを入力してまとめて★に追加"
               >＋まとめて追加</button>
             </div>
+            {/* 並べ替え（手動順／ジャンルごと／時価総額が大きい順）。PC/SP共通で必ず表示 */}
+            <div className={styles.wlTbSortRow}>
+              <span className={styles.wlTbSortLabel}>並べ替え</span>
+              <select
+                className={styles.wlTbSortSelect}
+                value={wlSort}
+                onChange={e => { setWlSort(e.target.value as 'manual' | 'genre' | 'mcapDesc'); setWlPage(1) }}
+                aria-label="並べ替え"
+              >
+                <option value="manual">標準（登録した並び順）</option>
+                <option value="genre">ジャンルごと</option>
+                <option value="mcapDesc">時価総額：大きい順</option>
+              </select>
+            </div>
           </>
         )}
         <div className={styles.spacer} />
@@ -2081,6 +2096,8 @@ export default function Page() {
             setShowHeartOnly={setWlShowHeartOnly}
             mktF={wlMktF}
             setMktF={setWlMktF}
+            wlSort={wlSort}
+            setWlSort={setWlSort}
             page={wlPage}
             setPage={setWlPage}
             showBulkAdd={wlShowBulkAdd}
@@ -2208,6 +2225,7 @@ function StockManager({
   showFavOnly, setShowFavOnly,
   showHeartOnly, setShowHeartOnly,
   mktF, setMktF,
+  wlSort, setWlSort,
   page, setPage,
   showBulkAdd, setShowBulkAdd,
   bulkText, setBulkText,
@@ -2242,6 +2260,8 @@ function StockManager({
   setShowHeartOnly: React.Dispatch<React.SetStateAction<boolean>>
   mktF: string
   setMktF: React.Dispatch<React.SetStateAction<'all'|'prime'|'standard'|'growth'>>
+  wlSort: 'manual' | 'genre' | 'mcapDesc'
+  setWlSort: React.Dispatch<React.SetStateAction<'manual' | 'genre' | 'mcapDesc'>>
   page: number
   setPage: React.Dispatch<React.SetStateAction<number>>
   showBulkAdd: boolean
@@ -2260,8 +2280,7 @@ function StockManager({
   const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
   // 検索ワードを変えたら開いているジャンル/メモ等のパネルを閉じる（次の銘柄を探しやすく）
   useEffect(() => { setOpenPanel(null) }, [wlSearch])
-  // SP: 並べ替え。manual=手動順(ドラッグ) / genre=ジャンルごと / mcapDesc=時価総額が大きい順
-  const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')
+  // 並べ替え。manual=手動順(ドラッグ) / genre=ジャンルごと / mcapDesc=時価総額が大きい順（親=ツールバーと共有）
   const groupByGenre = wlSort === 'genre'
   // SP: 閲覧モード / 編集モード（iSpeedの右上ペンシル相当）。編集中だけ並べ替え・ジャンル/メモ編集が出る
   const [editMode, setEditMode] = useState(false)
@@ -2463,21 +2482,6 @@ function StockManager({
         </div>
       )}
 
-      {/* PC: 並べ替えバー（手動順／ジャンルごと／時価総額が大きい順） */}
-      <div className={`${styles.wlPcSortBar} ${styles.spHide}`}>
-        <span className={styles.wlPcSortLabel}>並べ替え</span>
-        <select
-          className={styles.wlPcSortSelect}
-          value={wlSort}
-          onChange={e => { setWlSort(e.target.value as 'manual' | 'genre' | 'mcapDesc'); setPage(1) }}
-          aria-label="並べ替え"
-        >
-          <option value="manual">標準（手動の並び順）</option>
-          <option value="genre">ジャンルごと</option>
-          <option value="mcapDesc">時価総額：大きい順</option>
-        </select>
-      </div>
-
       {/* PC: テーブル表示 */}
       <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
         <table className={styles.wlTableInner}>
@@ -2554,20 +2558,6 @@ function StockManager({
         {genreFilters.size > 0 && (
           <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>全解除</button>
         )}
-      </div>
-      {/* SP: 並べ替え（手動順／ジャンルごと／時価総額が大きい順） */}
-      <div className={styles.wlSpSortRow}>
-        <span className={styles.wlSpSortLabel}>並べ替え</span>
-        <select
-          className={styles.wlSpSortSelect}
-          value={wlSort}
-          onChange={e => { setWlSort(e.target.value as 'manual' | 'genre' | 'mcapDesc'); setPage(1) }}
-          aria-label="並べ替え"
-        >
-          <option value="manual">標準（手動の並び順）</option>
-          <option value="genre">ジャンルごと</option>
-          <option value="mcapDesc">時価総額：大きい順</option>
-        </select>
       </div>
       {genreFilters.size > 0 && (
         <div className={styles.wlSpGenreChipsRow}>

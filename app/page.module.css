@@ -2910,6 +2910,23 @@
   }
 }
 
+/* 並べ替え行（PC: ツールバーに溶け込む / SP: 独立した全幅行で必ず表示） */
+.wlTbSortRow { display: contents; }
+.wlTbSortLabel { font-size: 12px; font-weight: 700; color: var(--text-2); flex-shrink: 0; white-space: nowrap; }
+.wlTbSortSelect {
+  min-height: 36px; min-width: 200px;
+  background: var(--surface-1); border: 1px solid var(--line-strong); color: var(--text-1);
+  border-radius: var(--r-btn); font-size: 13px; font-weight: 700; padding: 6px 10px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+}
+@media (max-width: 768px) {
+  .wlTbSortRow {
+    display: flex; align-items: center; width: 100%; gap: 8px;
+    padding: 2px 0;
+  }
+  .wlTbSortSelect { flex: 1 1 auto; min-width: 0; }
+}
+
 /* ── 銘柄管理 SP ジャンルフィルターバー ─────────────── */
 .wlSpGenreBar {
   display: none; /* PC では非表示; モバイルで display:flex にオーバーライド */

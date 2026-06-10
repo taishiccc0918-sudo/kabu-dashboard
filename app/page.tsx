@@ -1217,6 +1217,13 @@ export default function Page() {
     return codes.map(code => buildStockRow(code, priceDB, finDB, masterDB, stockMeta, perBandDB))
   }, [market, favorites, priceDB, finDB, masterDB, stockMeta, perBandDB])
 
+  // 銘柄管理の「時価総額で並べ替え」用。読み込み済み(★中心)の銘柄のmcapを code→億円 で引く辞書
+  const mcapMap = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const r of allRows) if (r.mcap) m[r.code] = r.mcap
+    return m
+  }, [allRows])
+
   // 市場フィルターの件数（読み込み済み銘柄ベース）。ボタンに「NASDAQ (12)」のように表示。
   const mktCounts = useMemo(() => {
     const c: Record<string, number> = { all: allRows.length }
@@ -2048,6 +2055,7 @@ export default function Page() {
         {tab === 'watchlist' && (
           <StockManager
             masterDB={masterDB}
+            mcapMap={mcapMap}
             favorites={favorites}
             superFavorites={superFavorites}
             stockMeta={stockMeta}
@@ -2190,7 +2198,7 @@ function LoadingProgress({ market }: { market?: 'jp'|'us' }) {
 }
 
 function StockManager({
-  masterDB, favorites, superFavorites, stockMeta,
+  masterDB, mcapMap, favorites, superFavorites, stockMeta,
   allGenreOptions: managedGenreOptions,
   onToggleFavorite, onToggleSuperFav, onSaveStockMeta, onAddGenre, onRemoveGenre, onRenameGenre, onExport,
   stockOrder, onReorderStocks, onReorderGenres,
@@ -2208,6 +2216,7 @@ function StockManager({
   market: 'jp'|'us'
   onOpenDetail: (code: string) => void
   masterDB: Record<string, MasterRecord>
+  mcapMap: Record<string, number>
   favorites: Set<string>
   superFavorites: Set<string>
   stockMeta: Record<string, StockMeta>
@@ -2250,8 +2259,9 @@ function StockManager({
   const [openPanel, setOpenPanel] = useState<{ code: string; type: 'genre' | 'memo' | 'links' } | null>(null)
   // 検索ワードを変えたら開いているジャンル/メモ等のパネルを閉じる（次の銘柄を探しやすく）
   useEffect(() => { setOpenPanel(null) }, [wlSearch])
-  // 列見出し「ジャンル」タップでジャンルごとにグルーピング表示
-  const [groupByGenre, setGroupByGenre] = useState(false)
+  // SP: 並べ替え。manual=手動順(ドラッグ) / genre=ジャンルごと / mcapDesc=時価総額が大きい順
+  const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')
+  const groupByGenre = wlSort === 'genre'
   // SP: 閲覧モード / 編集モード（iSpeedの右上ペンシル相当）。編集中だけ並べ替え・ジャンル/メモ編集が出る
   const [editMode, setEditMode] = useState(false)
   // 編集を終えたら開きっぱなしのパネルを閉じる
@@ -2305,6 +2315,14 @@ function StockManager({
         return a < b ? -1 : a > b ? 1 : 0
       })
     }
+    // 時価総額：大きい順（mcap不明＝末尾、同値はコード順）
+    if (wlSort === 'mcapDesc') {
+      return list.slice().sort((a, b) => {
+        const ma = mcapMap[a] ?? -1, mb = mcapMap[b] ?? -1
+        if (ma !== mb) return mb - ma
+        return a < b ? -1 : a > b ? 1 : 0
+      })
+    }
     // 手動並び順を優先（stockOrder にある銘柄を順に、残りはコード順で末尾）
     if (stockOrder.length === 0) return list
     const rank = new Map(stockOrder.map((c, i) => [c, i]))
@@ -2314,7 +2332,7 @@ function StockManager({
       if (ra !== rb) return ra - rb
       return a < b ? -1 : a > b ? 1 : 0
     })
-  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder, groupByGenre, managedGenreOptions])
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder, groupByGenre, wlSort, mcapMap, managedGenreOptions])
 
   useEffect(() => {
     if (!wlHighlightCode) return
@@ -2508,6 +2526,20 @@ function StockManager({
           <button className={styles.wlSpGenreClearBtn} onClick={() => { setGenreFilters(new Set()); setPage(1) }}>全解除</button>
         )}
       </div>
+      {/* SP: 並べ替え（手動順／ジャンルごと／時価総額が大きい順） */}
+      <div className={styles.wlSpSortRow}>
+        <span className={styles.wlSpSortLabel}>並べ替え</span>
+        <select
+          className={styles.wlSpSortSelect}
+          value={wlSort}
+          onChange={e => { setWlSort(e.target.value as 'manual' | 'genre' | 'mcapDesc'); setPage(1) }}
+          aria-label="並べ替え"
+        >
+          <option value="manual">標準（手動の並び順）</option>
+          <option value="genre">ジャンルごと</option>
+          <option value="mcapDesc">時価総額：大きい順</option>
+        </select>
+      </div>
       {genreFilters.size > 0 && (
         <div className={styles.wlSpGenreChipsRow}>
           {Array.from(genreFilters).map(g => (
@@ -2523,7 +2555,7 @@ function StockManager({
         {/* SP: 固定列ヘッダー＋右上に「編集」トグル（iSpeedのペンシル相当）。
             閲覧モードはスッキリ＝♥/👁/コード/銘柄名のみ。編集モードでジャンル/メモ列が出る */}
         <div className={styles.wlSpStickyHeader}>
-          {editMode && <span className={styles.wlSpHdrGrip} aria-hidden />}
+          {editMode && wlSort === 'manual' && <span className={styles.wlSpHdrGrip} aria-hidden />}
           <span className={styles.wlSpHdrHeart}>♥</span>
           <span className={styles.wlSpHdrStar} title="ウォッチ"><EyeIcon on size={13} /></span>
           <span className={styles.wlSpHdrCode}>コード</span>
@@ -2535,7 +2567,7 @@ function StockManager({
           {editMode ? (
             <>
               <button className={`${styles.wlSpHdrGenre} ${styles.wlSpHdrGenreBtn} ${groupByGenre ? styles.wlSpHdrGenreBtnOn : ''}`}
-                onClick={() => setGroupByGenre(v => !v)} title="ジャンルごとに並べ替え">
+                onClick={() => setWlSort(s => s === 'genre' ? 'manual' : 'genre')} title="ジャンルごとに並べ替え">
                 ジャンル{groupByGenre ? ' ✓' : ' ⇅'}
               </button>
               <span className={styles.wlSpHdrMemo}>メモ</span>
@@ -2572,6 +2604,7 @@ function StockManager({
               onReorderGenres={onReorderGenres}
               onRenameGenre={handleRename}
               editMode={editMode}
+              reorderable={wlSort === 'manual'}
               onOpenDetail={() => onOpenDetail(code)}
             />
           ))
@@ -3197,7 +3230,7 @@ function GenreChipList({ genres, assigned, onToggle, onReorder, onRename }: {
   )
 }
 
-function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre, editMode, onOpenDetail }: {
+function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAddGenre, onToggleFav, onToggleSuperFav, onSaveMeta, highlighted, openType, onTogglePanel, dragging, nameDragProps, onReorderGenres, onRenameGenre, editMode, reorderable, onOpenDetail }: {
   code: string
   rec: MasterRecord
   isFav: boolean; isSuperFav: boolean
@@ -3214,6 +3247,7 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   onReorderGenres: (next: string[]) => void
   onRenameGenre: (oldName: string, newName: string) => void
   editMode: boolean
+  reorderable: boolean
   onOpenDetail: () => void
 }) {
   const editingMemo = openType === 'memo'
@@ -3239,8 +3273,8 @@ function WlMobileRow({ code, rec, isFav, isSuperFav, meta, allGenreOptions, onAd
   return (
     <div className={`${styles.wlMobileItem} ${highlighted ? styles.wlHighlight : ''} ${dragging ? styles.wlMobileItemDragging : ''}`} data-code-wl={code} data-drag-key={code}>
       <div className={styles.wlMobileRow}>
-        {/* 編集モードのみ：つかんで並べ替えるグリップ */}
-        {editMode && (
+        {/* 編集モード かつ「標準（手動順）」のときだけ：つかんで並べ替えるグリップ */}
+        {editMode && reorderable && (
           <span className={styles.wlReorderGrip} {...nameDragProps} title="ドラッグして並べ替え">
             <GripIcon size={16} />
           </span>

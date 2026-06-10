@@ -1116,9 +1116,9 @@
 }
 /* 件数の横の♥クイック絞り込み（フィルターを開かず即♥のみ表示） */
 .spHeartFilter {
-  flex-shrink: 0; background: none; border: 1px solid var(--line-strong); border-radius: 999px;
-  width: 30px; height: 24px; font-size: 14px; line-height: 1; cursor: pointer;
-  color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  flex-shrink: 0; background: var(--surface-1); border: 1px solid var(--line-strong); border-radius: 999px;
+  width: 34px; height: 28px; font-size: 15px; line-height: 1; cursor: pointer;
+  color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; padding: 0;
 }
 .spHeartFilterOn { color: #f43f5e; border-color: #f43f5e; background: rgba(244,63,94,0.10); }
 /* 初回オンボーディング（まず銘柄管理で登録を促すモーダル） */
@@ -1350,7 +1350,7 @@
   .searchWrap { flex: 8 1 0; min-width: 0; order: 0; }
   .searchInput { width: 100% !important; font-size: 16px !important; box-sizing: border-box; }
   .searchInput:focus { width: 100% !important; }
-  .filterToggleBtn { flex: 2 1 0; min-width: 0; padding: 0 6px; justify-content: center; }
+  .filterToggleBtn { flex: 2 1 0; min-width: 0; padding: 0 6px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .spacer { display: none; }
   .filterDivider { display: none; }
   .tabGroup { margin-left: auto; }
@@ -1469,6 +1469,7 @@
   .wlSpGenreRow { display: flex; }
   .wlSpGenreRow .genreFilterBtn { flex: 1 1 auto; min-height: 38px; justify-content: center; }
   .wlSpGenreChipsRow { display: flex; }
+  .wlSpSortRow { display: flex; }
 
   /* ウォッチSPリストの固定崩れ修正: 独自スクロールをやめ body スクロール＋見出しは viewport 上端に固定 */
   .wlSpList { overflow: visible; flex: none; min-height: 0; }
@@ -1683,10 +1684,10 @@
 
 /* ── 詳細フィルタートグルボタン ──────────────────── */
 .filterToggleBtn {
-  padding: 4px 12px; border-radius: 4px;
+  padding: 5px 12px; border-radius: 6px;
   border: 1px solid var(--line-strong);
-  background: rgba(255,255,255,0.04);
-  color: #8fa3be; font-size: 11px;
+  background: var(--surface-1);
+  color: var(--text-1); font-size: 12.5px; font-weight: 600;
   font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer; transition: all .12s; white-space: nowrap;
 }
@@ -2602,6 +2603,15 @@
 /* SP: ジャンル絞り込み（プルダウン化）。PC非表示・SPで表示 */
 .wlSpGenreRow { display: none; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-1); border-bottom: 1px solid var(--line); }
 .wlSpGenreRowLabel { font-size: 12px; color: var(--text-2); font-weight: 600; flex-shrink: 0; }
+/* SP: 並べ替え行（手動/ジャンル/時価総額） */
+.wlSpSortRow { display: none; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-1); border-bottom: 1px solid var(--line); }
+.wlSpSortLabel { font-size: 12px; color: var(--text-2); font-weight: 600; flex-shrink: 0; }
+.wlSpSortSelect {
+  flex: 1 1 auto; min-height: 38px;
+  background: var(--surface-0); border: 1px solid var(--line-strong); color: var(--text-1);
+  border-radius: var(--r-btn); font-size: 13px; font-weight: 700; padding: 7px 10px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+}
 .wlSpGenreChipsRow { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 10px; background: var(--surface-1); border-bottom: 1px solid var(--line); }
 /* SP: 列ヘッダー（スティッキー） */
 .wlSpStickyHeader {

@@ -2018,6 +2018,24 @@
 .wlTdName {
   font-size: 13px; color: var(--text-1);
 }
+/* 時価総額セル（並べ替え対象） */
+.wlTdMcap {
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 600;
+  color: var(--text-1); text-align: right; white-space: nowrap;
+}
+/* クリックで並べ替えできる見出し */
+.wlThSortable { cursor: pointer; user-select: none; }
+.wlThSortable:hover { color: var(--text-1); }
+.wlThSortOn { color: var(--accent); }
+/* PC: 銘柄管理の並べ替えバー */
+.wlPcSortBar { display: flex; align-items: center; gap: 10px; padding: 8px 4px 10px; }
+.wlPcSortLabel { font-size: 12px; font-weight: 700; color: var(--text-2); }
+.wlPcSortSelect {
+  min-height: 36px; min-width: 200px;
+  background: var(--surface-1); border: 1px solid var(--line-strong); color: var(--text-1);
+  border-radius: var(--r-btn); font-size: 13px; font-weight: 700; padding: 6px 10px;
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+}
 .wlMemoInput {
   width: 100%;
   background: var(--surface-1); border: 1px solid var(--line);

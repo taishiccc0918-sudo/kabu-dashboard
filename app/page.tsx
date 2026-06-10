@@ -2463,6 +2463,21 @@ function StockManager({
         </div>
       )}
 
+      {/* PC: 並べ替えバー（手動順／ジャンルごと／時価総額が大きい順） */}
+      <div className={`${styles.wlPcSortBar} ${styles.spHide}`}>
+        <span className={styles.wlPcSortLabel}>並べ替え</span>
+        <select
+          className={styles.wlPcSortSelect}
+          value={wlSort}
+          onChange={e => { setWlSort(e.target.value as 'manual' | 'genre' | 'mcapDesc'); setPage(1) }}
+          aria-label="並べ替え"
+        >
+          <option value="manual">標準（手動の並び順）</option>
+          <option value="genre">ジャンルごと</option>
+          <option value="mcapDesc">時価総額：大きい順</option>
+        </select>
+      </div>
+
       {/* PC: テーブル表示 */}
       <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
         <table className={styles.wlTableInner}>
@@ -2475,6 +2490,10 @@ function StockManager({
                 title={market === 'us' ? 'クリックで社名を英語⇄カタカナ表示' : undefined}
               >銘柄名{market === 'us' ? ' ⇄カナ' : ''}</th>
               <th className={styles.wlTh} style={{width:80}}>市場</th>
+              <th className={`${styles.wlTh} ${styles.wlThSortable} ${wlSort === 'mcapDesc' ? styles.wlThSortOn : ''}`} style={{width:96, cursor:'pointer'}}
+                onClick={() => { setWlSort(s => s === 'mcapDesc' ? 'manual' : 'mcapDesc'); setPage(1) }}
+                title="クリックで時価総額が大きい順に並べ替え"
+              >時価総額{wlSort === 'mcapDesc' ? ' ▼' : ''}</th>
               <th className={styles.wlTh} style={{width:160}}>
                 ジャンル
                 <GenreFilterDropdown
@@ -2491,14 +2510,15 @@ function StockManager({
           </thead>
           <tbody>
             {allCodes.length === 0 ? (
-              <tr><td colSpan={6} className={styles.emptyCell}><LoadingProgress market={market} /></td></tr>
+              <tr><td colSpan={9} className={styles.emptyCell}><LoadingProgress market={market} /></td></tr>
             ) : pageCodes.length === 0 ? (
-              <tr><td colSpan={6} className={styles.emptyCell}>該当銘柄なし</td></tr>
+              <tr><td colSpan={9} className={styles.emptyCell}>該当銘柄なし</td></tr>
             ) : pageCodes.map(code => (
               <StockManagerRow
                 key={code}
                 code={code}
                 rec={masterDB[code]}
+                mcap={mcapMap[code]}
                 isFav={favorites.has(code)}
                 isSuperFav={superFavorites.has(code)}
                 meta={stockMeta[code] ?? { genres: [], memo: '' }}
@@ -3411,11 +3431,12 @@ function LinkDropdown({ code, name }: { code: string; name: string }) {
 
 // ─── StockManagerRow ─────────────────────────────────────────────────
 const StockManagerRow = React.memo(function StockManagerRow({
-  code, rec, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted, onOpenDetail,
+  code, rec, mcap, isFav, isSuperFav, meta, allGenreOptions, onToggleFav, onToggleSuperFav, onSaveMeta, onAddGenre, onRenameGenre, earningsDate, onSaveEarningsDate, highlighted, onOpenDetail,
 }: {
   code: string
   onOpenDetail?: (code: string) => void
   rec: MasterRecord
+  mcap?: number
   isFav: boolean
   isSuperFav: boolean
   meta: StockMeta
@@ -3478,6 +3499,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
         <td className={styles.wlTd}>
           <span className={`${styles.mktBadge} ${styles['mkt_' + mktCls]}`}>{mktLabel}</span>
         </td>
+        <td className={`${styles.wlTd} ${styles.wlTdMcap}`}>{mcap ? fmtMcap(mcap) : '—'}</td>
         <td className={styles.wlTd}>
           <div className={styles.wlGenreCell}>
             {genres.length === 0
@@ -3533,7 +3555,7 @@ const StockManagerRow = React.memo(function StockManagerRow({
       </tr>
       {editing && (
         <tr className={styles.wlEditRow}>
-          <td colSpan={8} className={styles.wlEditTd}>
+          <td colSpan={9} className={styles.wlEditTd}>
             <div className={styles.wlGenreSearchRow}>
               <input
                 className={styles.wlGenreSearch}

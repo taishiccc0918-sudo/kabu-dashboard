@@ -1716,10 +1716,9 @@ export default function Page() {
             >{showDetail ? '指標を絞る' : '＋ 詳細指標'}</button>
             {market === 'us' && (
               <button
-                className={`${styles.filterToggleBtn} ${kanaMode ? styles.filterToggleBtnActive : ''}`}
+                className={`${styles.filterToggleBtn} ${styles.kanaToggleBtn} ${kanaMode ? styles.filterToggleBtnActive : ''}`}
                 onClick={() => { const nv = !kanaMode; setKanaMode(nv); setKanaModeState(nv) }}
                 title="社名を英語⇄カタカナ表示（全社対応）"
-                style={{padding:'4px 10px'}}
               >{kanaMode ? 'A' : 'カナ'}</button>
             )}
           </>

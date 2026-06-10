@@ -1692,6 +1692,8 @@
   cursor: pointer; transition: all .12s; white-space: nowrap;
 }
 .filterToggleBtn:hover { color: var(--text-1); border-color: var(--accent); }
+/* カナ/英語切替は内容ぴったりの小さいボタンに（フィルター▼を圧迫しないように） */
+.kanaToggleBtn { flex: 0 0 auto; min-width: 0; padding: 0 10px; }
 .filterToggleBtnActive {
   border-color: var(--accent); color: var(--accent);
   background: rgba(20,184,166,0.1);

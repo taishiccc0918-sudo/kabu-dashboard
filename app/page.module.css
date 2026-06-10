@@ -1350,7 +1350,9 @@
   .searchWrap { flex: 8 1 0; min-width: 0; order: 0; }
   .searchInput { width: 100% !important; font-size: 16px !important; box-sizing: border-box; }
   .searchInput:focus { width: 100% !important; }
-  .filterToggleBtn { flex: 2 1 0; min-width: 0; padding: 0 6px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+  /* フィルター/カナは内容ぴったりの幅に＝「フィルター ▼」がはみ出して▼が隠れるのを防ぐ。
+     検索(flex:8, min-width:0)が残り幅を全部取って縮む。 */
+  .filterToggleBtn { flex: 0 0 auto; white-space: nowrap; padding: 0 14px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .spacer { display: none; }
   .filterDivider { display: none; }
   .tabGroup { margin-left: auto; }

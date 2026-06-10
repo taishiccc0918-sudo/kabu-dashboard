@@ -2448,8 +2448,8 @@
 /* ── ダッシュボードのジャンル絞り込み（検索付きドロップダウン）─────── */
 .filterGenreWrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .filterGenreWrap .genreFilterBtn {
-  font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;
-  border: 1px solid var(--line-strong); color: #aebccd; margin-left: 0;
+  font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 6px;
+  border: 1px solid var(--line-strong); background: var(--surface-1); color: var(--text-1); margin-left: 0;
 }
 .filterGenreWrap .genreFilterBtn:hover { color: var(--text-1); border-color: var(--accent); }
 .filterGenreChips { display: flex; gap: 5px; flex-wrap: wrap; }

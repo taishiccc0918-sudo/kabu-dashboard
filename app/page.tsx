@@ -1849,7 +1849,8 @@ export default function Page() {
         <div className={styles.filterBar}>
           {/* 1行にまとめて余白を減らす（折り返しあり） */}
           <div className={styles.filterBarRow}>
-            <div className={styles.filterGroup}>
+            {/* ♥はSPでは右上のクイック♥と重複するため非表示（PCのみ） */}
+            <div className={`${styles.filterGroup} ${styles.spHide}`}>
               <button
                 className={`${styles.filterBtn} ${styles.heartFilterBtn} ${filterHeart ? styles.heartFilterBtnActive : ''}`}
                 style={!filterHeart ? { color: '#94a3b8' } : undefined}
@@ -1857,7 +1858,7 @@ export default function Page() {
                 title="超お気に入り（♥）銘柄のみ表示"
               >{filterHeart ? '♥' : '♡'}</button>
             </div>
-            <div className={styles.filterDivider} />
+            <div className={`${styles.filterDivider} ${styles.spHide}`} />
             {/* PC: 市場ボタン群 / SP: コンパクトな市場プルダウン（デフォルト全市場）。市場で選択肢を切替 */}
             <div className={`${styles.filterGroup} ${styles.spHide}`}>
               {(market === 'us'

@@ -59,7 +59,8 @@ export default function AiAssist({
   // 閉じるときに音声認識を止める
   useEffect(() => () => { try { recRef.current?.stop() } catch { /* noop */ } }, [])
 
-  function toggleMic() {
+  // target: 認識結果の書き込み先（'add'=ことばで追加の本文 / 'theme'=テーマ入力欄）
+  function toggleMic(target: 'add' | 'theme') {
     const SR = getSpeechRecognition()
     if (!SR) return
     if (listening) { try { recRef.current?.stop() } catch { /* noop */ }; setListening(false); return }
@@ -72,7 +73,9 @@ export default function AiAssist({
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) text += e.results[i][0].transcript
       }
-      if (text) setInput(prev => (prev ? prev + ' ' : '') + text)
+      if (!text) return
+      if (target === 'add') setInput(prev => (prev ? prev + ' ' : '') + text)
+      else setThemeInput(prev => (prev ? prev + ' ' : '') + text)
     }
     rec.onend = () => setListening(false)
     rec.onerror = () => setListening(false)
@@ -109,12 +112,11 @@ export default function AiAssist({
         gs.push({ input: n, matches: hits })
       }
       setGroups(gs); setUnmatched(miss)
-      // 既定ON: 各グループの完全一致（複数あれば全部=ソフトバンク両方）、無ければ先頭1件。登録済みは外す
+      // 既定ON: 完全一致のみ（複数あれば全部=ソフトバンク両方）。
+      // あいまい一致は自動チェックしない＝誤変換由来の別会社が勝手に選ばれる事故を防ぐ（本人フィードバック）。
       const init = new Set<string>()
       for (const g of gs) {
-        const exacts = g.matches.filter(m => m.exact)
-        const pick = exacts.length > 0 ? exacts : g.matches.slice(0, 1)
-        pick.forEach(m => { if (!favorites.has(m.code)) init.add(m.code) })
+        g.matches.filter(m => m.exact).forEach(m => { if (!favorites.has(m.code)) init.add(m.code) })
       }
       setChecked(init)
       if (gs.length === 0 && miss.length === 0) setError('文章から上場企業名を見つけられませんでした')
@@ -199,7 +201,7 @@ export default function AiAssist({
             />
             <div className={styles.aiActions}>
               {speechAvailable && (
-                <button className={`${styles.aiMicBtn} ${listening ? styles.aiMicBtnOn : ''}`} onClick={toggleMic}
+                <button className={`${styles.aiMicBtn} ${listening ? styles.aiMicBtnOn : ''}`} onClick={() => toggleMic('add')}
                   title="音声で入力（話した内容が上の欄に追記されます）">
                   {listening ? '🎤 認識中…（タップで停止）' : '🎤 音声で入力'}
                 </button>
@@ -218,7 +220,10 @@ export default function AiAssist({
                 <div className={styles.aiResultLabel}>見つかった銘柄（チェックした銘柄をまとめて追加します）</div>
                 {groups.map(g => (
                   <div key={g.input} className={styles.aiCandGroup}>
-                    {g.matches.length > 1 && <div className={styles.aiCandGroupLabel}>「{g.input}」に近い銘柄:</div>}
+                    {/* あいまい一致は「近い銘柄」と明示（自動チェックもされない）＝誤変換でも別会社が紛れ込まない */}
+                    {(g.matches.length > 1 || !g.matches[0].exact) && (
+                      <div className={styles.aiCandGroupLabel}>「{g.input}」に近い銘柄（確認してチェック）:</div>
+                    )}
                     {g.matches.map(checkRow)}
                   </div>
                 ))}
@@ -245,6 +250,10 @@ export default function AiAssist({
                 onChange={e => setThemeInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') runTheme() }}
               />
+              {speechAvailable && (
+                <button className={`${styles.aiMicBtnSmall} ${listening ? styles.aiMicBtnOn : ''}`}
+                  onClick={() => toggleMic('theme')} title="音声でテーマを入力" aria-label="音声でテーマを入力">🎤</button>
+              )}
               <button className={styles.btnPrimary} onClick={runTheme} disabled={loading || !themeInput.trim()}>
                 {loading ? '検索中…' : 'さがす'}
               </button>

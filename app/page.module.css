@@ -4179,6 +4179,11 @@
   border: 1px solid var(--line); border-radius: var(--r-pill);
   padding: 8px 14px; font-size: 13px; cursor: pointer;
 }
+.aiMicBtnSmall {
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--line); border-radius: var(--r-btn);
+  padding: 8px 11px; font-size: 15px; cursor: pointer; flex-shrink: 0;
+}
 .aiMicBtnOn {
   background: var(--down-soft); color: var(--down);
   border-color: var(--down); animation: aiPulse 1.2s ease-in-out infinite;

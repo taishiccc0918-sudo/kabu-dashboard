@@ -32,10 +32,53 @@ type ThemeItem = {
   market: string
   country: 'JP' | 'US'
   mcap: number | null     // 億円
+  per: number | null      // PER今期（会社予想ベース・数値の事実のみ。割安/割高の判定はしない）
   relation: string        // LLMによる事業上の関連（事実記述・禁止語フィルタ済み）
   sicLabel: string | null // 米国: SEC業種（一次情報）
   factsheet: { bizDesc: string; docUrl: string | null; docDate: string | null } | null
   news: { title: string; link: string; source: string; pubDate: string }[]
+}
+
+// ── J-Quants 直取得（snapshot未収録の銘柄の時価総額・PERを補完）────────
+const JQ_BASE = 'https://api.jquants.com/v2'
+function num(v: unknown): number { if (v == null || v === '') return 0; const x = Number(v); return isNaN(x) ? 0 : x }
+async function jqFetch(path: string): Promise<Record<string, unknown> | null> {
+  const key = (process.env.JQUANTS_API_KEY ?? '').trim()
+  if (!key) return null
+  try {
+    const res = await fetch(`${JQ_BASE}${path}`, { headers: { 'x-api-key': key } })
+    if (!res.ok) return null
+    return await res.json() as Record<string, unknown>
+  } catch { return null }
+}
+// 1銘柄の {mcap(億円), per(会社予想)} を取得。失敗は null のまま（嘘をつかない）
+async function jqMcapPer(code: string): Promise<{ mcap: number | null; per: number | null }> {
+  const today = new Date(Date.now() + 9 * 3600_000)
+  const toStr = today.toISOString().slice(0, 10)
+  const fromStr = new Date(today.getTime() - 14 * 86400_000).toISOString().slice(0, 10)
+  const [fins, bars] = await Promise.all([
+    jqFetch(`/fins/summary?code=${code}`),
+    jqFetch(`/equities/bars/daily?code=${code}&dateFrom=${fromStr}&dateTo=${toStr}`),
+  ])
+  const rows = ((bars as { data?: Record<string, unknown>[] } | null)?.data ?? [])
+  let close = 0; let lastDate = ''
+  for (const d of rows) {
+    const date = String(d.Date ?? '')
+    const price = num(d.AdjC) || num(d.C)
+    if (date > lastDate && price > 0) { lastDate = date; close = price }
+  }
+  const stmts = ((fins as { data?: Record<string, string>[] } | null)?.data ?? [])
+  let shOut = 0
+  for (let i = stmts.length - 1; i >= 0; i--) { const v = num(stmts[i].ShOutFY) || num(stmts[i].ShOut); if (v > 0) { shOut = v; break } }
+  // 予想EPS: 最新開示（DiscDate最大）の FEPS
+  let feps = 0; let bestDate = ''
+  for (const s of stmts) {
+    const v = num(s.FEPS)
+    if (v !== 0 && String(s.DiscDate ?? '') > bestDate) { bestDate = String(s.DiscDate ?? ''); feps = v }
+  }
+  const mcap = close > 0 && shOut > 0 ? Math.round(close * shOut / 1e8) : null
+  const per = close > 0 && feps > 0 ? Math.round((close / feps) * 10) / 10 : null
+  return { mcap, per }
 }
 
 export async function POST(req: NextRequest) {
@@ -59,6 +102,7 @@ export async function POST(req: NextRequest) {
     '・relation は事実の記述のみ。「〜を手掛ける」「〜を製造している」「〜と開示している」のような書き方。\n' +
     '・投資判断・推奨・予測の語（買い/売り/推奨/おすすめ/割安/割高/上がる/下がる/有望/期待/目標株価 等）は一切使わない。\n' +
     '・テーマとの関連が事業として確実な企業のみ。確信が持てない企業・関連が薄い企業は含めない。\n' +
+    '・社名変更した企業は現在の社名を使う（例: 日本電産→ニデック、昭和電工→レゾナック）。\n' +
     '・ETF・投資信託・未上場企業は含めない。\n' +
     '・日本株は最大10社、米国株は最大6社。該当が無ければ {"companies": []}。\n'
 
@@ -138,6 +182,7 @@ export async function POST(req: NextRequest) {
   const factsheets: Record<string, { bizDesc: string; docUrl: string | null; docDate: string | null }> = {}
   const newsByCode: Record<string, { title: string; link: string; source: string; pubDate: string }[]> = {}
   const mcapByCode: Record<string, number> = {}
+  const perByCode: Record<string, number> = {}
   const jpCodes = matched.filter(m => m.country === 'JP').map(m => m.code)
   if (sb && jpCodes.length > 0) {
     try {
@@ -159,17 +204,30 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* 同上 */ }
     try {
-      // 時価総額（億円）: cron事前計算のスナップショットにあれば使う（無い銘柄は null のまま）
-      const { data } = await sb.from('stock_snapshot').select('code,fin').in('code', jpCodes)
-      for (const r of (data ?? []) as { code: string; fin: { mcap?: number } | null }[]) {
-        if (r.fin?.mcap) mcapByCode[r.code] = r.fin.mcap
+      // 時価総額・PER: cron事前計算のスナップショット（mcapは price 列・fepsは fin 列）にあれば使う
+      const { data } = await sb.from('stock_snapshot').select('code,price,fin').in('code', jpCodes)
+      for (const r of (data ?? []) as { code: string; price: { close?: number; mcap?: number } | null; fin: { feps?: number | null } | null }[]) {
+        if (r.price?.mcap) mcapByCode[r.code] = r.price.mcap
+        const close = r.price?.close ?? 0; const feps = r.fin?.feps ?? 0
+        if (close > 0 && feps > 0) perByCode[r.code] = Math.round((close / feps) * 10) / 10
       }
     } catch { /* 同上 */ }
+    // スナップショット未収録の銘柄は J-Quants 直取得で補完（同時3並行・失敗はnullのまま）
+    const missing = jpCodes.filter(c => !mcapByCode[c])
+    for (let i = 0; i < missing.length; i += 3) {
+      const batch = missing.slice(i, i + 3)
+      const results = await Promise.all(batch.map(c => jqMcapPer(c)))
+      batch.forEach((c, j) => {
+        if (results[j].mcap) mcapByCode[c] = results[j].mcap as number
+        if (results[j].per && !perByCode[c]) perByCode[c] = results[j].per as number
+      })
+    }
   }
 
   const items: ThemeItem[] = matched.map(m => ({
     ...m,
     mcap: m.country === 'JP' ? (mcapByCode[m.code] ?? null) : m.mcap,
+    per: m.country === 'JP' ? (perByCode[m.code] ?? null) : null,
     factsheet: m.country === 'JP' ? (factsheets[m.code] ?? null) : null,
     news: m.country === 'JP' ? (newsByCode[m.code] ?? []) : [],
   }))

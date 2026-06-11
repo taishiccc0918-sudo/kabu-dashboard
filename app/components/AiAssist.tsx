@@ -17,9 +17,26 @@ type AddGroup = { input: string; matches: NameMatch[] }
 type UsHit = { ticker: string; name: string; market: string; mcap: number | null }
 type ThemeItem = {
   code: string; name: string; market: string; country: 'JP' | 'US'
-  mcap: number | null; relation: string; sicLabel: string | null
+  mcap: number | null; per: number | null; relation: string; sicLabel: string | null
   factsheet: { bizDesc: string; docUrl: string | null; docDate: string | null } | null
   news: { title: string; link: string; source: string; pubDate: string }[]
+}
+
+// テーマのプリセット（タップで即検索。文字入力が苦手な人向け）
+const THEME_PRESETS = [
+  '半導体製造装置', '半導体材料', 'データセンター', '生成AI', 'ロボット・フィジカルAI',
+  '防衛', '宇宙', 'レアアース', '原子力・電力', '電線・送電網',
+  'サイバーセキュリティ', 'インバウンド', 'ゲーム・IP', '医療機器', '造船', '銀行',
+]
+
+// 👁ウォッチの目印アイコン（page.tsx の EyeIcon と同形・銘柄管理と同じ作法）
+function EyeMark({ on, size = 17 }: { on: boolean; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>
+      <circle cx="12" cy="12" r="2.9" fill={on ? 'currentColor' : 'none'}/>
+    </svg>
+  )
 }
 
 function fmtMcapJp(mcap: number | null): string {
@@ -138,8 +155,9 @@ export default function AiAssist({
   }
 
   // ── テーマでさがす ──
-  async function runTheme() {
-    const theme = themeInput.trim()
+  async function runTheme(presetTheme?: string) {
+    const theme = (presetTheme ?? themeInput).trim()
+    if (presetTheme) setThemeInput(presetTheme)
     if (!theme || loading) return
     resetResults(); setLoading(true)
     try {
@@ -185,32 +203,41 @@ export default function AiAssist({
   const regLast = <T,>(arr: T[], codeOf: (t: T) => string): T[] =>
     [...arr].sort((a, b) => Number(favorites.has(codeOf(a))) - Number(favorites.has(codeOf(b))))
 
-  const heartBtn = (code: string, disabled: boolean) => (
-    <button
-      className={`${styles.aiHeartBtn} ${hearts.has(code) ? styles.aiHeartBtnOn : ''}`}
-      disabled={disabled}
-      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleHeart(code) }}
-      title="♥にすると「超お気に入り」にも登録（ふつうの追加は👁ウォッチのみ）"
-      aria-label="超お気に入りにも登録"
-    >♥</button>
+  // 右側の 👁/♥ トグル（銘柄管理と同じ作法: 👁=ウォッチに追加・♥=超お気に入りにも）
+  const markBtns = (code: string) => (
+    <span className={styles.aiMarkCol}>
+      <button
+        className={`${styles.aiEyeBtn} ${checked.has(code) ? styles.aiEyeBtnOn : ''}`}
+        onClick={e => { e.preventDefault(); e.stopPropagation(); toggleCheck(code) }}
+        title="👁ウォッチリストに追加する銘柄として選択"
+        aria-label="ウォッチに追加"
+      ><EyeMark on={checked.has(code)} /></button>
+      <button
+        className={`${styles.aiHeartBtn} ${hearts.has(code) ? styles.aiHeartBtnOn : ''}`}
+        onClick={e => { e.preventDefault(); e.stopPropagation(); toggleHeart(code) }}
+        title="♥にすると「超お気に入り」にも登録"
+        aria-label="超お気に入りにも登録"
+      >♥</button>
+    </span>
   )
 
   const checkRow = (m: { code: string; name: string; market: string }, usBadge?: boolean) => {
     const isFav = favorites.has(m.code)
     return (
-      <label key={m.code} className={`${styles.aiCandRow} ${isFav ? styles.aiCandRowDone : ''}`}>
-        <input type="checkbox" disabled={isFav} checked={checked.has(m.code)} onChange={() => toggleCheck(m.code)} />
+      <div key={m.code}
+        className={`${styles.aiCandRow} ${checked.has(m.code) ? styles.aiCandRowOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
+        onClick={() => { if (!isFav) toggleCheck(m.code) }}>
         <span className={styles.aiCandName}>{m.name}</span>
         <span className={styles.aiCandCode}>{m.code}</span>
         <span className={styles.aiCandMkt}>{usBadge ? `🇺🇸 ${m.market}` : m.market.replace('市場', '')}</span>
-        {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : heartBtn(m.code, false)}
-      </label>
+        {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : markBtns(m.code)}
+      </div>
     )
   }
 
   const commitBar = (theme?: string) => (
     <>
-      <div className={styles.aiHeartHint}>♥を押すと「超お気に入り」にも登録されます（ふつうは👁ウォッチのみ）</div>
+      <div className={styles.aiHeartHint}>👁=ウォッチに追加 ／ ♥=「超お気に入り」にも登録（銘柄管理のマークと同じ）</div>
       <button className={styles.btnPrimary} onClick={() => commitAdd(theme)} disabled={checked.size === 0}>
         ✓ {checked.size}件をウォッチリストに追加{hearts.size > 0 ? `（うち♥${hearts.size}件）` : ''}
       </button>
@@ -228,13 +255,17 @@ export default function AiAssist({
         className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
         onClick={() => { if (!isFav) toggleCheck(it.code) }}>
         <div className={styles.aiThemeCardHead}>
-          <input type="checkbox" disabled={isFav} checked={checked.has(it.code)} readOnly />
           <span className={styles.aiCandName}>{it.name}</span>
           <span className={styles.aiCandCode}>{it.code}</span>
           <span className={styles.aiCandMkt}>{it.country === 'US' ? `🇺🇸 ${it.market}` : it.market.replace('市場', '')}</span>
-          {it.mcap ? <span className={styles.aiCandMkt}>{fmtMcapJp(it.mcap)}</span> : null}
-          {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : heartBtn(it.code, false)}
+          {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : markBtns(it.code)}
         </div>
+        {(it.mcap || it.per) && (
+          <div className={styles.aiThemeMetrics}>
+            {it.mcap ? <span>時価総額 {fmtMcapJp(it.mcap)}</span> : null}
+            {it.per ? <span>PER今期 {it.per}倍</span> : null}
+          </div>
+        )}
         {it.relation && <div className={styles.aiThemeRelation}>{it.relation}</div>}
         {it.sicLabel && (
           <div className={styles.aiEvidence}>
@@ -362,10 +393,18 @@ export default function AiAssist({
                 <button className={`${styles.aiMicBtnSmall} ${listening ? styles.aiMicBtnOn : ''}`}
                   onClick={() => toggleMic('theme')} title="音声でテーマを入力" aria-label="音声でテーマを入力">🎤</button>
               )}
-              <button className={styles.btnPrimary} onClick={runTheme} disabled={loading || !themeInput.trim()}>
+              <button className={styles.btnPrimary} onClick={() => runTheme()} disabled={loading || !themeInput.trim()}>
                 {loading ? '検索中…' : 'さがす'}
               </button>
             </div>
+            {/* 文字入力なしでも使えるテーマのプリセット（タップで即検索） */}
+            {!themeItems && (
+              <div className={styles.aiPresetWrap}>
+                {THEME_PRESETS.map(t => (
+                  <button key={t} className={styles.aiPresetChip} onClick={() => runTheme(t)} disabled={loading}>{t}</button>
+                ))}
+              </div>
+            )}
 
             {error && <div className={styles.aiError}>{error}</div>}
             {doneMsg && <div className={styles.aiDone}>{doneMsg}</div>}

@@ -14,6 +14,8 @@ import { usName, setKanaMode, registerKanaListener, toggleKanaGlobal } from './l
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 import AiAssist from './components/AiAssist'
+import StockNoteTimeline from './components/StockNoteTimeline'
+import { setNotesUser, syncNotesWithCloud, notesText, notesCodes } from './lib/notes'
 import { normalizeSearchText, normJa, normSource, toRomaji, loosen, stockHaystack } from './lib/searchText'
 
 // ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
@@ -493,16 +495,19 @@ export default function Page() {
           codeNameHits.push({ code, name: rec.name, matchType: 'code_name' })
         }
       }
-      for (const [code, meta] of Object.entries(stockMeta)) {
+      for (const code of Array.from(new Set([...Object.keys(stockMeta), ...notesCodes()]))) {
         if (memoHits.length >= 5) break
-        if (!favorites.has(code) || !meta.memo) continue
-        if (normalizeSearchText(meta.memo).includes(q)) {
+        if (!favorites.has(code)) continue
+        // ひとことメモ＋タイムラインノートを横断検索
+        const combined = [stockMeta[code]?.memo ?? '', notesText(code)].filter(Boolean).join('\n')
+        if (!combined) continue
+        if (normalizeSearchText(combined).includes(q)) {
           if (codeNameHits.some(r => r.code === code)) continue
-          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
+          const rawIdx = combined.toLowerCase().indexOf(rawQ)
           const idx = rawIdx >= 0 ? rawIdx : 0
           const start = Math.max(0, idx - 20)
-          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
-          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          const end = Math.min(combined.length, idx + Math.max(rawQ.length, 1) + 20)
+          const snippet = (start > 0 ? '…' : '') + combined.slice(start, end) + (end < combined.length ? '…' : '')
           memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
         }
       }
@@ -526,6 +531,7 @@ export default function Page() {
   const loadFromSupabase = useCallback(async (userId: string) => {
     const sb = getSb()
     if (!sb) return
+    syncNotesWithCloud(userId)  // 銘柄ノート（タイムライン）もクラウドとマージ（失敗してもローカルで動く）
     const [{ data: favData }, { data: memoData }] = await Promise.all([
       sb.from('favorites').select('code, type').eq('user_id', userId),
       sb.from('memos').select('*').eq('user_id', userId), // '*' なら genres 列が未追加でも400にならない
@@ -638,6 +644,7 @@ export default function Page() {
         if (event === 'SIGNED_IN') loadFromSupabase(session.user.id)
       } else {
         setUser(null)
+        setNotesUser(null)
       }
     })
     return () => subscription.unsubscribe()
@@ -1307,7 +1314,7 @@ export default function Page() {
     let rows = allRows.filter(r => {
       if (q) {
         const norm = normalizeSearchText(r.code + ' ' + r.name)
-        const memoNorm = normalizeSearchText(stockMeta[r.code]?.memo ?? '')
+        const memoNorm = normalizeSearchText([stockMeta[r.code]?.memo ?? '', notesText(r.code)].filter(Boolean).join('\n'))
         if (!norm.includes(q) && !memoNorm.includes(q)) return false
       }
       if (filterHeart && !superFavorites.has(r.code)) return false
@@ -1381,16 +1388,19 @@ export default function Page() {
           codeNameHits.push({ code: r.code, name: r.name, matchType: 'code_name' })
         }
       }
-      for (const [code, meta] of Object.entries(stockMeta)) {
+      for (const code of Array.from(new Set([...Object.keys(stockMeta), ...notesCodes()]))) {
         if (memoHits.length >= 5) break
-        if (!favorites.has(code) || !meta.memo) continue
-        if (normalizeSearchText(meta.memo).includes(q)) {
+        if (!favorites.has(code)) continue
+        // ひとことメモ＋タイムラインノートを横断検索
+        const combined = [stockMeta[code]?.memo ?? '', notesText(code)].filter(Boolean).join('\n')
+        if (!combined) continue
+        if (normalizeSearchText(combined).includes(q)) {
           if (codeNameHits.some(r => r.code === code)) continue
-          const rawIdx = meta.memo.toLowerCase().indexOf(rawQ)
+          const rawIdx = combined.toLowerCase().indexOf(rawQ)
           const idx = rawIdx >= 0 ? rawIdx : 0
           const start = Math.max(0, idx - 20)
-          const end = Math.min(meta.memo.length, idx + Math.max(rawQ.length, 1) + 20)
-          const snippet = (start > 0 ? '…' : '') + meta.memo.slice(start, end) + (end < meta.memo.length ? '…' : '')
+          const end = Math.min(combined.length, idx + Math.max(rawQ.length, 1) + 20)
+          const snippet = (start > 0 ? '…' : '') + combined.slice(start, end) + (end < combined.length ? '…' : '')
           memoHits.push({ code, name: masterDB[code]?.name ?? '', matchType: 'memo', memoSnippet: snippet })
         }
       }
@@ -2379,7 +2389,7 @@ function StockManager({
         const matchUnset = genreFilters.has(GENRE_UNSET) && genres.length === 0
         if (!matchRegular && !matchUnset) return false
       }
-      if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '')).includes(q)) return false
+      if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '') + ' ' + notesText(code)).includes(q)) return false
       return true
     })
     // 列見出し「ジャンル」タップ時：ジャンルごとにグルーピング（ジャンルの並び順を優先、未設定は末尾）
@@ -4961,156 +4971,6 @@ function AddGenreInput({ onAdd }: { onAdd: (name: string) => void }) {
   )
 }
 
-// ─── VoiceMemoInput ──────────────────────────────────────────────────
-type VoicePhase = 'idle' | 'recording' | 'review'
-
-function VoiceMemoInput({ onAppend }: { onAppend: (text: string) => void }) {
-  const [phase, setPhase] = useState<VoicePhase>('idle')
-  const [finalText, setFinalText] = useState('')
-  const [interimText, setInterimText] = useState('')
-  const [reviewText, setReviewText] = useState('')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recRef = useRef<any>(null)
-  const accRef = useRef('')   // accumulated final transcript
-  const abortedRef = useRef(false)  // true when user cancels mid-recording
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isSupported = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
-
-  function startRecording() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) return
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rec: any = new SR()
-    rec.lang = 'ja-JP'
-    rec.continuous = true
-    rec.interimResults = true
-    rec.maxAlternatives = 1
-
-    accRef.current = ''
-    abortedRef.current = false
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onresult = (e: any) => {
-      let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) accRef.current += t
-        else interim += t
-      }
-      setFinalText(accRef.current)
-      setInterimText(interim)
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rec.onerror = (e: any) => {
-      if (abortedRef.current || e.error === 'aborted') return
-      setInterimText('')
-      if (accRef.current) { setReviewText(accRef.current); setPhase('review') }
-      else setPhase('idle')
-    }
-
-    rec.onend = () => {
-      if (abortedRef.current) return   // cancelled — state already set by cancelAll()
-      setInterimText('')
-      if (accRef.current) { setReviewText(accRef.current); setPhase('review') }
-      else setPhase('idle')
-    }
-
-    recRef.current = rec
-    setFinalText('')
-    setInterimText('')
-    setPhase('recording')
-    try { rec.start() } catch { setPhase('idle') }
-  }
-
-  function stopRecording() {
-    recRef.current?.stop()
-    recRef.current = null
-    // onend will handle transition to review / idle
-  }
-
-  function cancelAll() {
-    abortedRef.current = true
-    recRef.current?.abort()
-    recRef.current = null
-    accRef.current = ''
-    setFinalText(''); setInterimText(''); setReviewText('')
-    setPhase('idle')
-  }
-
-  function appendToMemo() {
-    const t = reviewText.trim()
-    if (t) onAppend(t)
-    setReviewText(''); setFinalText('')
-    setPhase('idle')
-  }
-
-  function retry() {
-    setReviewText(''); setFinalText('')
-    startRecording()
-  }
-
-  if (!isSupported) return null
-
-  if (phase === 'idle') {
-    return (
-      <button className={styles.voiceBtn} onClick={startRecording} title="音声でメモを入力" type="button">
-        🎤 音声入力
-      </button>
-    )
-  }
-
-  if (phase === 'recording') {
-    return (
-      <div className={styles.voicePanel}>
-        <div className={styles.voiceRecBar}>
-          <span className={styles.voiceRecDot} />
-          <span className={styles.voiceRecLabel}>録音中... 日本語で話してください</span>
-          <button className={styles.voiceStopBtn} onClick={stopRecording} type="button">■ 停止</button>
-          <button className={styles.voiceXBtn} onClick={cancelAll} type="button">✕</button>
-        </div>
-        <div className={styles.voiceTranscript}>
-          {finalText && <span className={styles.voiceFinal}>{finalText}</span>}
-          {interimText && <span className={styles.voiceInterim}>{interimText}</span>}
-          {!finalText && !interimText && <span className={styles.voicePlaceholder}>認識待機中...</span>}
-        </div>
-      </div>
-    )
-  }
-
-  // review phase
-  return (
-    <div className={styles.voicePanel}>
-      <div className={styles.voiceReviewBar}>
-        <span className={styles.voiceReviewLabel}>🎤 認識結果を確認・編集してください</span>
-      </div>
-      <textarea
-        className={styles.voiceReviewArea}
-        value={reviewText}
-        onChange={e => setReviewText(e.target.value)}
-      />
-      <div className={styles.voiceActions}>
-        <button
-          className={`${styles.btnPrimary} ${styles.voiceAppendBtn}`}
-          onClick={appendToMemo}
-          type="button"
-        >
-          メモに追加 ↓
-        </button>
-        <button className={styles.voiceRetryBtn} onClick={retry} type="button">
-          🎤 録り直す
-        </button>
-        <button className={styles.voiceXBtn2} onClick={cancelAll} type="button">
-          キャンセル
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ─── NewsSection ─────────────────────────────────────────────────────
 // 銘柄別ニュース（GoogleニュースRSS / 無料・キー不要）。
 // 公開から3日以内の記事に「NEW」を付ける（何度開いても表示される）。
@@ -5836,12 +5696,12 @@ function DetailPanel({
         </Section>
       )}
       {!isUsTicker(r.code) && !noData && <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>}
-      <Section title="メモ">
-        <textarea className={styles.detailMemo} value={localMemo}
-          onChange={e => setLocalMemo(e.target.value)} placeholder="メモを入力..." />
-        <VoiceMemoInput
-          onAppend={text => setLocalMemo(prev => prev ? prev + '\n' + text : text)}
-        />
+      <Section title="ノート（記録の積み重ね）">
+        <StockNoteTimeline code={r.code} row={r} />
+      </Section>
+      <Section title="ひとことメモ（一覧に表示）">
+        <textarea className={styles.detailMemo} value={localMemo} style={{ minHeight: 60 }}
+          onChange={e => setLocalMemo(e.target.value)} placeholder="一覧・ツールチップに出る短いメモ..." />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
           <button
             className={styles.btnPrimary}

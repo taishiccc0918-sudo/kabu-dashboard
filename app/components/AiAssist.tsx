@@ -428,11 +428,6 @@ export default function AiAssist({
           <button className={`${styles.aiTabBtn} ${mode === 'theme' ? styles.aiTabBtnActive : ''}`}
             onClick={() => { setMode('theme'); resetResults() }}>テーマでさがす</button>
         </div>
-        {loggedIn && usage && (
-          <div className={styles.aiUsageNote}>
-            きょうの残り回数: ことばで追加 {remainOf('add') ?? '-'}/{usage.add?.limit ?? 20}回 ・ テーマ検索 {remainOf('theme') ?? '-'}/{usage.theme?.limit ?? 10}回（毎日0時リセット）
-          </div>
-        )}
 
         {!loggedIn ? (
           <div className={styles.aiLoginBox}>
@@ -442,7 +437,10 @@ export default function AiAssist({
           </div>
         ) : mode === 'add' ? (
           <div className={styles.aiBody}>
-            <div className={styles.aiHint}>追加したい銘柄をことばで（日本株・米国株、最大30社）</div>
+            <div className={styles.aiHint}>
+              追加したい銘柄をことばで（日本株・米国株、最大30社）
+              {loggedIn && usage && <span className={styles.aiUsageInline}>＊きょうあと{remainOf('add') ?? '-'}回</span>}
+            </div>
             <textarea
               className={styles.aiTextarea}
               placeholder={'例: トヨタとソニーとNVIDIA追加して'}
@@ -507,7 +505,10 @@ export default function AiAssist({
           </div>
         ) : (
           <div className={styles.aiBody}>
-            <div className={styles.aiHint}>気になるテーマから、事業が関連する銘柄をさがします</div>
+            <div className={styles.aiHint}>
+              気になるテーマから、事業が関連する銘柄をさがします
+              {loggedIn && usage && <span className={styles.aiUsageInline}>＊きょうあと{remainOf('theme') ?? '-'}回</span>}
+            </div>
             <div className={styles.aiThemeRow}>
               <input
                 className={styles.aiThemeInput}

@@ -9,7 +9,9 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const GLOBAL_CAP = Number(process.env.AI_DAILY_GLOBAL_CAP ?? '300')
+// Gemini無料枠は1プロジェクトあたり約250リクエスト/日 → 既定200で手前に防衛線
+// （超えても課金はされず429で止まるだけだが、全員が使えなくなるのを防ぐ）
+const GLOBAL_CAP = Number(process.env.AI_DAILY_GLOBAL_CAP ?? '200')
 
 // JSTの日付（サーバーはUTCなので+9hで日替わりを日本時間に合わせる）
 function jstDay(): string {

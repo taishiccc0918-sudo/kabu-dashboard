@@ -1191,12 +1191,16 @@ export default function Page() {
     })
   }
 
-  // AIアシストからの一括追加。戻り値=実際に追加した件数（登録済み・マスタ外は除外）。
-  // pushUndo は1回だけ＝Ctrl+Z でまとめて取り消せる。
+  // AIアシストからの一括追加。戻り値=実際に追加した件数（登録済みは除外）。
+  // pushUndo は1回だけ＝Ctrl+Z でまとめて取り消せる。hearts ⊆ codes は ♥超お気に入りにも登録。
+  // 米国ティッカー（英字始まり）は JP モード中でも受け付け、Supabase には 'US:' 接頭辞で保存
+  // （sbSyncFav は現在の市場で判定するためここでは使わない）。米国株は市場切替(🇺🇸)で表示される。
   // テーマ検索経由は「出会いの記録」をメモに自動追記（追加した理由が残る＝ノートらしさの布石）。
-  function bulkAddFavorites(codes: string[], themeLabel?: string): number {
-    const toAdd = codes.filter(c => masterDB[c] && !favorites.has(c))
+  function bulkAddFavorites(codes: string[], themeLabel: string | undefined, hearts: string[] = []): number {
+    // 日本株コードは masterDB 照合済みのもののみ・米国ティッカーはサーバー(us_master)照合済みで来る
+    const toAdd = codes.filter(c => (isUsTicker(c) || masterDB[c]) && !favorites.has(c))
     if (toAdd.length === 0) return 0
+    const heartSet = new Set(hearts.filter(c => toAdd.includes(c)))
     pushUndo()
     setFavorites(prev => {
       const next = new Set(prev)
@@ -1204,7 +1208,23 @@ export default function Page() {
       lsSet('favorites', Array.from(next))
       return next
     })
-    toAdd.forEach(c => sbSyncFav(c, 'star', true))
+    if (heartSet.size > 0) {
+      setSuperFavorites(prev => {
+        const next = new Set(prev)
+        heartSet.forEach(c => next.add(c))
+        lsSet('superFavorites', Array.from(next))
+        return next
+      })
+    }
+    const u = userRef.current; const sb = getSb()
+    if (u && sb) {
+      const dbCode = (c: string) => isUsTicker(c) ? `US:${c}` : c
+      const rows = [
+        ...toAdd.map(c => ({ user_id: u.id, code: dbCode(c), type: 'star' })),
+        ...Array.from(heartSet).map(c => ({ user_id: u.id, code: dbCode(c), type: 'heart' })),
+      ]
+      sb.from('favorites').upsert(rows).then(() => {})
+    }
     if (themeLabel) {
       const line = `🔍テーマ: ${themeLabel} (${localDateStr()})`
       for (const c of toAdd) {

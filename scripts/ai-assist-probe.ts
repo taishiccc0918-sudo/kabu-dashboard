@@ -15,22 +15,24 @@ async function main() {
   const master = await getJpxMaster()
   console.log('JPXマスタ:', Object.keys(master).length, '銘柄')
 
-  // ── ① 機能A: 自然文 → 社名抽出（音声認識の同音異字誤変換ケース: 早実=そうじつ→双日）──
-  const text = 'デクセリアルズ 三井物産 早実 豊田通商 デンソー'
+  // ── ① 機能A: 自然文 → 社名抽出（音声誤変換＋日米混在ケース: 早実→双日、NVディア→NVDA等）──
+  const text = '豊田通商と双日と デンソーと IMVと アームと NVディアと リクルートエージェンシーと 早実 その辺お願いしたいなぁ'
   const promptA =
-    '次の文章から、日本の証券取引所に上場している企業の名前だけを抜き出し、JSONで返してください。\n' +
-    '出力形式: {"names": ["トヨタ自動車", "ソニーグループ"]}\n' +
+    '次の文章から、上場企業の名前を抜き出し、日本株と米国株に分けてJSONで返してください。\n' +
+    '出力形式: {"jp": ["トヨタ自動車"], "us": [{"name": "NVIDIA", "ticker": "NVDA"}]}\n' +
     '規則:\n' +
-    '・文章は音声認識の文字起こしの場合があり、同音異字の誤変換を含みうる。読み（発音）が同じ・近い上場企業名に解釈して正式社名に直す（例:「早実」→読み「そうじつ」→「双日」、「村田製作所」が「むら田製作所」等）。\n' +
-    '・通称は正式社名に直す（例:「トヨタ」→「トヨタ自動車」）。\n' +
+    '・文章は音声認識の文字起こしの場合があり、同音異字の誤変換を含みうる。読み（発音）が同じ・近い上場企業名に解釈して正式社名に直す（例:「早実」→読み「そうじつ」→「双日」、「NVディア」→「NVIDIA」、「アーム」→「Arm Holdings」）。\n' +
+    '・日本の通称は正式社名に直す（例:「トヨタ」→「トヨタ自動車」）。\n' +
     '・「ソフトバンク」のように通信子会社と持株会社のどちらか文脈で判別できない場合は両方の社名を含める。\n' +
-    '・株価指数・投資信託・ETF・米国株・上場していない企業・一般名詞は含めない。\n' +
-    '・読み補正してもどの上場企業か確信が持てない語は含めない（無理に近い社名をあてない。推測で作らない）。\n' +
-    '・最大20社。該当なしは {"names": []}。\n\n' +
+    '・米国上場企業は us に入れ、ticker は米国市場の正式ティッカーを書く（例: Arm Holdings→ARM）。\n' +
+    '・株価指数・投資信託・ETF・一般名詞は含めない。\n' +
+    '・社名と思われる語は、知らない会社・上場しているか確信がない会社でも「そのままの表記」で jp に含めてよい（実在確認は後段のマスタ照合で行う。例: IMV、中小型株）。\n' +
+    '・ただし読みの補正で「別の社名」に置き換えるのは確信がある場合のみ（無理に近い社名をあてない・推測で別会社を作らない）。\n' +
+    '・合計最大30社。該当なしは {"jp": [], "us": []}。\n\n' +
     `文章: ${text}`
-  const a = await geminiJson<{ names: string[] }>(promptA, { thinkingBudget: 0, maxOutputTokens: 512 })
-  console.log('\n[機能A] 抽出社名:', JSON.stringify(a.names))
-  for (const n of a.names) {
+  const a = await geminiJson<{ jp: string[]; us: { name: string; ticker: string }[] }>(promptA, { thinkingBudget: 0, maxOutputTokens: 1024 })
+  console.log('\n[機能A] JP:', JSON.stringify(a.jp), '\n        US:', JSON.stringify(a.us))
+  for (const n of a.jp ?? []) {
     const hits = matchNameToCode(n, master)
     console.log(`  ${n} → ${hits.length === 0 ? '照合不可✗' : hits.map(h => `${h.code} ${h.name}${h.exact ? '(完全)' : ''}`).join(' / ')}`)
   }

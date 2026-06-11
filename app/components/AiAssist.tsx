@@ -6,16 +6,25 @@ import styles from '../page.module.css'
 
 // ── AIアシスト（✨）─────────────────────────────────────────────────
 // 2モード:
-//   ことばで追加: 「トヨタとソニー追加して」と書く/喋る → 社名抽出(API) → masterDB照合 → 一括追加
-//   テーマでさがす: 「レアアース」→ 候補銘柄＋一次情報の根拠(API) → 選んで一括追加
+//   ことばで追加: 「トヨタとNVIDIA追加して」と書く/喋る → 社名抽出(API) → 日本株はmasterDB照合・
+//                米国株はus_master照合(サーバー) → 候補にチェック＋♥ → 一括追加
+//   テーマでさがす: 「レアアース」→ 日本株/米国株の候補＋一次情報の根拠(API) → 選んで一括追加
 // コンプラ: 推奨ではなく事実共有。免責文は常設（下部固定）。
-// 幻覚対策: 表示されるのは JPX マスタ照合を通った実在銘柄のみ。
+// 幻覚対策: 表示されるのは JPX / us_master 照合を通った実在銘柄のみ。
+// 並び: 未登録が上・登録済みは下。テーマ結果は時価総額の大きい順。
 
 type AddGroup = { input: string; matches: NameMatch[] }
+type UsHit = { ticker: string; name: string; market: string; mcap: number | null }
 type ThemeItem = {
-  code: string; name: string; market: string; relation: string
+  code: string; name: string; market: string; country: 'JP' | 'US'
+  mcap: number | null; relation: string; sicLabel: string | null
   factsheet: { bizDesc: string; docUrl: string | null; docDate: string | null } | null
   news: { title: string; link: string; source: string; pubDate: string }[]
+}
+
+function fmtMcapJp(mcap: number | null): string {
+  if (!mcap) return ''
+  return mcap >= 10000 ? `${(mcap / 10000).toFixed(1)}兆円` : `${Math.round(mcap).toLocaleString()}億円`
 }
 
 // Web Speech API（あれば使う・無ければマイクボタン非表示＝キーボードの音声入力で代替可）
@@ -38,7 +47,8 @@ export default function AiAssist({
   favorites: Set<string>
   loggedIn: boolean
   onSignIn: () => void
-  onBulkAdd: (codes: string[], themeLabel?: string) => number // 戻り値=実際に追加した件数
+  // hearts ⊆ codes。戻り値=実際に追加した件数
+  onBulkAdd: (codes: string[], themeLabel: string | undefined, hearts: string[]) => number
   onClose: () => void
 }) {
   const [mode, setMode] = useState<'add' | 'theme'>('add')
@@ -46,11 +56,13 @@ export default function AiAssist({
   const [themeInput, setThemeInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [groups, setGroups] = useState<AddGroup[] | null>(null)       // ことばで追加の照合結果
+  const [groups, setGroups] = useState<AddGroup[] | null>(null)       // ことばで追加: 日本株の照合結果
+  const [usHits, setUsHits] = useState<UsHit[]>([])                   // ことばで追加: 米国株（サーバー照合済み）
   const [unmatched, setUnmatched] = useState<string[]>([])
   const [themeItems, setThemeItems] = useState<ThemeItem[] | null>(null)
   const [themeLabel, setThemeLabel] = useState('')                    // 検索したテーマ（メモ記録用）
   const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [hearts, setHearts] = useState<Set<string>>(new Set())        // ♥超お気に入りにも登録する銘柄
   const [doneMsg, setDoneMsg] = useState('')
   const [listening, setListening] = useState(false)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
@@ -84,7 +96,8 @@ export default function AiAssist({
   }
 
   function resetResults() {
-    setGroups(null); setUnmatched([]); setThemeItems(null); setChecked(new Set()); setError(''); setDoneMsg('')
+    setGroups(null); setUsHits([]); setUnmatched([]); setThemeItems(null)
+    setChecked(new Set()); setHearts(new Set()); setError(''); setDoneMsg('')
   }
 
   // ── ことばで追加 ──
@@ -96,30 +109,29 @@ export default function AiAssist({
       const res = await fetch('/api/ai-add', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
       })
-      const d = (await res.json()) as { names?: string[]; error?: string }
+      const d = (await res.json()) as { names?: string[]; us?: UsHit[]; usUnmatched?: string[]; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
-      const names = d.names ?? []
-      // クライアントで JPX マスタ照合（LLMにコードを答えさせない＝幻覚が登録に直結しない）
+      // 日本株: クライアントで JPX マスタ照合（LLMにコードを答えさせない＝幻覚が登録に直結しない）
       const gs: AddGroup[] = []
-      const miss: string[] = []
+      const miss: string[] = [...(d.usUnmatched ?? [])]
       const seenCodes = new Set<string>()
-      for (const n of names) {
+      for (const n of d.names ?? []) {
         const all = matchNameToCode(n, masterDB)
         if (all.length === 0) { miss.push(n); continue } // 本当に照合できなかったものだけ「見つかりません」
         const hits = all.filter(h => !seenCodes.has(h.code))
-        if (hits.length === 0) continue // 全候補が他の社名で表示済み（例: ソフトバンクとソフトバンクグループの両抽出）→ 黙ってスキップ
+        if (hits.length === 0) continue // 全候補が他の社名で表示済み（例: ソフトバンクとソフトバンクグループ）→ スキップ
         hits.forEach(h => seenCodes.add(h.code))
         gs.push({ input: n, matches: hits })
       }
-      setGroups(gs); setUnmatched(miss)
-      // 既定ON: 完全一致のみ（複数あれば全部=ソフトバンク両方）。
-      // あいまい一致は自動チェックしない＝誤変換由来の別会社が勝手に選ばれる事故を防ぐ（本人フィードバック）。
+      const us = (d.us ?? []).filter(u => !seenCodes.has(u.ticker))
+      setGroups(gs); setUsHits(us); setUnmatched(miss)
+      // 既定ON: 完全一致＋米国株（サーバー照合済み）。あいまい一致は自動チェックしない
+      // ＝誤変換由来の別会社が勝手に選ばれる事故を防ぐ（本人フィードバック）。
       const init = new Set<string>()
-      for (const g of gs) {
-        g.matches.filter(m => m.exact).forEach(m => { if (!favorites.has(m.code)) init.add(m.code) })
-      }
+      for (const g of gs) g.matches.filter(m => m.exact).forEach(m => { if (!favorites.has(m.code)) init.add(m.code) })
+      us.forEach(u => { if (!favorites.has(u.ticker)) init.add(u.ticker) })
       setChecked(init)
-      if (gs.length === 0 && miss.length === 0) setError('文章から上場企業名を見つけられませんでした')
+      if (gs.length === 0 && us.length === 0 && miss.length === 0) setError('文章から上場企業名を見つけられませんでした')
     } catch {
       setError('通信に失敗しました。もう一度お試しください')
     } finally { setLoading(false) }
@@ -144,27 +156,114 @@ export default function AiAssist({
   }
 
   function toggleCheck(code: string) {
-    setChecked(prev => { const next = new Set(prev); if (next.has(code)) next.delete(code); else next.add(code); return next })
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) { next.delete(code); setHearts(h => { const n = new Set(h); n.delete(code); return n }) }
+      else next.add(code)
+      return next
+    })
+  }
+  // ♥ON時はチェックも自動でON（♥だけ付いて追加されない状態を作らない）
+  function toggleHeart(code: string) {
+    setHearts(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else { next.add(code); setChecked(c => new Set(c).add(code)) }
+      return next
+    })
   }
 
   function commitAdd(theme?: string) {
     const codes = Array.from(checked)
     if (codes.length === 0) return
-    const added = onBulkAdd(codes, theme)
+    const added = onBulkAdd(codes, theme, Array.from(hearts))
     setDoneMsg(added > 0 ? `${added}件をウォッチリストに追加しました` : '選択した銘柄はすべて登録済みでした')
-    setChecked(new Set())
+    setChecked(new Set()); setHearts(new Set())
   }
 
-  const checkRow = (m: { code: string; name: string; market: string }) => {
+  // 未登録を上・登録済みを下に（表示順の共通ルール）
+  const regLast = <T,>(arr: T[], codeOf: (t: T) => string): T[] =>
+    [...arr].sort((a, b) => Number(favorites.has(codeOf(a))) - Number(favorites.has(codeOf(b))))
+
+  const heartBtn = (code: string, disabled: boolean) => (
+    <button
+      className={`${styles.aiHeartBtn} ${hearts.has(code) ? styles.aiHeartBtnOn : ''}`}
+      disabled={disabled}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleHeart(code) }}
+      title="♥にすると「超お気に入り」にも登録（ふつうの追加は👁ウォッチのみ）"
+      aria-label="超お気に入りにも登録"
+    >♥</button>
+  )
+
+  const checkRow = (m: { code: string; name: string; market: string }, usBadge?: boolean) => {
     const isFav = favorites.has(m.code)
     return (
       <label key={m.code} className={`${styles.aiCandRow} ${isFav ? styles.aiCandRowDone : ''}`}>
         <input type="checkbox" disabled={isFav} checked={checked.has(m.code)} onChange={() => toggleCheck(m.code)} />
         <span className={styles.aiCandName}>{m.name}</span>
         <span className={styles.aiCandCode}>{m.code}</span>
-        <span className={styles.aiCandMkt}>{m.market.replace('市場', '')}</span>
-        {isFav && <span className={styles.aiCandDoneBadge}>登録済み</span>}
+        <span className={styles.aiCandMkt}>{usBadge ? `🇺🇸 ${m.market}` : m.market.replace('市場', '')}</span>
+        {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : heartBtn(m.code, false)}
       </label>
+    )
+  }
+
+  const commitBar = (theme?: string) => (
+    <>
+      <div className={styles.aiHeartHint}>♥を押すと「超お気に入り」にも登録されます（ふつうは👁ウォッチのみ）</div>
+      <button className={styles.btnPrimary} onClick={() => commitAdd(theme)} disabled={checked.size === 0}>
+        ✓ {checked.size}件をウォッチリストに追加{hearts.size > 0 ? `（うち♥${hearts.size}件）` : ''}
+      </button>
+    </>
+  )
+
+  // テーマ結果: 日本株/米国株に分け、それぞれ 未登録(時価総額順)↑ → 登録済み↓
+  const themeJp = themeItems ? regLast(themeItems.filter(i => i.country === 'JP'), i => i.code) : []
+  const themeUs = themeItems ? regLast(themeItems.filter(i => i.country === 'US'), i => i.code) : []
+
+  const themeCard = (it: ThemeItem) => {
+    const isFav = favorites.has(it.code)
+    return (
+      <div key={it.code}
+        className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
+        onClick={() => { if (!isFav) toggleCheck(it.code) }}>
+        <div className={styles.aiThemeCardHead}>
+          <input type="checkbox" disabled={isFav} checked={checked.has(it.code)} readOnly />
+          <span className={styles.aiCandName}>{it.name}</span>
+          <span className={styles.aiCandCode}>{it.code}</span>
+          <span className={styles.aiCandMkt}>{it.country === 'US' ? `🇺🇸 ${it.market}` : it.market.replace('市場', '')}</span>
+          {it.mcap ? <span className={styles.aiCandMkt}>{fmtMcapJp(it.mcap)}</span> : null}
+          {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : heartBtn(it.code, false)}
+        </div>
+        {it.relation && <div className={styles.aiThemeRelation}>{it.relation}</div>}
+        {it.sicLabel && (
+          <div className={styles.aiEvidence}>
+            <span className={styles.aiEvidenceTag}>SEC業種</span>
+            <span className={styles.aiEvidenceText}>{it.sicLabel}</span>
+          </div>
+        )}
+        {it.factsheet && (
+          <div className={styles.aiEvidence}>
+            <span className={styles.aiEvidenceTag}>EDINET有価証券報告書</span>
+            <span className={styles.aiEvidenceText}>
+              {it.factsheet.bizDesc.length > 90 ? it.factsheet.bizDesc.slice(0, 90) + '…' : it.factsheet.bizDesc}
+            </span>
+            {it.factsheet.docUrl && (
+              <a href={it.factsheet.docUrl} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()} className={styles.aiEvidenceLink}>原文</a>
+            )}
+          </div>
+        )}
+        {it.news.map(n => (
+          <div key={n.link} className={styles.aiEvidence}>
+            <span className={styles.aiEvidenceTag}>ニュース</span>
+            <a href={n.link} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()} className={styles.aiEvidenceLink}>
+              {n.title}{n.source ? `（${n.source}）` : ''}
+            </a>
+          </div>
+        ))}
+      </div>
     )
   }
 
@@ -191,10 +290,10 @@ export default function AiAssist({
           </div>
         ) : mode === 'add' ? (
           <div className={styles.aiBody}>
-            <div className={styles.aiHint}>追加したい銘柄を、ふだんの言葉のまま書いてください（最大20社）</div>
+            <div className={styles.aiHint}>追加したい銘柄をことばで（日本株・米国株、最大30社）</div>
             <textarea
               className={styles.aiTextarea}
-              placeholder={'例: トヨタとソニーとキーエンス追加して。\nあとファーストリテイリングも。'}
+              placeholder={'例: トヨタとソニーとNVIDIA追加して'}
               value={input}
               onChange={e => setInput(e.target.value)}
               rows={3}
@@ -215,37 +314,46 @@ export default function AiAssist({
             {error && <div className={styles.aiError}>{error}</div>}
             {doneMsg && <div className={styles.aiDone}>{doneMsg}</div>}
 
-            {groups && groups.length > 0 && (
+            {groups && (groups.length > 0 || usHits.length > 0) && (
               <div className={styles.aiResult}>
                 <div className={styles.aiResultLabel}>見つかった銘柄（チェックした銘柄をまとめて追加します）</div>
-                {groups.map(g => (
-                  <div key={g.input} className={styles.aiCandGroup}>
-                    {/* あいまい一致は「近い銘柄」と明示（自動チェックもされない）＝誤変換でも別会社が紛れ込まない */}
-                    {(g.matches.length > 1 || !g.matches[0].exact) && (
-                      <div className={styles.aiCandGroupLabel}>「{g.input}」に近い銘柄（確認してチェック）:</div>
-                    )}
-                    {g.matches.map(checkRow)}
-                  </div>
-                ))}
+                {groups.length > 0 && (
+                  <>
+                    {usHits.length > 0 && <div className={styles.aiSectionLabel}>🇯🇵 日本株</div>}
+                    {regLast(groups, g => g.matches[0].code).map(g => (
+                      <div key={g.input} className={styles.aiCandGroup}>
+                        {/* あいまい一致は「近い銘柄」と明示（自動チェックもされない）＝誤変換でも別会社が紛れ込まない */}
+                        {(g.matches.length > 1 || !g.matches[0].exact) && (
+                          <div className={styles.aiCandGroupLabel}>「{g.input}」に近い銘柄（確認してチェック）:</div>
+                        )}
+                        {g.matches.map(m => checkRow(m))}
+                      </div>
+                    ))}
+                  </>
+                )}
+                {usHits.length > 0 && (
+                  <>
+                    <div className={styles.aiSectionLabel}>🇺🇸 米国株</div>
+                    {regLast(usHits, u => u.ticker).map(u => checkRow({ code: u.ticker, name: u.name, market: u.market }, true))}
+                  </>
+                )}
                 {unmatched.length > 0 && (
                   <div className={styles.aiUnmatched}>見つかりませんでした: {unmatched.join('、')}</div>
                 )}
-                <button className={styles.btnPrimary} onClick={() => commitAdd()} disabled={checked.size === 0}>
-                  ✓ {checked.size}件をウォッチリストに追加
-                </button>
+                {commitBar()}
               </div>
             )}
-            {groups && groups.length === 0 && unmatched.length > 0 && (
+            {groups && groups.length === 0 && usHits.length === 0 && unmatched.length > 0 && (
               <div className={styles.aiUnmatched}>見つかりませんでした: {unmatched.join('、')}</div>
             )}
           </div>
         ) : (
           <div className={styles.aiBody}>
-            <div className={styles.aiHint}>気になるテーマから、事業が関連する上場銘柄をさがします</div>
+            <div className={styles.aiHint}>気になるテーマから、事業が関連する銘柄をさがします</div>
             <div className={styles.aiThemeRow}>
               <input
                 className={styles.aiThemeInput}
-                placeholder="例: レアアース、半導体製造装置、宇宙"
+                placeholder="例: レアアース、半導体製造装置"
                 value={themeInput}
                 onChange={e => setThemeInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') runTheme() }}
@@ -265,52 +373,24 @@ export default function AiAssist({
             {themeItems && themeItems.length > 0 && (
               <div className={styles.aiResult}>
                 <div className={styles.aiResultLabel}>
-                  「{themeLabel}」に事業が関連する銘柄（公開情報ベース・タップで選択）
+                  「{themeLabel}」に事業が関連する銘柄（公開情報ベース・時価総額の大きい順・タップで選択）
                 </div>
-                {themeItems.map(it => {
-                  const isFav = favorites.has(it.code)
-                  return (
-                    <div key={it.code}
-                      className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
-                      onClick={() => { if (!isFav) toggleCheck(it.code) }}>
-                      <div className={styles.aiThemeCardHead}>
-                        <input type="checkbox" disabled={isFav} checked={checked.has(it.code)} readOnly />
-                        <span className={styles.aiCandName}>{it.name}</span>
-                        <span className={styles.aiCandCode}>{it.code}</span>
-                        <span className={styles.aiCandMkt}>{it.market.replace('市場', '')}</span>
-                        {isFav && <span className={styles.aiCandDoneBadge}>登録済み</span>}
-                      </div>
-                      {it.relation && <div className={styles.aiThemeRelation}>{it.relation}</div>}
-                      {it.factsheet && (
-                        <div className={styles.aiEvidence}>
-                          <span className={styles.aiEvidenceTag}>EDINET有価証券報告書</span>
-                          <span className={styles.aiEvidenceText}>
-                            {it.factsheet.bizDesc.length > 90 ? it.factsheet.bizDesc.slice(0, 90) + '…' : it.factsheet.bizDesc}
-                          </span>
-                          {it.factsheet.docUrl && (
-                            <a href={it.factsheet.docUrl} target="_blank" rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()} className={styles.aiEvidenceLink}>原文</a>
-                          )}
-                        </div>
-                      )}
-                      {it.news.map(n => (
-                        <div key={n.link} className={styles.aiEvidence}>
-                          <span className={styles.aiEvidenceTag}>ニュース</span>
-                          <a href={n.link} target="_blank" rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()} className={styles.aiEvidenceLink}>
-                            {n.title}{n.source ? `（${n.source}）` : ''}
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })}
+                {themeJp.length > 0 && (
+                  <>
+                    {themeUs.length > 0 && <div className={styles.aiSectionLabel}>🇯🇵 日本株</div>}
+                    {themeJp.map(themeCard)}
+                  </>
+                )}
+                {themeUs.length > 0 && (
+                  <>
+                    <div className={styles.aiSectionLabel}>🇺🇸 米国株</div>
+                    {themeUs.map(themeCard)}
+                  </>
+                )}
                 {unmatched.length > 0 && (
                   <div className={styles.aiUnmatched}>上場銘柄として確認できませんでした: {unmatched.join('、')}</div>
                 )}
-                <button className={styles.btnPrimary} onClick={() => commitAdd(themeLabel)} disabled={checked.size === 0}>
-                  ✓ {checked.size}件をウォッチリストに追加
-                </button>
+                {commitBar(themeLabel)}
               </div>
             )}
           </div>

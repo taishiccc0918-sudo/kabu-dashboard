@@ -4135,11 +4135,14 @@
   border-radius: var(--r-card);
   box-shadow: var(--shadow-md);
   width: 100%; max-width: 560px;
+  box-sizing: border-box; /* padding込みで100%＝スマホで横はみ出し（ズレて見える）防止 */
   max-height: 88vh; overflow-y: auto;
+  overflow-x: hidden;
   display: flex; flex-direction: column;
   padding: var(--sp-4);
   gap: var(--sp-3);
 }
+.aiPanel * { box-sizing: border-box; max-width: 100%; }
 .aiHeader { display: flex; align-items: center; gap: var(--sp-2); }
 .aiTitle { font-size: 16px; font-weight: 700; color: var(--text-1); flex: 1; }
 .aiClose {
@@ -4219,6 +4222,15 @@
   background: var(--accent-soft); border-radius: var(--r-chip); padding: 2px 8px; flex-shrink: 0;
 }
 .aiUnmatched { color: var(--text-3); font-size: 12.5px; }
+.aiSectionLabel { color: var(--text-2); font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+.aiHeartBtn {
+  margin-left: auto; flex-shrink: 0;
+  background: var(--surface-2); color: var(--text-3);
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  width: 32px; height: 32px; font-size: 15px; line-height: 1; cursor: pointer;
+}
+.aiHeartBtnOn { background: rgba(244,63,94,0.12); color: #f43f5e; border-color: #f43f5e; }
+.aiHeartHint { color: var(--text-3); font-size: 11.5px; }
 .aiThemeRow { display: flex; gap: var(--sp-2); }
 .aiThemeInput {
   flex: 1; min-width: 0;
@@ -4276,6 +4288,8 @@
     max-width: none; border-radius: var(--r-card) var(--r-card) 0 0;
     max-height: 86vh; padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
   }
+  /* iOS Safariは16px未満の入力にフォーカスすると自動ズームする＝「拡大されて始まる」の正体。16pxで根治 */
+  .aiTextarea, .aiThemeInput { font-size: 16px; }
 }
 
 /* ── 検索ドロップダウン: ボーダーカラー ─────── */

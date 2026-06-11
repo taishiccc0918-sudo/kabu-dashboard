@@ -15,9 +15,7 @@ import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
 import AiAssist from './components/AiAssist'
 import StockNoteTimeline from './components/StockNoteTimeline'
-import StatusSelector from './components/StatusSelector'
 import { setNotesUser, syncNotesWithCloud, notesText, notesCodes } from './lib/notes'
-import { setStatesUser, syncStatesWithCloud, getAllStates, effectiveStatus, StockStatus, STATUS_LABEL, STATUS_OPTIONS } from './lib/states'
 import { normalizeSearchText, normJa, normSource, toRomaji, loosen, stockHaystack } from './lib/searchText'
 
 // ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
@@ -315,7 +313,6 @@ export default function Page() {
   const [sortKey,    setSortKey]    = useState<SortKeyEx | null>(null)
   const [sortDir,    setSortDir]    = useState<1|-1>(-1)
   const [detailCode, setDetailCode] = useState<string | null>(null)
-  const [statesVersion, setStatesVersion] = useState(0)  // 銘柄ステータス変更を一覧へ即反映するためのトリガー
   const [loading,    setLoading]    = useState(false)
   const [forcePc,    setForcePc]    = useState(false)
   const [isMobileView, setIsMobileView] = useState(false)
@@ -535,7 +532,6 @@ export default function Page() {
     const sb = getSb()
     if (!sb) return
     syncNotesWithCloud(userId)  // 銘柄ノート（タイムライン）もクラウドとマージ（失敗してもローカルで動く）
-    syncStatesWithCloud(userId) // 銘柄ステータスも同様にマージ
     const [{ data: favData }, { data: memoData }] = await Promise.all([
       sb.from('favorites').select('code, type').eq('user_id', userId),
       sb.from('memos').select('*').eq('user_id', userId), // '*' なら genres 列が未追加でも400にならない
@@ -649,7 +645,6 @@ export default function Page() {
       } else {
         setUser(null)
         setNotesUser(null)
-        setStatesUser(null)
       }
     })
     return () => subscription.unsubscribe()
@@ -2181,7 +2176,6 @@ export default function Page() {
             onRegisterScrollFn={(fn) => { wlScrollFnRef.current = fn }}
             market={market}
             onOpenDetail={(code) => setDetailCode(code)}
-            statesVersion={statesVersion}
           />
         )}
       </main>
@@ -2207,8 +2201,6 @@ export default function Page() {
               onSaveEarningsDate={date => saveEarningsDate(detailCode!, date)}
               chartMode={globalChartMode}
               onChartModeChange={setGlobalChartMode}
-              isHeart={superFavorites.has(detailCode)}
-              onStatesChanged={() => setStatesVersion(v => v + 1)}
             />
           </div>
         </div>
@@ -2314,11 +2306,10 @@ function StockManager({
   wlSort, setWlSort,
   page, setPage,
   wlShowDropdown, wlDropdownResults, wlDropdownActive, setWlDropdownActive,
-  onFilteredCountChange, onRegisterScrollFn, market, onOpenDetail, statesVersion,
+  onFilteredCountChange, onRegisterScrollFn, market, onOpenDetail,
 }: {
   market: 'jp'|'us'
   onOpenDetail: (code: string) => void
-  statesVersion: number
   masterDB: Record<string, MasterRecord>
   mcapMap: Record<string, number>
   favorites: Set<string>
@@ -2381,15 +2372,6 @@ function StockManager({
 
   const [genreFilters, setGenreFilters] = useState<Set<string>>(new Set())
 
-  // ── ステータス絞り込み（気になる/ウォッチ中/買いたい/保有/売却済み）──
-  // 件数は毎レンダー計算（軽量・詳細パネルでの変更が閉じた時点で反映される）
-  const [statusFilter, setStatusFilter] = useState<StockStatus | null>(null)
-  const statesNow = getAllStates()
-  const statusCounts: Record<string, number> = { interested: 0, watching: 0, want_to_buy: 0, holding: 0, sold: 0, archived: 0 }
-  for (const code of Array.from(new Set([...Array.from(favorites), ...Array.from(superFavorites)]))) {
-    statusCounts[effectiveStatus(statesNow[code] ?? null, superFavorites.has(code))]++
-  }
-
   const filteredCodes = useMemo(() => {
     const q = normalizeSearchText(wlSearch.trim())
     const list = allCodes.filter(code => {
@@ -2406,11 +2388,6 @@ function StockManager({
         const matchRegular = genres.some(g => genreFilters.has(g))
         const matchUnset = genreFilters.has(GENRE_UNSET) && genres.length === 0
         if (!matchRegular && !matchUnset) return false
-      }
-      if (statusFilter) {
-        // ステータスは自分の銘柄（★∪♥）が対象。未設定は★=ウォッチ中/♥=買いたい扱い
-        if (!favorites.has(code) && !superFavorites.has(code)) return false
-        if (effectiveStatus(getAllStates()[code] ?? null, superFavorites.has(code)) !== statusFilter) return false
       }
       if (q && !normalizeSearchText(code + ' ' + rec.name + ' ' + (stockMeta[code]?.memo ?? '') + ' ' + notesText(code)).includes(q)) return false
       return true
@@ -2455,8 +2432,7 @@ function StockManager({
       if (ra !== rb) return ra - rb
       return a < b ? -1 : a > b ? 1 : 0
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, statusFilter, statesVersion, stockMeta, stockOrder, groupByGenre, wlSort, mcapMap, managedGenreOptions])
+  }, [allCodes, masterDB, favorites, superFavorites, showFavOnly, showHeartOnly, mktF, wlSearch, genreFilters, stockMeta, stockOrder, groupByGenre, wlSort, mcapMap, managedGenreOptions])
 
   useEffect(() => {
     if (!wlHighlightCode) return
@@ -2545,22 +2521,6 @@ function StockManager({
   return (
     <div className={styles.wlManager}>
       {/* 旧「一括登録パネル」はAIアシスト（✨AIで追加）に統合済み。コード貼り付けもそちらで自動照合される */}
-
-      {/* ステータスボード（自分の銘柄の「いまの距離感」で絞り込み） */}
-      <div className={styles.wlStatusRow}>
-        {STATUS_OPTIONS.map(s => (
-          <button
-            key={s}
-            className={`${styles.wlStatusChip} ${statusFilter === s ? styles.wlStatusChipActive : ''}`}
-            onClick={() => { setStatusFilter(f => f === s ? null : s); setPage(1) }}
-            type="button"
-            title="銘柄詳細の「ステータス」で変更できます（未設定は★=ウォッチ中・♥=買いたい扱い）"
-          >{STATUS_LABEL[s]} <span className={styles.wlStatusCount}>{statusCounts[s]}</span></button>
-        ))}
-        {statusFilter && (
-          <button className={styles.wlSpGenreClearBtn} onClick={() => { setStatusFilter(null); setPage(1) }} type="button">解除</button>
-        )}
-      </div>
 
       {/* PC: テーブル表示 */}
       <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
@@ -5638,18 +5598,15 @@ function FactSheet({ code, fin: f }: { code: string; fin: FinRecord | null | und
 
 // ─── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({
-  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, serverHasKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange, isHeart, onStatesChanged,
+  row: r, fin: f, memo, memoUpdatedAt, onSaveMemo, apiKey, serverHasKey, earningsDate, onSaveEarningsDate, chartMode, onChartModeChange,
 }: {
   row: StockRow; fin: FinRecord | null | undefined
   memo: string; memoUpdatedAt?: string; onSaveMemo: (t: string) => void
   apiKey: string; serverHasKey?: boolean; earningsDate: string; onSaveEarningsDate: (date: string) => void
   chartMode: ChartMode; onChartModeChange: (m: ChartMode) => void
-  isHeart: boolean
-  onStatesChanged?: () => void
 }) {
   const [localMemo, setLocalMemo] = useState(memo)
   const [saved, setSaved] = useState(false)
-  const [notesRefresh, setNotesRefresh] = useState(0)  // ステータス変更後にタイムラインを再読込
   const [editingDate, setEditingDate] = useState(false)
   const [dateVal, setDateVal] = useState(earningsDate)
   const { label: mktLabel, cls: mktCls } = marketShort(r.market)
@@ -5739,11 +5696,8 @@ function DetailPanel({
         </Section>
       )}
       {!isUsTicker(r.code) && !noData && <Section title="企業ファクトシート"><FactSheet code={r.code} fin={f} /></Section>}
-      <Section title="ステータス（いまの距離感）">
-        <StatusSelector code={r.code} row={r} isHeart={isHeart} onChanged={() => { setNotesRefresh(v => v + 1); onStatesChanged?.() }} />
-      </Section>
       <Section title="ノート（記録の積み重ね）">
-        <StockNoteTimeline code={r.code} row={r} refreshToken={notesRefresh} />
+        <StockNoteTimeline code={r.code} row={r} />
       </Section>
       <Section title="ひとことメモ（一覧に表示）">
         <textarea className={styles.detailMemo} value={localMemo} style={{ minHeight: 60 }}

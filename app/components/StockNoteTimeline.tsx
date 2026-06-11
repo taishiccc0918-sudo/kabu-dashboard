@@ -29,16 +29,16 @@ const KIND_LABEL: Record<string, string> = {
   review: 'ふりかえり',
 }
 
-export default function StockNoteTimeline({ code, row, refreshToken = 0 }: { code: string; row: StockRow | null; refreshToken?: number }) {
+export default function StockNoteTimeline({ code, row }: { code: string; row: StockRow | null }) {
   const [notes, setNotes] = useState<StockNote[]>([])
   const [draft, setDraft] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
 
-  useEffect(() => { setDraft('') }, [code])   // 銘柄切替時のみ下書きをリセット
   useEffect(() => {
     ensureLegacySeed(code)           // 旧メモがあれば最初の記録として取り込む（冪等）
     setNotes(getNotes(code))
-  }, [code, refreshToken])
+    setDraft('')
+  }, [code])
 
   function handleAdd() {
     const body = draft.trim()

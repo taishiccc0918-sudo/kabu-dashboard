@@ -29,6 +29,7 @@ const BANNED_RE = /買い|売り|推奨|おすすめ|オススメ|割安|割高|
 type ThemeItem = {
   code: string            // 日本株=4桁コード / 米国株=ティッカー
   name: string
+  nameKana: string | null // 米国株のカタカナ社名（us_master.name_kana・表示切替用）
   market: string
   country: 'JP' | 'US'
   mcap: number | null     // 億円
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
 
   // ── 2) 実在照合（幻覚はここで落ちる）──
   const seen = new Set<string>()
-  const matched: { code: string; name: string; market: string; country: 'JP' | 'US'; relation: string; sicLabel: string | null; mcap: number | null }[] = []
+  const matched: { code: string; name: string; nameKana: string | null; market: string; country: 'JP' | 'US'; relation: string; sicLabel: string | null; mcap: number | null }[] = []
   const unmatched: string[] = []
 
   // 日本株: JPXマスタ照合
@@ -160,7 +161,7 @@ export async function POST(req: NextRequest) {
       if (seen.has(hit.code)) continue
       seen.add(hit.code)
       const relation = BANNED_RE.test(c.relation) ? '' : c.relation
-      matched.push({ code: hit.code, name: hit.name, market: hit.market, country: 'JP', relation, sicLabel: null, mcap: null })
+      matched.push({ code: hit.code, name: hit.name, nameKana: null, market: hit.market, country: 'JP', relation, sicLabel: null, mcap: null })
     }
   }
 
@@ -169,9 +170,9 @@ export async function POST(req: NextRequest) {
   if (usCompanies.length > 0 && sb) {
     try {
       const { data } = await sb.from('us_master')
-        .select('ticker,name,exchange,mcap,sic_label')
+        .select('ticker,name,name_kana,exchange,mcap,sic_label')
         .in('ticker', usCompanies.map(c => c.ticker))
-      const found = new Map(((data ?? []) as { ticker: string; name: string | null; exchange: string | null; mcap: number | null; sic_label: string | null }[])
+      const found = new Map(((data ?? []) as { ticker: string; name: string | null; name_kana: string | null; exchange: string | null; mcap: number | null; sic_label: string | null }[])
         .map(r => [r.ticker, r]))
       for (const c of usCompanies) {
         const hit = found.get(c.ticker)
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
         if (seen.has(hit.ticker)) continue
         seen.add(hit.ticker)
         const relation = BANNED_RE.test(c.relation) ? '' : c.relation
-        matched.push({ code: hit.ticker, name: hit.name ?? c.name, market: hit.exchange ?? '', country: 'US', relation, sicLabel: hit.sic_label ?? null, mcap: hit.mcap ?? null })
+        matched.push({ code: hit.ticker, name: hit.name ?? c.name, nameKana: hit.name_kana ?? null, market: hit.exchange ?? '', country: 'US', relation, sicLabel: hit.sic_label ?? null, mcap: hit.mcap ?? null })
       }
     } catch { for (const c of usCompanies) unmatched.push(c.name) }
   } else if (usCompanies.length > 0) {

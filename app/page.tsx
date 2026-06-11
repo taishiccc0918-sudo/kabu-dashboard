@@ -352,6 +352,7 @@ export default function Page() {
   const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')  // 銘柄管理の並べ替え（ツールバーと共有）
   const [wlPage, setWlPage] = useState(1)
   const [showAiAssist, setShowAiAssist] = useState(false)
+  const [aiToast, setAiToast] = useState('')   // AIアシスト適用後の「登録できました」表示
   const [wlShowDropdown, setWlShowDropdown] = useState(false)
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
   const [wlDropdownActive, setWlDropdownActive] = useState(-1)
@@ -1238,6 +1239,14 @@ export default function Page() {
         saveStockMeta(c, { ...meta, memo: meta.memo ? `${meta.memo}\n${line}` : line, memoUpdatedAt: new Date().toISOString() })
       }
     }
+    // 適用後はトップへ戻して「登録できました」を一瞬表示（ポップアップを閉じた先で迷子にならない）
+    const parts = [
+      addEye.length > 0 ? `${addEye.length}件を追加` : '',
+      removeEye.length > 0 ? `${removeEye.length}件を解除` : '',
+    ].filter(Boolean)
+    setAiToast(`✓ ${parts.length > 0 ? parts.join('・') : '変更を適用'}しました`)
+    window.setTimeout(() => setAiToast(''), 2600)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     return { added: addEye.length, removed: removeEye.length }
   }
 
@@ -2225,6 +2234,8 @@ export default function Page() {
           onClose={() => setShowAiAssist(false)}
         />
       )}
+
+      {aiToast && <div className={styles.aiToast}>{aiToast}</div>}
 
       {/* SP専用: 固定ボトムナビ（PCでは非表示）。✨AIアシストは銘柄管理（ウォッチ）内に配置 */}
       <BottomNav tab={tab} onSelect={setTab} market={market} />

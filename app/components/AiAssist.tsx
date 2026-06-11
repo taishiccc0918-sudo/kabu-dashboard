@@ -14,19 +14,30 @@ import styles from '../page.module.css'
 // 並び: 未登録が上・登録済みは下。テーマ結果は時価総額の大きい順。
 
 type AddGroup = { input: string; matches: NameMatch[] }
-type UsHit = { ticker: string; name: string; market: string; mcap: number | null }
+type UsHit = { ticker: string; name: string; nameKana: string | null; market: string; mcap: number | null }
 type ThemeItem = {
-  code: string; name: string; market: string; country: 'JP' | 'US'
+  code: string; name: string; nameKana: string | null; market: string; country: 'JP' | 'US'
   mcap: number | null; per: number | null; relation: string; sicLabel: string | null
   factsheet: { bizDesc: string; docUrl: string | null; docDate: string | null } | null
   news: { title: string; link: string; source: string; pubDate: string }[]
 }
 
-// テーマのプリセット（タップで即検索。文字入力が苦手な人向け）
-const THEME_PRESETS = [
-  '半導体製造装置', '半導体材料', 'データセンター', '生成AI', 'ロボット・フィジカルAI',
-  '防衛', '宇宙', 'レアアース', '原子力・電力', '電線・送電網',
-  'サイバーセキュリティ', 'インバウンド', 'ゲーム・IP', '医療機器', '造船', '銀行',
+// テーマのプリセット（選んだ瞬間に検索。文字入力が苦手な人向け・カテゴリ別）
+const THEME_GROUPS: { label: string; items: string[] }[] = [
+  { label: 'AI・半導体', items: ['生成AI', 'AIエージェント', 'AI半導体', '半導体製造装置', '半導体材料', '半導体商社', 'パワー半導体', '画像センサー', 'データセンター', 'AIサーバー冷却', 'HBM・先端メモリ', '後工程・テスト装置', '光通信・シリコンフォトニクス', 'エッジAI'] },
+  { label: 'ロボット・機械', items: ['産業用ロボット', 'ヒューマノイド・フィジカルAI', 'FA・工場自動化', '工作機械', '建設機械', '減速機・モーター部品'] },
+  { label: 'エネルギー', items: ['原子力', '再生可能エネルギー', '太陽光', '風力', '水素', '蓄電池・電池材料', '送電網・電線', '電力会社', '都市ガス', '石油・資源開発'] },
+  { label: '防衛・宇宙', items: ['防衛', '宇宙開発', '人工衛星', 'ドローン', 'サイバーセキュリティ'] },
+  { label: '素材・資源', items: ['レアアース', '銅・非鉄金属', '鉄鋼', '化学', '炭素繊維', 'ガラス・セラミックス', '金（ゴールド）関連'] },
+  { label: '自動車・モビリティ', items: ['自動車', '自動車部品', 'EV関連', '自動運転', 'タイヤ', '二輪車'] },
+  { label: 'IT・ネット', items: ['SaaS', 'EC・ネット通販', 'フィンテック', 'キャッシュレス決済', 'ゲーム', 'アニメ・IP', 'ネット広告', '人材・HRテック', 'DX支援', 'クラウド'] },
+  { label: '金融', items: ['銀行', '地方銀行', '証券', '保険', 'リース', '取引所'] },
+  { label: '消費・小売', items: ['コンビニ・小売', '百貨店', 'アパレル', '外食', '食品', '飲料', '化粧品', '日用品', 'ディスカウントストア'] },
+  { label: 'インバウンド・レジャー', items: ['インバウンド', 'ホテル', '鉄道', '空運', '旅行', 'テーマパーク', 'エンタメ・興行'] },
+  { label: 'ヘルスケア', items: ['製薬', 'バイオ', '医療機器', '介護', '調剤薬局', '再生医療'] },
+  { label: '建設・不動産', items: ['建設', '不動産', '住宅', 'リフォーム', '物流施設・倉庫', 'データセンター建設'] },
+  { label: '運輸・物流', items: ['海運', '造船', '物流・宅配', '港湾'] },
+  { label: 'その他テーマ', items: ['総合商社', '教育', '農業・食料', '水産', '防災', '高齢化・シニア', '子育て・少子化対策', 'M&A・事業承継', '株主優待で人気', '猛暑・気候変動'] },
 ]
 
 // 👁ウォッチの目印アイコン（page.tsx の EyeIcon と同形・銘柄管理と同じ作法）
@@ -88,6 +99,7 @@ export default function AiAssist({
   const [hearts, setHearts] = useState<Set<string>>(new Set())        // ♥超お気に入りにも登録する銘柄
   const [doneMsg, setDoneMsg] = useState('')
   const [loadingMore, setLoadingMore] = useState(false)  // テーマの追加読み込み中
+  const [usKana, setUsKana] = useState(false)            // 米国株の社名を英語⇄カタカナ表示切替
   const [listening, setListening] = useState(false)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
   const speechAvailable = !!getSpeechRecognition()
@@ -265,6 +277,16 @@ export default function AiAssist({
     onClose()
   }
 
+  // 米国株の社名表示（カナ切替対応）
+  const usName = (name: string, kana: string | null) => (usKana && kana ? kana : name)
+  const usSectionLabel = (
+    <div className={styles.aiSectionLabel}>
+      🇺🇸 米国株
+      <button className={styles.aiKanaBtn} onClick={() => setUsKana(k => !k)}
+        title="米国株の社名を英語⇄カタカナで切替">{usKana ? 'あ→A 英語表示' : 'A→あ カナ表示'}</button>
+    </div>
+  )
+
   // 右側の 👁/♥ トグル（銘柄管理と同じ作法: 👁=ウォッチに追加・♥=超お気に入りにも）
   const markBtns = (code: string) => (
     <span className={styles.aiMarkCol}>
@@ -325,7 +347,7 @@ export default function AiAssist({
         className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''}`}
         onClick={() => toggleCheck(it.code)}>
         <div className={styles.aiThemeCardHead}>
-          <span className={styles.aiCandName}>{it.name}</span>
+          <span className={styles.aiCandName}>{it.country === 'US' ? usName(it.name, it.nameKana) : it.name}</span>
           <span className={styles.aiCandCode}>{it.code}</span>
           <span className={styles.aiCandMkt}>{it.country === 'US' ? `🇺🇸 ${it.market}` : it.market.replace('市場', '')}</span>
           {isFav && <span className={styles.aiCandDoneBadge}>登録済み</span>}
@@ -441,8 +463,8 @@ export default function AiAssist({
                 )}
                 {usHits.length > 0 && (
                   <>
-                    <div className={styles.aiSectionLabel}>🇺🇸 米国株</div>
-                    {usHits.map(u => checkRow({ code: u.ticker, name: u.name, market: u.market }, true))}
+                    {usSectionLabel}
+                    {usHits.map(u => checkRow({ code: u.ticker, name: usName(u.name, u.nameKana), market: u.market }, true))}
                   </>
                 )}
                 {unmatched.length > 0 && (
@@ -482,8 +504,12 @@ export default function AiAssist({
               onChange={e => { const t = e.target.value; if (t) runTheme(t) }}
               aria-label="テーマを選んで検索"
             >
-              <option value="">📋 テーマを選んで検索（半導体・防衛・宇宙 など）</option>
-              {THEME_PRESETS.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="">📋 テーマを選んで検索（約100テーマ）</option>
+              {THEME_GROUPS.map(g => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.items.map(t => <option key={t} value={t}>{t}</option>)}
+                </optgroup>
+              ))}
             </select>
 
             {loading && (
@@ -508,7 +534,7 @@ export default function AiAssist({
                 )}
                 {themeUs.length > 0 && (
                   <>
-                    <div className={styles.aiSectionLabel}>🇺🇸 米国株</div>
+                    {usSectionLabel}
                     {themeUs.map(themeCard)}
                   </>
                 )}

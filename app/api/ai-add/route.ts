@@ -15,7 +15,7 @@ export const maxDuration = 30
 const DAILY_LIMIT = 20
 const MAX_INPUT = 800
 
-export type UsHit = { ticker: string; name: string; market: string; mcap: number | null }
+export type UsHit = { ticker: string; name: string; nameKana: string | null; market: string; mcap: number | null }
 
 export async function POST(req: NextRequest) {
   if (!hasGeminiKey()) {
@@ -66,13 +66,13 @@ export async function POST(req: NextRequest) {
         try {
           const sb = createClient(url, anon, { auth: { persistSession: false } })
           const { data } = await sb.from('us_master')
-            .select('ticker,name,exchange,mcap')
+            .select('ticker,name,name_kana,exchange,mcap')
             .in('ticker', usRaw.map(u => u.ticker))
-          const found = new Map(((data ?? []) as { ticker: string; name: string | null; exchange: string | null; mcap: number | null }[])
+          const found = new Map(((data ?? []) as { ticker: string; name: string | null; name_kana: string | null; exchange: string | null; mcap: number | null }[])
             .map(r => [r.ticker, r]))
           for (const u of usRaw) {
             const hit = found.get(u.ticker)
-            if (hit) us.push({ ticker: hit.ticker, name: hit.name ?? u.name ?? hit.ticker, market: hit.exchange ?? '', mcap: hit.mcap ?? null })
+            if (hit) us.push({ ticker: hit.ticker, name: hit.name ?? u.name ?? hit.ticker, nameKana: hit.name_kana ?? null, market: hit.exchange ?? '', mcap: hit.mcap ?? null })
             else usUnmatched.push(u.name || u.ticker)
           }
         } catch { usUnmatched = usRaw.map(u => u.name || u.ticker); us = [] }

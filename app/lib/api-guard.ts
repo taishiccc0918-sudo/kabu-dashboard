@@ -25,7 +25,7 @@ function getServiceClient(): SupabaseClient | null {
 }
 
 export type GuardResult =
-  | { ok: true; userId: string }
+  | { ok: true; userId: string; remaining: number }  // remaining=今回の消費後の残り回数
   | { ok: false; status: number; message: string }
 
 // 認証＋上限チェック＋使用回数のインクリメントまで行う（通った時点で1回消費）。
@@ -72,11 +72,35 @@ export async function requireUserAndQuota(kind: 'add' | 'theme', userDailyLimit:
       { user_id: user.id, day, kind, count: myCount + 1 },
       { onConflict: 'user_id,day,kind' },
     )
+    return { ok: true, userId: user.id, remaining: Math.max(0, userDailyLimit - (myCount + 1)) }
   } catch (e) {
     // ai_usage テーブル未作成等。安全側（利用不可）に倒す＝コスト暴走を防ぐのが最優先
     console.error('[api-guard] ai_usage error:', e instanceof Error ? e.message : e)
     return { ok: false, status: 500, message: 'AI機能の準備中です（管理者: supabase-ai.sql を実行してください）' }
   }
+}
 
-  return { ok: true, userId: user.id }
+// 本日の利用状況の読み取り専用（回数は消費しない）。AIアシストの「きょうの残り回数」表示用。
+export async function readUsage(limits: Record<string, number>): Promise<
+  { ok: true; usage: Record<string, { used: number; limit: number }> } | { ok: false; status: number }
+> {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').trim()
+  const anon = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim()
+  if (!url || !anon) return { ok: false, status: 500 }
+  const cookieStore = cookies()
+  const sbUser = createServerClient(url, anon, {
+    cookies: { getAll() { return cookieStore.getAll() }, setAll() { /* noop */ } },
+  })
+  const { data: { user } } = await sbUser.auth.getUser()
+  if (!user) return { ok: false, status: 401 }
+  const usage: Record<string, { used: number; limit: number }> = {}
+  for (const [kind, limit] of Object.entries(limits)) usage[kind] = { used: 0, limit }
+  try {
+    const { data } = await sbUser.from('ai_usage')
+      .select('kind,count').eq('user_id', user.id).eq('day', jstDay())
+    for (const r of (data ?? []) as { kind: string; count: number }[]) {
+      if (usage[r.kind]) usage[r.kind].used = r.count ?? 0
+    }
+  } catch { /* テーブル未作成 → used 0 のまま */ }
+  return { ok: true, usage }
 }

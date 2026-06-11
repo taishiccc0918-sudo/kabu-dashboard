@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
   // ── 1) LLM: テーマ関連の社名候補＋事実1行（コードは答えさせない。米国はティッカーのみ後で検証）──
   const prompt =
     `テーマ「${theme}」に事業内容が関連する上場企業を、日本株・米国株それぞれから挙げてください。\n` +
-    '出力形式: {"companies": [{"name": "正式社名", "country": "JP", "ticker": "", "relation": "事業上の関連の説明（40字以内）"}]}\n' +
+    '出力形式: {"companies": [{"name": "正式社名", "country": "JP", "ticker": "", "relation": "事業上の関連の説明（40字以内）"}], "others": ["サムスン電子（韓国）"]}\n' +
     '規則:\n' +
     '・country は "JP"（日本上場）か "US"（米国上場）。米国株は ticker に正式ティッカー（例: NVDA）を書く。日本株の ticker は空文字。\n' +
     '・relation は事実の記述のみ。「〜を手掛ける」「〜を製造している」「〜と開示している」のような書き方。\n' +
@@ -113,12 +113,17 @@ export async function POST(req: NextRequest) {
     '・社名変更した企業は現在の社名を使う（例: 日本電産→ニデック、昭和電工→レゾナック）。\n' +
     '・ETF・投資信託・未上場企業は含めない。\n' +
     '・日本株は最大10社、米国株は最大6社。該当が無ければ {"companies": []}。\n' +
+    '・日本・米国以外（韓国・台湾・中国・欧州など）に主要な関連企業がある場合は companies に入れず "others" に「社名（国名）」の形で最大5社（例: "サムスン電子（韓国）", "TSMC（台湾）"）。無ければ "others": []。\n' +
     (exclude.length > 0 ? `・次の企業はすでに表示済みのため除外する: ${exclude.join('、')}\n` : '')
 
   type LlmCompany = { name: string; country: 'JP' | 'US'; ticker: string; relation: string }
   let companies: LlmCompany[] = []
+  let others: string[] = []  // 日米以外の主要関連企業（参考表示のみ・追加不可）
   try {
-    const out = await geminiJson<{ companies?: unknown }>(prompt, { thinkingBudget: 512, maxOutputTokens: 2048, timeoutMs: 45000 })
+    const out = await geminiJson<{ companies?: unknown; others?: unknown }>(prompt, { thinkingBudget: 512, maxOutputTokens: 2048, timeoutMs: 45000 })
+    if (Array.isArray(out.others)) {
+      others = out.others.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(s => s.trim()).slice(0, 5)
+    }
     if (Array.isArray(out.companies)) {
       companies = out.companies
         .filter((c): c is { name?: string; country?: string; ticker?: string; relation?: string } => !!c && typeof c === 'object')
@@ -240,7 +245,7 @@ export async function POST(req: NextRequest) {
     factsheet: m.country === 'JP' ? (factsheets[m.code] ?? null) : null,
     news: m.country === 'JP' ? (newsByCode[m.code] ?? []) : [],
   }))
-  // 時価総額の大きい順（不明は末尾）。表示時の最終並び（未登録↑/登録済み↓）はクライアントで行う
+  // 時価総額の大きい順（不明は末尾）
   items.sort((a, b) => (b.mcap ?? -1) - (a.mcap ?? -1))
-  return NextResponse.json({ items, unmatched })
+  return NextResponse.json({ items, unmatched, others, remaining: guard.remaining })
 }

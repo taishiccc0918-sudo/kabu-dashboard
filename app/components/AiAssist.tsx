@@ -100,12 +100,32 @@ export default function AiAssist({
   const [doneMsg, setDoneMsg] = useState('')
   const [loadingMore, setLoadingMore] = useState(false)  // テーマの追加読み込み中
   const [usKana, setUsKana] = useState(false)            // 米国株の社名を英語⇄カタカナ表示切替
+  const [others, setOthers] = useState<string[]>([])     // テーマ: 日米以外の主要関連企業（参考表示）
+  // きょうの利用状況（add=ことばで追加20回/日, theme=テーマ検索10回/日）
+  const [usage, setUsage] = useState<Record<string, { used: number; limit: number }> | null>(null)
   const [listening, setListening] = useState(false)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
   const speechAvailable = !!getSpeechRecognition()
 
   // 閉じるときに音声認識を止める
   useEffect(() => () => { try { recRef.current?.stop() } catch { /* noop */ } }, [])
+
+  // 開いたときに本日の利用状況を取得（回数は消費しない）
+  useEffect(() => {
+    if (!loggedIn) return
+    fetch('/api/ai-usage').then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setUsage(d) }).catch(() => {})
+  }, [loggedIn])
+
+  // API応答の remaining から利用状況を更新
+  function noteRemaining(kind: 'add' | 'theme', remaining: number | undefined) {
+    if (typeof remaining !== 'number') return
+    setUsage(prev => {
+      const limit = prev?.[kind]?.limit ?? (kind === 'add' ? 20 : 10)
+      return { ...(prev ?? {}), [kind]: { used: Math.max(0, limit - remaining), limit } }
+    })
+  }
+  const remainOf = (kind: 'add' | 'theme') =>
+    usage?.[kind] ? Math.max(0, usage[kind].limit - usage[kind].used) : null
 
   // target: 認識結果の書き込み先（'add'=ことばで追加の本文 / 'theme'=テーマ入力欄）
   function toggleMic(target: 'add' | 'theme') {
@@ -132,7 +152,7 @@ export default function AiAssist({
   }
 
   function resetResults() {
-    setGroups(null); setUsHits([]); setUnmatched([]); setThemeItems(null)
+    setGroups(null); setUsHits([]); setUnmatched([]); setThemeItems(null); setOthers([])
     setChecked(new Set()); setHearts(new Set()); setError(''); setDoneMsg('')
   }
 
@@ -157,8 +177,9 @@ export default function AiAssist({
       const res = await fetch('/api/ai-add', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
       })
-      const d = (await res.json()) as { names?: string[]; us?: UsHit[]; usUnmatched?: string[]; error?: string }
+      const d = (await res.json()) as { names?: string[]; us?: UsHit[]; usUnmatched?: string[]; remaining?: number; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
+      noteRemaining('add', d.remaining)
       // 日本株: クライアントで JPX マスタ照合（LLMにコードを答えさせない＝幻覚が登録に直結しない）
       const miss: string[] = [...(d.usUnmatched ?? [])]
       for (const n of d.names ?? []) {
@@ -203,8 +224,10 @@ export default function AiAssist({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme, exclude }),
       })
-      const d = (await res.json()) as { items?: ThemeItem[]; unmatched?: string[]; error?: string }
+      const d = (await res.json()) as { items?: ThemeItem[]; unmatched?: string[]; others?: string[]; remaining?: number; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
+      noteRemaining('theme', d.remaining)
+      if (!more || (d.others ?? []).length > 0) setOthers(d.others ?? [])
       const have = new Set(prevItems.map(i => i.code))
       const fresh = (d.items ?? []).filter(i => !have.has(i.code))
       const items = [...prevItems, ...fresh]
@@ -405,6 +428,11 @@ export default function AiAssist({
           <button className={`${styles.aiTabBtn} ${mode === 'theme' ? styles.aiTabBtnActive : ''}`}
             onClick={() => { setMode('theme'); resetResults() }}>テーマでさがす</button>
         </div>
+        {loggedIn && usage && (
+          <div className={styles.aiUsageNote}>
+            きょうの残り回数: ことばで追加 {remainOf('add') ?? '-'}/{usage.add?.limit ?? 20}回 ・ テーマ検索 {remainOf('theme') ?? '-'}/{usage.theme?.limit ?? 10}回（毎日0時リセット）
+          </div>
+        )}
 
         {!loggedIn ? (
           <div className={styles.aiLoginBox}>
@@ -538,12 +566,21 @@ export default function AiAssist({
                     {themeUs.map(themeCard)}
                   </>
                 )}
+                {others.length > 0 && (
+                  <div className={styles.aiOthersNote}>
+                    📎 参考: このテーマでは {others.join('、')} など海外企業も主要プレーヤーです（本アプリは日本株・米国株のみ対応のため追加はできません）
+                  </div>
+                )}
                 {unmatched.length > 0 && (
                   <div className={styles.aiUnmatched}>上場銘柄として確認できませんでした: {unmatched.join('、')}</div>
                 )}
-                <button className={styles.aiMoreBtn} onClick={() => runTheme(undefined, true)} disabled={loadingMore}>
-                  {loadingMore ? <><span className={styles.aiSpinner} aria-hidden /> さらにさがしています…</> : '＋ さらにさがす（表示済み以外から）'}
-                </button>
+                {remainOf('theme') !== 0 ? (
+                  <button className={styles.aiMoreBtn} onClick={() => runTheme(undefined, true)} disabled={loadingMore}>
+                    {loadingMore ? <><span className={styles.aiSpinner} aria-hidden /> さらにさがしています…</> : `＋ さらにさがす（AI利用1回ぶん${remainOf('theme') !== null ? `・残り${remainOf('theme')}回` : ''}）`}
+                  </button>
+                ) : (
+                  <div className={styles.aiUnmatched}>本日のテーマ検索の上限に達したため「さらにさがす」は明日また使えます</div>
+                )}
                 {commitBar(themeLabel)}
               </div>
             )}

@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         } catch { usUnmatched = usRaw.map(u => u.name || u.ticker); us = [] }
       }
     }
-    return NextResponse.json({ names, us, usUnmatched })
+    return NextResponse.json({ names, us, usUnmatched, remaining: guard.remaining })
   } catch (e) {
     console.error('[ai-add] error:', e instanceof Error ? e.message : e)
     return NextResponse.json({ error: 'AIの呼び出しに失敗しました。少し待ってからもう一度お試しください' }, { status: 502 })

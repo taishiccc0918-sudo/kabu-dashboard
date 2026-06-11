@@ -1884,8 +1884,8 @@ export default function Page() {
                 <button
                   className={styles.aiOpenBtn}
                   onClick={() => setShowAiAssist(true)}
-                  title="ことばで一括追加（コード貼り付けも可）・テーマで銘柄をさがす"
-                >✨AIで追加</button>
+                  title="ことばで一括追加（コード貼り付けも可）・テーマで銘柄をさがす（1日: 追加20回/テーマ10回）"
+                >✨AIアシスト</button>
               )}
             </div>
             {/* 並べ替え（手動順／ジャンルごと／時価総額が大きい順）。PC/SP共通で必ず表示 */}

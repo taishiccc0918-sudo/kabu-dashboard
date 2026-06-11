@@ -57,15 +57,21 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }
 
+// 一括適用の差分（追加だけでなく、既存登録の解除もその場でできる）
+export type AiMarkChanges = {
+  addEye: string[]; removeEye: string[]; addHeart: string[]; removeHeart: string[]
+}
+
 export default function AiAssist({
-  masterDB, favorites, loggedIn, onSignIn, onBulkAdd, onClose,
+  masterDB, favorites, superFavorites, loggedIn, onSignIn, onApply, onClose,
 }: {
   masterDB: Record<string, MasterRecord>
   favorites: Set<string>
+  superFavorites: Set<string>
   loggedIn: boolean
   onSignIn: () => void
-  // hearts ⊆ codes。戻り値=実際に追加した件数
-  onBulkAdd: (codes: string[], themeLabel: string | undefined, hearts: string[]) => number
+  // 戻り値 = {added, removed}（実際に変更された件数）
+  onApply: (changes: AiMarkChanges, themeLabel?: string) => { added: number; removed: number }
   onClose: () => void
 }) {
   const [mode, setMode] = useState<'add' | 'theme'>('add')
@@ -142,12 +148,18 @@ export default function AiAssist({
       }
       const us = (d.us ?? []).filter(u => !seenCodes.has(u.ticker))
       setGroups(gs); setUsHits(us); setUnmatched(miss)
-      // 既定ON: 完全一致＋米国株（サーバー照合済み）。あいまい一致は自動チェックしない
-      // ＝誤変換由来の別会社が勝手に選ばれる事故を防ぐ（本人フィードバック）。
-      const init = new Set<string>()
-      for (const g of gs) g.matches.filter(m => m.exact).forEach(m => { if (!favorites.has(m.code)) init.add(m.code) })
-      us.forEach(u => { if (!favorites.has(u.ticker)) init.add(u.ticker) })
-      setChecked(init)
+      // 初期状態:
+      //  - 登録済み銘柄 → いまの登録状態をそのまま反映（👁オン・♥は超お気に入りならオン）。その場で外すこともできる
+      //  - 未登録 → 完全一致＋米国株（サーバー照合済み）は👁オン。あいまい一致は自動オンにしない
+      //    ＝誤変換由来の別会社が勝手に選ばれる事故を防ぐ（本人フィードバック）
+      const initEye = new Set<string>(); const initHeart = new Set<string>()
+      const initFromCurrent = (code: string, defaultOn: boolean) => {
+        if (favorites.has(code)) { initEye.add(code); if (superFavorites.has(code)) initHeart.add(code) }
+        else if (defaultOn) initEye.add(code)
+      }
+      for (const g of gs) g.matches.forEach(m => initFromCurrent(m.code, m.exact))
+      us.forEach(u => initFromCurrent(u.ticker, true))
+      setChecked(initEye); setHearts(initHeart)
       if (gs.length === 0 && us.length === 0 && miss.length === 0) setError('文章から上場企業名を見つけられませんでした')
     } catch {
       setError('通信に失敗しました。もう一度お試しください')
@@ -166,8 +178,15 @@ export default function AiAssist({
       })
       const d = (await res.json()) as { items?: ThemeItem[]; unmatched?: string[]; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
-      setThemeItems(d.items ?? []); setUnmatched(d.unmatched ?? []); setThemeLabel(theme)
-      if ((d.items ?? []).length === 0) setError('該当する上場銘柄が見つかりませんでした')
+      const items = d.items ?? []
+      setThemeItems(items); setUnmatched(d.unmatched ?? []); setThemeLabel(theme)
+      // テーマ結果も登録済みは現状態を反映（未登録の自動オンはしない＝選んで追加）
+      const initEye = new Set<string>(); const initHeart = new Set<string>()
+      for (const it of items) {
+        if (favorites.has(it.code)) { initEye.add(it.code); if (superFavorites.has(it.code)) initHeart.add(it.code) }
+      }
+      setChecked(initEye); setHearts(initHeart)
+      if (items.length === 0) setError('該当する上場銘柄が見つかりませんでした')
     } catch {
       setError('通信に失敗しました。もう一度お試しください')
     } finally { setLoading(false) }
@@ -191,12 +210,38 @@ export default function AiAssist({
     })
   }
 
+  // いま画面に出ている全銘柄コード（差分計算の対象）
+  function displayedCodes(): string[] {
+    if (mode === 'theme') return (themeItems ?? []).map(i => i.code)
+    const codes: string[] = []
+    for (const g of groups ?? []) for (const m of g.matches) codes.push(m.code)
+    for (const u of usHits) codes.push(u.ticker)
+    return codes
+  }
+
+  // 現在の登録状態との差分を計算（追加も解除もこの1ボタンでまとめて適用）
+  function calcChanges(): AiMarkChanges {
+    const c: AiMarkChanges = { addEye: [], removeEye: [], addHeart: [], removeHeart: [] }
+    for (const code of displayedCodes()) {
+      const eyeNow = favorites.has(code), heartNow = superFavorites.has(code)
+      const eyeNext = checked.has(code), heartNext = hearts.has(code)
+      if (eyeNext && !eyeNow) c.addEye.push(code)
+      if (!eyeNext && eyeNow) c.removeEye.push(code)
+      if (heartNext && !heartNow) c.addHeart.push(code)
+      if (!heartNext && heartNow) c.removeHeart.push(code)
+    }
+    return c
+  }
+  const changes = calcChanges()
+  const changeCount = changes.addEye.length + changes.removeEye.length + changes.addHeart.length + changes.removeHeart.length
+
   function commitAdd(theme?: string) {
-    const codes = Array.from(checked)
-    if (codes.length === 0) return
-    const added = onBulkAdd(codes, theme, Array.from(hearts))
-    setDoneMsg(added > 0 ? `${added}件をウォッチリストに追加しました` : '選択した銘柄はすべて登録済みでした')
-    setChecked(new Set()); setHearts(new Set())
+    if (changeCount === 0) return
+    const { added, removed } = onApply(changes, theme)
+    const parts: string[] = []
+    if (added > 0) parts.push(`${added}件を追加`)
+    if (removed > 0) parts.push(`${removed}件を解除`)
+    setDoneMsg(parts.length > 0 ? `${parts.join('・')}しました` : '変更を適用しました')
   }
 
   // 未登録を上・登録済みを下に（表示順の共通ルール）
@@ -225,24 +270,32 @@ export default function AiAssist({
     const isFav = favorites.has(m.code)
     return (
       <div key={m.code}
-        className={`${styles.aiCandRow} ${checked.has(m.code) ? styles.aiCandRowOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
-        onClick={() => { if (!isFav) toggleCheck(m.code) }}>
+        className={`${styles.aiCandRow} ${checked.has(m.code) ? styles.aiCandRowOn : ''}`}
+        onClick={() => toggleCheck(m.code)}>
         <span className={styles.aiCandName}>{m.name}</span>
         <span className={styles.aiCandCode}>{m.code}</span>
         <span className={styles.aiCandMkt}>{usBadge ? `🇺🇸 ${m.market}` : m.market.replace('市場', '')}</span>
-        {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : markBtns(m.code)}
+        {isFav && <span className={styles.aiCandDoneBadge}>登録済み</span>}
+        {markBtns(m.code)}
       </div>
     )
   }
 
-  const commitBar = (theme?: string) => (
-    <>
-      <div className={styles.aiHeartHint}>👁=ウォッチに追加 ／ ♥=「超お気に入り」にも登録（銘柄管理のマークと同じ）</div>
-      <button className={styles.btnPrimary} onClick={() => commitAdd(theme)} disabled={checked.size === 0}>
-        ✓ {checked.size}件をウォッチリストに追加{hearts.size > 0 ? `（うち♥${hearts.size}件）` : ''}
-      </button>
-    </>
-  )
+  const commitBar = (theme?: string) => {
+    const label = [
+      changes.addEye.length > 0 ? `追加${changes.addEye.length}件` : '',
+      changes.removeEye.length > 0 ? `解除${changes.removeEye.length}件` : '',
+      (changes.addHeart.length > 0 || changes.removeHeart.length > 0) ? `♥変更${changes.addHeart.length + changes.removeHeart.length}件` : '',
+    ].filter(Boolean).join('・')
+    return (
+      <>
+        <div className={styles.aiHeartHint}>👁=ウォッチ ／ ♥=超お気に入り（銘柄管理のマークと同じ）。登録済みもここでオン/オフできます</div>
+        <button className={styles.btnPrimary} onClick={() => commitAdd(theme)} disabled={changeCount === 0}>
+          {changeCount === 0 ? '変更なし' : `✓ 適用する（${label}）`}
+        </button>
+      </>
+    )
+  }
 
   // テーマ結果: 日本株/米国株に分け、それぞれ 未登録(時価総額順)↑ → 登録済み↓
   const themeJp = themeItems ? regLast(themeItems.filter(i => i.country === 'JP'), i => i.code) : []
@@ -252,13 +305,14 @@ export default function AiAssist({
     const isFav = favorites.has(it.code)
     return (
       <div key={it.code}
-        className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''} ${isFav ? styles.aiCandRowDone : ''}`}
-        onClick={() => { if (!isFav) toggleCheck(it.code) }}>
+        className={`${styles.aiThemeCard} ${checked.has(it.code) ? styles.aiThemeCardOn : ''}`}
+        onClick={() => toggleCheck(it.code)}>
         <div className={styles.aiThemeCardHead}>
           <span className={styles.aiCandName}>{it.name}</span>
           <span className={styles.aiCandCode}>{it.code}</span>
           <span className={styles.aiCandMkt}>{it.country === 'US' ? `🇺🇸 ${it.market}` : it.market.replace('市場', '')}</span>
-          {isFav ? <span className={styles.aiCandDoneBadge}>登録済み</span> : markBtns(it.code)}
+          {isFav && <span className={styles.aiCandDoneBadge}>登録済み</span>}
+          {markBtns(it.code)}
         </div>
         {(it.mcap || it.per) && (
           <div className={styles.aiThemeMetrics}>
@@ -397,14 +451,17 @@ export default function AiAssist({
                 {loading ? '検索中…' : 'さがす'}
               </button>
             </div>
-            {/* 文字入力なしでも使えるテーマのプリセット（タップで即検索） */}
-            {!themeItems && (
-              <div className={styles.aiPresetWrap}>
-                {THEME_PRESETS.map(t => (
-                  <button key={t} className={styles.aiPresetChip} onClick={() => runTheme(t)} disabled={loading}>{t}</button>
-                ))}
-              </div>
-            )}
+            {/* 文字入力なしでも使えるテーマのプルダウン（選んだ瞬間に検索。チップ羅列は廃止＝本人FB） */}
+            <select
+              className={styles.aiPresetSelect}
+              value=""
+              disabled={loading}
+              onChange={e => { const t = e.target.value; if (t) runTheme(t) }}
+              aria-label="テーマを選んで検索"
+            >
+              <option value="">📋 テーマを選んで検索（半導体・防衛・宇宙 など）</option>
+              {THEME_PRESETS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
 
             {error && <div className={styles.aiError}>{error}</div>}
             {doneMsg && <div className={styles.aiDone}>{doneMsg}</div>}

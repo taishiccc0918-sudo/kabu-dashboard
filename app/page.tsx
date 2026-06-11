@@ -1191,49 +1191,56 @@ export default function Page() {
     })
   }
 
-  // AIアシストからの一括追加。戻り値=実際に追加した件数（登録済みは除外）。
-  // pushUndo は1回だけ＝Ctrl+Z でまとめて取り消せる。hearts ⊆ codes は ♥超お気に入りにも登録。
+  // AIアシストからの一括適用（追加＋解除＋♥変更の差分をまとめて反映）。
+  // pushUndo は1回だけ＝Ctrl+Z でまとめて取り消せる。👁解除は♥も外す（アプリの不変条件）。
   // 米国ティッカー（英字始まり）は JP モード中でも受け付け、Supabase には 'US:' 接頭辞で保存
   // （sbSyncFav は現在の市場で判定するためここでは使わない）。米国株は市場切替(🇺🇸)で表示される。
-  // テーマ検索経由は「出会いの記録」をメモに自動追記（追加した理由が残る＝ノートらしさの布石）。
-  function bulkAddFavorites(codes: string[], themeLabel: string | undefined, hearts: string[] = []): number {
-    // 日本株コードは masterDB 照合済みのもののみ・米国ティッカーはサーバー(us_master)照合済みで来る
-    const toAdd = codes.filter(c => (isUsTicker(c) || masterDB[c]) && !favorites.has(c))
-    if (toAdd.length === 0) return 0
-    const heartSet = new Set(hearts.filter(c => toAdd.includes(c)))
+  // テーマ検索経由の追加は「出会いの記録」をメモに自動追記（追加した理由が残る＝ノートらしさの布石）。
+  function applyAiMarks(
+    changes: { addEye: string[]; removeEye: string[]; addHeart: string[]; removeHeart: string[] },
+    themeLabel?: string,
+  ): { added: number; removed: number } {
+    // 日本株コードは masterDB 照合済み・米国ティッカーはサーバー(us_master)照合済みで来る
+    const valid = (c: string) => isUsTicker(c) || !!masterDB[c]
+    const addEye = changes.addEye.filter(c => valid(c) && !favorites.has(c))
+    const removeEye = changes.removeEye.filter(c => favorites.has(c))
+    // 👁を外す銘柄は♥も外す
+    const removeHeart = Array.from(new Set([...changes.removeHeart, ...removeEye])).filter(c => superFavorites.has(c))
+    const addHeart = changes.addHeart.filter(c => valid(c) && !superFavorites.has(c) && !removeEye.includes(c))
+    if (addEye.length + removeEye.length + addHeart.length + removeHeart.length === 0) return { added: 0, removed: 0 }
     pushUndo()
     setFavorites(prev => {
       const next = new Set(prev)
-      toAdd.forEach(c => next.add(c))
+      addEye.forEach(c => next.add(c)); removeEye.forEach(c => next.delete(c))
       lsSet('favorites', Array.from(next))
       return next
     })
-    if (heartSet.size > 0) {
-      setSuperFavorites(prev => {
-        const next = new Set(prev)
-        heartSet.forEach(c => next.add(c))
-        lsSet('superFavorites', Array.from(next))
-        return next
-      })
-    }
+    setSuperFavorites(prev => {
+      const next = new Set(prev)
+      addHeart.forEach(c => next.add(c)); removeHeart.forEach(c => next.delete(c))
+      lsSet('superFavorites', Array.from(next))
+      return next
+    })
     const u = userRef.current; const sb = getSb()
     if (u && sb) {
       const dbCode = (c: string) => isUsTicker(c) ? `US:${c}` : c
-      const rows = [
-        ...toAdd.map(c => ({ user_id: u.id, code: dbCode(c), type: 'star' })),
-        ...Array.from(heartSet).map(c => ({ user_id: u.id, code: dbCode(c), type: 'heart' })),
+      const upserts = [
+        ...addEye.map(c => ({ user_id: u.id, code: dbCode(c), type: 'star' })),
+        ...addHeart.map(c => ({ user_id: u.id, code: dbCode(c), type: 'heart' })),
       ]
-      sb.from('favorites').upsert(rows).then(() => {})
+      if (upserts.length > 0) sb.from('favorites').upsert(upserts).then(() => {})
+      for (const c of removeEye) sb.from('favorites').delete().eq('user_id', u.id).eq('code', dbCode(c)).eq('type', 'star').then(() => {})
+      for (const c of removeHeart) sb.from('favorites').delete().eq('user_id', u.id).eq('code', dbCode(c)).eq('type', 'heart').then(() => {})
     }
     if (themeLabel) {
       const line = `🔍テーマ: ${themeLabel} (${localDateStr()})`
-      for (const c of toAdd) {
+      for (const c of addEye) {
         const meta = stockMeta[c] ?? { genres: [], memo: '' }
         if (meta.memo.includes(line)) continue
         saveStockMeta(c, { ...meta, memo: meta.memo ? `${meta.memo}\n${line}` : line, memoUpdatedAt: new Date().toISOString() })
       }
     }
-    return toAdd.length
+    return { added: addEye.length, removed: removeEye.length }
   }
 
   // ── StockMeta 操作 ────────────────────────────────────────────────
@@ -2221,9 +2228,10 @@ export default function Page() {
         <AiAssist
           masterDB={masterDB}
           favorites={favorites}
+          superFavorites={superFavorites}
           loggedIn={!!user}
           onSignIn={() => getSb()?.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } })}
-          onBulkAdd={bulkAddFavorites}
+          onApply={applyAiMarks}
           onClose={() => setShowAiAssist(false)}
         />
       )}

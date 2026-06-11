@@ -86,7 +86,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI機能は準備中です（GEMINI_API_KEY 未設定）' }, { status: 503 })
   }
   let theme = ''
-  try { theme = String(((await req.json()) as { theme?: unknown }).theme ?? '').trim() } catch { /* fallthrough */ }
+  let exclude: string[] = []
+  try {
+    const body = (await req.json()) as { theme?: unknown; exclude?: unknown }
+    theme = String(body.theme ?? '').trim()
+    if (Array.isArray(body.exclude)) {
+      exclude = body.exclude.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).slice(0, 40)
+    }
+  } catch { /* fallthrough */ }
   if (!theme) return NextResponse.json({ error: 'テーマを入力してください' }, { status: 400 })
   if (theme.length > MAX_INPUT) theme = theme.slice(0, MAX_INPUT)
 
@@ -104,7 +111,8 @@ export async function POST(req: NextRequest) {
     '・テーマとの関連が事業として確実な企業のみ。確信が持てない企業・関連が薄い企業は含めない。\n' +
     '・社名変更した企業は現在の社名を使う（例: 日本電産→ニデック、昭和電工→レゾナック）。\n' +
     '・ETF・投資信託・未上場企業は含めない。\n' +
-    '・日本株は最大10社、米国株は最大6社。該当が無ければ {"companies": []}。\n'
+    '・日本株は最大10社、米国株は最大6社。該当が無ければ {"companies": []}。\n' +
+    (exclude.length > 0 ? `・次の企業はすでに表示済みのため除外する: ${exclude.join('、')}\n` : '')
 
   type LlmCompany = { name: string; country: 'JP' | 'US'; ticker: string; relation: string }
   let companies: LlmCompany[] = []

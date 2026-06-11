@@ -87,6 +87,7 @@ export default function AiAssist({
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [hearts, setHearts] = useState<Set<string>>(new Set())        // ♥超お気に入りにも登録する銘柄
   const [doneMsg, setDoneMsg] = useState('')
+  const [loadingMore, setLoadingMore] = useState(false)  // テーマの追加読み込み中
   const [listening, setListening] = useState(false)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
   const speechAvailable = !!getSpeechRecognition()
@@ -129,15 +130,25 @@ export default function AiAssist({
     if (!text || loading) return
     resetResults(); setLoading(true)
     try {
+      // 銘柄コードの直書き（7203 や 285A 等）は LLM を介さずその場でマスタ照合
+      // （旧「＋まとめて追加」のコード貼り付け運用はここに統合）
+      const gs: AddGroup[] = []
+      const seenCodes = new Set<string>()
+      const codeTokens = (text.normalize('NFKC').toUpperCase().match(/(?<![0-9A-Z])\d{4}[A-Z]?(?![0-9A-Z])/g) ?? [])
+      for (const code of codeTokens) {
+        const rec = masterDB[code]
+        if (!rec || seenCodes.has(code)) continue
+        seenCodes.add(code)
+        gs.push({ input: code, matches: [{ code, name: rec.name, market: rec.market, exact: true }] })
+      }
+
       const res = await fetch('/api/ai-add', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
       })
       const d = (await res.json()) as { names?: string[]; us?: UsHit[]; usUnmatched?: string[]; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
       // 日本株: クライアントで JPX マスタ照合（LLMにコードを答えさせない＝幻覚が登録に直結しない）
-      const gs: AddGroup[] = []
       const miss: string[] = [...(d.usUnmatched ?? [])]
-      const seenCodes = new Set<string>()
       for (const n of d.names ?? []) {
         const all = matchNameToCode(n, masterDB)
         if (all.length === 0) { miss.push(n); continue } // 本当に照合できなかったものだけ「見つかりません」
@@ -166,30 +177,42 @@ export default function AiAssist({
     } finally { setLoading(false) }
   }
 
-  // ── テーマでさがす ──
-  async function runTheme(presetTheme?: string) {
-    const theme = (presetTheme ?? themeInput).trim()
+  // ── テーマでさがす（more=true なら表示済みを除外して追加読み込み）──
+  async function runTheme(presetTheme?: string, more = false) {
+    const theme = more ? themeLabel : (presetTheme ?? themeInput).trim()
     if (presetTheme) setThemeInput(presetTheme)
-    if (!theme || loading) return
-    resetResults(); setLoading(true)
+    if (!theme || loading || loadingMore) return
+    const prevItems = more ? (themeItems ?? []) : []
+    if (more) { setLoadingMore(true); setError(''); setDoneMsg('') } else { resetResults(); setLoading(true) }
     try {
+      // 追加読み込み時は表示済みの社名＋コードを除外指定（同じ銘柄ばかり返るのを防ぐ）
+      const exclude = prevItems.flatMap(i => [i.name, i.code])
       const res = await fetch('/api/ai-theme', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme, exclude }),
       })
       const d = (await res.json()) as { items?: ThemeItem[]; unmatched?: string[]; error?: string }
       if (!res.ok) { setError(d.error ?? `エラー（${res.status}）`); return }
-      const items = d.items ?? []
+      const have = new Set(prevItems.map(i => i.code))
+      const fresh = (d.items ?? []).filter(i => !have.has(i.code))
+      const items = [...prevItems, ...fresh]
       setThemeItems(items); setUnmatched(d.unmatched ?? []); setThemeLabel(theme)
-      // テーマ結果も登録済みは現状態を反映（未登録の自動オンはしない＝選んで追加）
-      const initEye = new Set<string>(); const initHeart = new Set<string>()
-      for (const it of items) {
-        if (favorites.has(it.code)) { initEye.add(it.code); if (superFavorites.has(it.code)) initHeart.add(it.code) }
-      }
-      setChecked(initEye); setHearts(initHeart)
+      // 登録済みは現状態を反映（未登録の自動オンはしない＝選んで追加）。選択中の分は維持
+      setChecked(prev => {
+        const next = more ? new Set(prev) : new Set<string>()
+        for (const it of items) if (favorites.has(it.code)) next.add(it.code)
+        return next
+      })
+      setHearts(prev => {
+        const next = more ? new Set(prev) : new Set<string>()
+        for (const it of items) if (favorites.has(it.code) && superFavorites.has(it.code)) next.add(it.code)
+        return next
+      })
       if (items.length === 0) setError('該当する上場銘柄が見つかりませんでした')
+      else if (more && fresh.length === 0) setDoneMsg('これ以上の候補は見つかりませんでした')
     } catch {
       setError('通信に失敗しました。もう一度お試しください')
-    } finally { setLoading(false) }
+    } finally { setLoading(false); setLoadingMore(false) }
   }
 
   function toggleCheck(code: string) {
@@ -235,18 +258,12 @@ export default function AiAssist({
   const changes = calcChanges()
   const changeCount = changes.addEye.length + changes.removeEye.length + changes.addHeart.length + changes.removeHeart.length
 
+  // 適用したらポップアップを閉じて確定（「変更なし」ボタンが残る分かりにくさを解消＝本人FB）
   function commitAdd(theme?: string) {
     if (changeCount === 0) return
-    const { added, removed } = onApply(changes, theme)
-    const parts: string[] = []
-    if (added > 0) parts.push(`${added}件を追加`)
-    if (removed > 0) parts.push(`${removed}件を解除`)
-    setDoneMsg(parts.length > 0 ? `${parts.join('・')}しました` : '変更を適用しました')
+    onApply(changes, theme)
+    onClose()
   }
-
-  // 未登録を上・登録済みを下に（表示順の共通ルール）
-  const regLast = <T,>(arr: T[], codeOf: (t: T) => string): T[] =>
-    [...arr].sort((a, b) => Number(favorites.has(codeOf(a))) - Number(favorites.has(codeOf(b))))
 
   // 右側の 👁/♥ トグル（銘柄管理と同じ作法: 👁=ウォッチに追加・♥=超お気に入りにも）
   const markBtns = (code: string) => (
@@ -297,9 +314,9 @@ export default function AiAssist({
     )
   }
 
-  // テーマ結果: 日本株/米国株に分け、それぞれ 未登録(時価総額順)↑ → 登録済み↓
-  const themeJp = themeItems ? regLast(themeItems.filter(i => i.country === 'JP'), i => i.code) : []
-  const themeUs = themeItems ? regLast(themeItems.filter(i => i.country === 'US'), i => i.code) : []
+  // テーマ結果: 日本株/米国株に分け、時価総額の大きい順のまま（登録済みも混ぜて状態マークで見せる＝本人FB）
+  const themeJp = themeItems ? themeItems.filter(i => i.country === 'JP') : []
+  const themeUs = themeItems ? themeItems.filter(i => i.country === 'US') : []
 
   const themeCard = (it: ThemeItem) => {
     const isFav = favorites.has(it.code)
@@ -396,6 +413,12 @@ export default function AiAssist({
               </button>
             </div>
 
+            {loading && (
+              <div className={styles.aiLoadingBox}>
+                <span className={styles.aiSpinner} aria-hidden />
+                文章から銘柄をAIが読み取っています…（数秒）
+              </div>
+            )}
             {error && <div className={styles.aiError}>{error}</div>}
             {doneMsg && <div className={styles.aiDone}>{doneMsg}</div>}
 
@@ -405,7 +428,7 @@ export default function AiAssist({
                 {groups.length > 0 && (
                   <>
                     {usHits.length > 0 && <div className={styles.aiSectionLabel}>🇯🇵 日本株</div>}
-                    {regLast(groups, g => g.matches[0].code).map(g => (
+                    {groups.map(g => (
                       <div key={g.input} className={styles.aiCandGroup}>
                         {/* あいまい一致は「近い銘柄」と明示（自動チェックもされない）＝誤変換でも別会社が紛れ込まない */}
                         {(g.matches.length > 1 || !g.matches[0].exact) && (
@@ -419,7 +442,7 @@ export default function AiAssist({
                 {usHits.length > 0 && (
                   <>
                     <div className={styles.aiSectionLabel}>🇺🇸 米国株</div>
-                    {regLast(usHits, u => u.ticker).map(u => checkRow({ code: u.ticker, name: u.name, market: u.market }, true))}
+                    {usHits.map(u => checkRow({ code: u.ticker, name: u.name, market: u.market }, true))}
                   </>
                 )}
                 {unmatched.length > 0 && (
@@ -463,6 +486,12 @@ export default function AiAssist({
               {THEME_PRESETS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
 
+            {loading && (
+              <div className={styles.aiLoadingBox}>
+                <span className={styles.aiSpinner} aria-hidden />
+                「{themeInput.trim() || themeLabel}」に関連する銘柄をAIが検索中…（10〜20秒かかります）
+              </div>
+            )}
             {error && <div className={styles.aiError}>{error}</div>}
             {doneMsg && <div className={styles.aiDone}>{doneMsg}</div>}
 
@@ -486,6 +515,9 @@ export default function AiAssist({
                 {unmatched.length > 0 && (
                   <div className={styles.aiUnmatched}>上場銘柄として確認できませんでした: {unmatched.join('、')}</div>
                 )}
+                <button className={styles.aiMoreBtn} onClick={() => runTheme(undefined, true)} disabled={loadingMore}>
+                  {loadingMore ? <><span className={styles.aiSpinner} aria-hidden /> さらにさがしています…</> : '＋ さらにさがす（表示済み以外から）'}
+                </button>
                 {commitBar(themeLabel)}
               </div>
             )}

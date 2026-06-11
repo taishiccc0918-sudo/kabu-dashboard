@@ -4248,6 +4248,27 @@
   -webkit-appearance: none; appearance: none;
 }
 .aiPresetSelect:focus { outline: none; border-color: var(--accent-line); }
+/* 検索中の明示（「回ってない感」の解消） */
+.aiLoadingBox {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--accent-soft); color: var(--text-1);
+  border: 1px solid var(--accent-line); border-radius: var(--r-btn);
+  padding: 12px; font-size: 13.5px; font-weight: 600;
+}
+.aiSpinner {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 2.5px solid var(--accent-line); border-top-color: var(--accent);
+  border-radius: 50%; display: inline-block;
+  animation: aiSpin 0.8s linear infinite;
+}
+@keyframes aiSpin { to { transform: rotate(360deg); } }
+.aiMoreBtn {
+  background: var(--surface-1); color: var(--accent);
+  border: 1px dashed var(--accent-line); border-radius: var(--r-btn);
+  padding: 11px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.aiMoreBtn:disabled { opacity: .7; cursor: default; }
 .aiThemeRow { display: flex; gap: var(--sp-2); }
 .aiThemeInput {
   flex: 1; min-width: 0;

@@ -351,9 +351,7 @@ export default function Page() {
   const [wlMktF, setWlMktF] = useState<string>('all')
   const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')  // 銘柄管理の並べ替え（ツールバーと共有）
   const [wlPage, setWlPage] = useState(1)
-  const [wlShowBulkAdd, setWlShowBulkAdd] = useState(false)
   const [showAiAssist, setShowAiAssist] = useState(false)
-  const [wlBulkText, setWlBulkText] = useState('')
   const [wlShowDropdown, setWlShowDropdown] = useState(false)
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
   const [wlDropdownActive, setWlDropdownActive] = useState(-1)
@@ -1872,16 +1870,12 @@ export default function Page() {
                 )}
               </select>
               <span className={styles.wlHeaderCount}>{wlFilteredCount}件</span>
-              <button
-                className={`${styles.wlBulkAddBtn} ${wlShowBulkAdd ? styles.wlBulkAddBtnOn : ''}`}
-                onClick={() => setWlShowBulkAdd(v => !v)}
-                title="コードを入力してまとめて★に追加"
-              >＋まとめて追加</button>
+              {/* 旧「＋まとめて追加」(コード貼り付け)はAIアシストに統合（コード直書きも自動照合される） */}
               {market === 'jp' && (
                 <button
                   className={styles.aiOpenBtn}
                   onClick={() => setShowAiAssist(true)}
-                  title="ことばで一括追加・テーマで銘柄をさがす"
+                  title="ことばで一括追加（コード貼り付けも可）・テーマで銘柄をさがす"
                 >✨AIで追加</button>
               )}
             </div>
@@ -2155,10 +2149,6 @@ export default function Page() {
             setWlSort={setWlSort}
             page={wlPage}
             setPage={setWlPage}
-            showBulkAdd={wlShowBulkAdd}
-            setShowBulkAdd={setWlShowBulkAdd}
-            bulkText={wlBulkText}
-            setBulkText={setWlBulkText}
             wlShowDropdown={wlShowDropdown}
             wlDropdownResults={wlDropdownResults}
             wlDropdownActive={wlDropdownActive}
@@ -2236,8 +2226,8 @@ export default function Page() {
         />
       )}
 
-      {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
-      <BottomNav tab={tab} onSelect={setTab} market={market} onAiOpen={market === 'jp' ? () => setShowAiAssist(true) : undefined} />
+      {/* SP専用: 固定ボトムナビ（PCでは非表示）。✨AIアシストは銘柄管理（ウォッチ）内に配置 */}
+      <BottomNav tab={tab} onSelect={setTab} market={market} />
       <InstallPrompt />
       {welcomeOpen && (
         <WelcomeOnboarding
@@ -2294,8 +2284,6 @@ function StockManager({
   mktF, setMktF,
   wlSort, setWlSort,
   page, setPage,
-  showBulkAdd, setShowBulkAdd,
-  bulkText, setBulkText,
   wlShowDropdown, wlDropdownResults, wlDropdownActive, setWlDropdownActive,
   onFilteredCountChange, onRegisterScrollFn, market, onOpenDetail,
 }: {
@@ -2331,10 +2319,6 @@ function StockManager({
   setWlSort: React.Dispatch<React.SetStateAction<'manual' | 'genre' | 'mcapDesc'>>
   page: number
   setPage: React.Dispatch<React.SetStateAction<number>>
-  showBulkAdd: boolean
-  setShowBulkAdd: React.Dispatch<React.SetStateAction<boolean>>
-  bulkText: string
-  setBulkText: React.Dispatch<React.SetStateAction<string>>
   wlShowDropdown: boolean
   wlDropdownResults: DropdownResult[]
   wlDropdownActive: number
@@ -2515,39 +2499,7 @@ function StockManager({
 
   return (
     <div className={styles.wlManager}>
-      {/* 一括登録パネル */}
-      {showBulkAdd && (
-        <div className={styles.bulkAddPanel}>
-          <div className={styles.bulkAddLabel}>
-            銘柄コードを改行またはカンマ区切りで貼り付け → ★に一括追加します
-          </div>
-          <textarea
-            className={styles.bulkAddTextarea}
-            placeholder={'例:\n7203\n6758, 9984\n4063'}
-            value={bulkText}
-            onChange={e => setBulkText(e.target.value)}
-            rows={5}
-          />
-          <div className={styles.bulkAddActions}>
-            <button
-              className={styles.btnPrimary}
-              onClick={() => {
-                const codes = bulkText.split(/[\n,，\s　]+/).map(s => s.trim()).filter(s => s.length > 0)
-                let added = 0
-                codes.forEach(c => {
-                  if (masterDB[c] && !favorites.has(c)) { onToggleFavorite(c); added++ }
-                })
-                setBulkText(''); setShowBulkAdd(false)
-                if (added > 0) alert(`${added}件を★に追加しました`)
-                else alert('追加できる銘柄が見つかりませんでした（コードが存在しないか既に登録済み）')
-              }}
-            >登録する</button>
-            <button className={styles.btnSecondary} onClick={() => { setBulkText(''); setShowBulkAdd(false) }}>
-              キャンセル
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 旧「一括登録パネル」はAIアシスト（✨AIで追加）に統合済み。コード貼り付けもそちらで自動照合される */}
 
       {/* PC: テーブル表示 */}
       <div className={`${styles.wlTableScroll} ${styles.spHide}`}>
@@ -4602,7 +4554,7 @@ function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () =
 }
 
 // ─── BottomNav（SP専用・固定ボトムナビ）──────────────────────────────
-function BottomNav({ tab, onSelect, market, onAiOpen }: { tab: TabKey; onSelect: (t: TabKey) => void; market?: 'jp'|'us'; onAiOpen?: () => void }) {
+function BottomNav({ tab, onSelect, market }: { tab: TabKey; onSelect: (t: TabKey) => void; market?: 'jp'|'us' }) {
   const allItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'ダッシュ', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -4634,23 +4586,14 @@ function BottomNav({ tab, onSelect, market, onAiOpen }: { tab: TabKey; onSelect:
   const isActive = (k: TabKey) => tab === k || (k === 'dashboard' && tab === 'card')
   return (
     <nav className={styles.bottomNav} aria-label="メインナビゲーション">
-      {items.map((it, i) => (
-        <React.Fragment key={it.key}>
-          {/* 中央に✨AIアシスト（ことばで追加・テーマでさがす） */}
-          {i === 2 && onAiOpen && (
-            <button className={styles.bottomNavAiBtn} onClick={onAiOpen} aria-label="AIアシスト">
-              <span className={styles.bottomNavAiIcon}>✨</span>
-              <span className={styles.bottomNavLabel}>AI追加</span>
-            </button>
-          )}
-          <button
-            className={`${styles.bottomNavBtn} ${isActive(it.key) ? styles.bottomNavBtnActive : ''}`}
-            onClick={() => onSelect(it.key)}
-            aria-current={isActive(it.key) ? 'page' : undefined}>
-            {it.icon}
-            <span className={styles.bottomNavLabel}>{it.label}</span>
-          </button>
-        </React.Fragment>
+      {items.map(it => (
+        <button key={it.key}
+          className={`${styles.bottomNavBtn} ${isActive(it.key) ? styles.bottomNavBtnActive : ''}`}
+          onClick={() => onSelect(it.key)}
+          aria-current={isActive(it.key) ? 'page' : undefined}>
+          {it.icon}
+          <span className={styles.bottomNavLabel}>{it.label}</span>
+        </button>
       ))}
     </nav>
   )

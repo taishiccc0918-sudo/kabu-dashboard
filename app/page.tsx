@@ -13,6 +13,8 @@ import { SP500, NDX100 } from './lib/usIndices'
 import { usName, setKanaMode, registerKanaListener, toggleKanaGlobal } from './lib/usKatakana'
 import styles from './page.module.css'
 import { createClient } from './lib/supabase/client'
+import AiAssist from './components/AiAssist'
+import { normalizeSearchText, normJa, normSource, toRomaji, loosen, stockHaystack } from './lib/searchText'
 
 // ソートキー: StockRow の実キー＋ジャンル列用の擬似キー 'genre'
 // （StockRow は genres:string[] のため、見出しクリックは「主ジャンル genres[0]」で並び替える）
@@ -159,13 +161,7 @@ function fmtJpDate(iso: string): string {
   return `${String(d.getFullYear()).slice(2)}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-// 検索正規化: ひらがな→カタカナ + NFKC全角→半角 + 小文字化
-function normalizeSearchText(text: string): string {
-  return text
-    .normalize('NFKC')
-    .replace(/[ぁ-ん]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
-    .toLowerCase()
-}
+// 検索正規化（normalizeSearchText 等）は app/lib/searchText.ts に移出（AIアシストと共用）
 
 // ── Escape スタック（LIFO: 最後に開いたパネルのみ閉じる）────────────────
 const _escapeStack: Array<() => void> = []
@@ -356,6 +352,7 @@ export default function Page() {
   const [wlSort, setWlSort] = useState<'manual' | 'genre' | 'mcapDesc'>('manual')  // 銘柄管理の並べ替え（ツールバーと共有）
   const [wlPage, setWlPage] = useState(1)
   const [wlShowBulkAdd, setWlShowBulkAdd] = useState(false)
+  const [showAiAssist, setShowAiAssist] = useState(false)
   const [wlBulkText, setWlBulkText] = useState('')
   const [wlShowDropdown, setWlShowDropdown] = useState(false)
   const [wlDropdownResults, setWlDropdownResults] = useState<DropdownResult[]>([])
@@ -1194,6 +1191,31 @@ export default function Page() {
     })
   }
 
+  // AIアシストからの一括追加。戻り値=実際に追加した件数（登録済み・マスタ外は除外）。
+  // pushUndo は1回だけ＝Ctrl+Z でまとめて取り消せる。
+  // テーマ検索経由は「出会いの記録」をメモに自動追記（追加した理由が残る＝ノートらしさの布石）。
+  function bulkAddFavorites(codes: string[], themeLabel?: string): number {
+    const toAdd = codes.filter(c => masterDB[c] && !favorites.has(c))
+    if (toAdd.length === 0) return 0
+    pushUndo()
+    setFavorites(prev => {
+      const next = new Set(prev)
+      toAdd.forEach(c => next.add(c))
+      lsSet('favorites', Array.from(next))
+      return next
+    })
+    toAdd.forEach(c => sbSyncFav(c, 'star', true))
+    if (themeLabel) {
+      const line = `🔍テーマ: ${themeLabel} (${localDateStr()})`
+      for (const c of toAdd) {
+        const meta = stockMeta[c] ?? { genres: [], memo: '' }
+        if (meta.memo.includes(line)) continue
+        saveStockMeta(c, { ...meta, memo: meta.memo ? `${meta.memo}\n${line}` : line, memoUpdatedAt: new Date().toISOString() })
+      }
+    }
+    return toAdd.length
+  }
+
   // ── StockMeta 操作 ────────────────────────────────────────────────
   function saveStockMeta(code: string, meta: StockMeta) {
     setStockMeta(prev => {
@@ -1828,6 +1850,13 @@ export default function Page() {
                 onClick={() => setWlShowBulkAdd(v => !v)}
                 title="コードを入力してまとめて★に追加"
               >＋まとめて追加</button>
+              {market === 'jp' && (
+                <button
+                  className={styles.aiOpenBtn}
+                  onClick={() => setShowAiAssist(true)}
+                  title="ことばで一括追加・テーマで銘柄をさがす"
+                >✨AIで追加</button>
+              )}
             </div>
             {/* 並べ替え（手動順／ジャンルごと／時価総額が大きい順）。PC/SP共通で必ず表示 */}
             <div className={styles.wlTbSortRow}>
@@ -2168,8 +2197,19 @@ export default function Page() {
         )}
       </div>
 
+      {showAiAssist && (
+        <AiAssist
+          masterDB={masterDB}
+          favorites={favorites}
+          loggedIn={!!user}
+          onSignIn={() => getSb()?.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback` } })}
+          onBulkAdd={bulkAddFavorites}
+          onClose={() => setShowAiAssist(false)}
+        />
+      )}
+
       {/* SP専用: 固定ボトムナビ（PCでは非表示） */}
-      <BottomNav tab={tab} onSelect={setTab} market={market} />
+      <BottomNav tab={tab} onSelect={setTab} market={market} onAiOpen={market === 'jp' ? () => setShowAiAssist(true) : undefined} />
       <InstallPrompt />
       {welcomeOpen && (
         <WelcomeOnboarding
@@ -4534,7 +4574,7 @@ function WelcomeOnboarding({ onOpenWatchlist, onClose }: { onOpenWatchlist: () =
 }
 
 // ─── BottomNav（SP専用・固定ボトムナビ）──────────────────────────────
-function BottomNav({ tab, onSelect, market }: { tab: TabKey; onSelect: (t: TabKey) => void; market?: 'jp'|'us' }) {
+function BottomNav({ tab, onSelect, market, onAiOpen }: { tab: TabKey; onSelect: (t: TabKey) => void; market?: 'jp'|'us'; onAiOpen?: () => void }) {
   const allItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'dashboard', label: 'ダッシュ', icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -4566,14 +4606,23 @@ function BottomNav({ tab, onSelect, market }: { tab: TabKey; onSelect: (t: TabKe
   const isActive = (k: TabKey) => tab === k || (k === 'dashboard' && tab === 'card')
   return (
     <nav className={styles.bottomNav} aria-label="メインナビゲーション">
-      {items.map(it => (
-        <button key={it.key}
-          className={`${styles.bottomNavBtn} ${isActive(it.key) ? styles.bottomNavBtnActive : ''}`}
-          onClick={() => onSelect(it.key)}
-          aria-current={isActive(it.key) ? 'page' : undefined}>
-          {it.icon}
-          <span className={styles.bottomNavLabel}>{it.label}</span>
-        </button>
+      {items.map((it, i) => (
+        <React.Fragment key={it.key}>
+          {/* 中央に✨AIアシスト（ことばで追加・テーマでさがす） */}
+          {i === 2 && onAiOpen && (
+            <button className={styles.bottomNavAiBtn} onClick={onAiOpen} aria-label="AIアシスト">
+              <span className={styles.bottomNavAiIcon}>✨</span>
+              <span className={styles.bottomNavLabel}>AI追加</span>
+            </button>
+          )}
+          <button
+            className={`${styles.bottomNavBtn} ${isActive(it.key) ? styles.bottomNavBtnActive : ''}`}
+            onClick={() => onSelect(it.key)}
+            aria-current={isActive(it.key) ? 'page' : undefined}>
+            {it.icon}
+            <span className={styles.bottomNavLabel}>{it.label}</span>
+          </button>
+        </React.Fragment>
       ))}
     </nav>
   )
@@ -5289,53 +5338,7 @@ function faviconUrl(sourceUrl: string, sourceName?: string): string {
   return dom ? `https://www.google.com/s2/favicons?domain=${dom}&sz=64` : ''
 }
 
-// 検索用: 全角英数字を半角化＋小文字化（「ＩＭＶ」「imv」どちらでもヒット）
-function normJa(s: string): string {
-  return s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).toLowerCase()
-}
-
-// メディア名の表記ゆれ吸収（全角/半角括弧・空白の差）。「株探(かぶたん)」と「株探（かぶたん）」を同一視。
-function normSource(s: string): string {
-  return (s || '').replace(/（/g, '(').replace(/）/g, ')').replace(/\s+/g, '').toLowerCase()
-}
-
-// カナ→ローマ字（簡易ヘボン式）。「ファナック」→"fanakku" 等。検索でローマ字/英語入力に対応するため。
-const ROMAJI_2: Record<string, string> = {
-  'キャ':'kya','キュ':'kyu','キョ':'kyo','シャ':'sha','シュ':'shu','ショ':'sho','チャ':'cha','チュ':'chu','チョ':'cho',
-  'ニャ':'nya','ニュ':'nyu','ニョ':'nyo','ヒャ':'hya','ヒュ':'hyu','ヒョ':'hyo','ミャ':'mya','ミュ':'myu','ミョ':'myo',
-  'リャ':'rya','リュ':'ryu','リョ':'ryo','ギャ':'gya','ギュ':'gyu','ギョ':'gyo','ジャ':'ja','ジュ':'ju','ジョ':'jo',
-  'ビャ':'bya','ビュ':'byu','ビョ':'byo','ピャ':'pya','ピュ':'pyu','ピョ':'pyo',
-  'ファ':'fa','フィ':'fi','フェ':'fe','フォ':'fo','ウィ':'wi','ウェ':'we','ウォ':'wo','ヴァ':'va','ヴィ':'vi','ヴェ':'ve','ヴォ':'vo',
-  'ティ':'ti','ディ':'di','トゥ':'tu','ドゥ':'du','チェ':'che','シェ':'she','ジェ':'je',
-}
-const ROMAJI_1: Record<string, string> = {
-  'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o','カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko','ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
-  'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so','ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo','タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
-  'ダ':'da','ヂ':'ji','ヅ':'zu','デ':'de','ド':'do','ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no','ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
-  'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo','パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po','マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
-  'ヤ':'ya','ユ':'yu','ヨ':'yo','ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro','ワ':'wa','ヲ':'wo','ン':'n','ヴ':'vu','ー':'','ッ':'','・':' ',
-}
-function toRomaji(s: string): string {
-  // ひらがな→カタカナに寄せる
-  const kata = s.replace(/[ぁ-ん]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
-  let out = ''
-  for (let i = 0; i < kata.length;) {
-    const two = kata.slice(i, i + 2)
-    if (ROMAJI_2[two]) { out += ROMAJI_2[two]; i += 2; continue }
-    const one = kata[i]
-    out += ROMAJI_1[one] ?? one
-    i++
-  }
-  return out
-}
-// あいまい一致用にゆるく正規化（c→k統一・連続文字を1つに・長音記号除去）
-function loosen(s: string): string {
-  return normJa(s).replace(/[ー\s・,，、。]/g, '').replace(/c/g, 'k').replace(/l/g, 'r').replace(/(.)\1+/g, '$1')
-}
-// 銘柄1件の検索用テキスト（日本語名＋ローマ字＋コード）
-function stockHaystack(name: string, code: string): string {
-  return loosen(name) + ' ' + loosen(toRomaji(name)) + ' ' + code.toLowerCase()
-}
+// 検索用正規化（normJa/normSource/toRomaji/loosen/stockHaystack）は app/lib/searchText.ts に移出（AIアシストと共用）
 
 async function postNewsFeed(stocks: { code: string; name: string }[], fresh: boolean, market: 'jp'|'us' = 'jp'): Promise<FeedItem[]> {
   if (stocks.length === 0) return []

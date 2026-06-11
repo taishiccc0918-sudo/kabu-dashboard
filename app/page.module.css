@@ -4122,6 +4122,157 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ═══ AIアシスト（✨ ことばで追加／テーマでさがす）═══════════════════ */
+.aiOverlay {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.aiPanel {
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-md);
+  width: 100%; max-width: 560px;
+  max-height: 88vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: var(--sp-4);
+  gap: var(--sp-3);
+}
+.aiHeader { display: flex; align-items: center; gap: var(--sp-2); }
+.aiTitle { font-size: 16px; font-weight: 700; color: var(--text-1); flex: 1; }
+.aiClose {
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--line); border-radius: var(--r-btn);
+  padding: 6px 12px; cursor: pointer; font-size: 13px;
+}
+.aiClose:hover { background: var(--surface-hover); color: var(--text-1); }
+.aiTabs { display: flex; gap: var(--sp-2); }
+.aiTabBtn {
+  flex: 1; padding: 9px 0; font-size: 13.5px; font-weight: 600;
+  background: var(--surface-1); color: var(--text-2);
+  border: 1px solid var(--line); border-radius: var(--r-btn); cursor: pointer;
+}
+.aiTabBtnActive {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent-line);
+}
+.aiLoginBox {
+  text-align: center; padding: var(--sp-6) var(--sp-4);
+  color: var(--text-1); font-size: 14px;
+  display: flex; flex-direction: column; gap: var(--sp-3); align-items: center;
+}
+.aiLoginNote { color: var(--text-3); font-size: 12.5px; }
+.aiBody { display: flex; flex-direction: column; gap: var(--sp-3); }
+.aiHint { color: var(--text-2); font-size: 13px; }
+.aiTextarea {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  background: var(--surface-1); color: var(--text-1);
+  border: 1px solid var(--line-strong); border-radius: var(--r-btn);
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+}
+.aiTextarea:focus { outline: none; border-color: var(--accent-line); }
+.aiActions { display: flex; align-items: center; gap: var(--sp-2); }
+.aiMicBtn {
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  padding: 8px 14px; font-size: 13px; cursor: pointer;
+}
+.aiMicBtnOn {
+  background: var(--down-soft); color: var(--down);
+  border-color: var(--down); animation: aiPulse 1.2s ease-in-out infinite;
+}
+@keyframes aiPulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+.aiError {
+  background: var(--down-soft); color: var(--down);
+  border: 1px solid var(--down); border-radius: var(--r-btn);
+  padding: 10px 12px; font-size: 13.5px;
+}
+.aiDone {
+  background: var(--up-soft); color: var(--up);
+  border: 1px solid var(--up); border-radius: var(--r-btn);
+  padding: 10px 12px; font-size: 13.5px; font-weight: 600;
+}
+.aiResult { display: flex; flex-direction: column; gap: var(--sp-2); }
+.aiResultLabel { color: var(--text-2); font-size: 13px; font-weight: 600; }
+.aiCandGroup { display: flex; flex-direction: column; gap: 4px; }
+.aiCandGroupLabel { color: var(--text-3); font-size: 12px; }
+.aiCandRow {
+  display: flex; align-items: center; gap: var(--sp-2);
+  background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: var(--r-btn); padding: 10px 12px;
+  cursor: pointer; font-size: 14px;
+}
+.aiCandRow input { width: 17px; height: 17px; accent-color: var(--accent); flex-shrink: 0; }
+.aiCandRowDone { opacity: .55; cursor: default; }
+.aiCandName { color: var(--text-1); font-weight: 600; }
+.aiCandCode { color: var(--text-3); font-size: 12.5px; font-family: 'JetBrains Mono', monospace; }
+.aiCandMkt { color: var(--text-3); font-size: 11.5px; }
+.aiCandDoneBadge {
+  margin-left: auto; color: var(--accent); font-size: 11.5px; font-weight: 600;
+  background: var(--accent-soft); border-radius: var(--r-chip); padding: 2px 8px; flex-shrink: 0;
+}
+.aiUnmatched { color: var(--text-3); font-size: 12.5px; }
+.aiThemeRow { display: flex; gap: var(--sp-2); }
+.aiThemeInput {
+  flex: 1; min-width: 0;
+  background: var(--surface-1); color: var(--text-1);
+  border: 1px solid var(--line-strong); border-radius: var(--r-btn);
+  padding: 10px 12px; font-size: 14px;
+}
+.aiThemeInput:focus { outline: none; border-color: var(--accent-line); }
+.aiThemeCard {
+  background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: var(--r-card); padding: 12px;
+  display: flex; flex-direction: column; gap: 6px; cursor: pointer;
+}
+.aiThemeCardOn { border-color: var(--accent); background: var(--accent-soft); }
+.aiThemeCardHead { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.aiThemeCardHead input { width: 17px; height: 17px; accent-color: var(--accent); flex-shrink: 0; pointer-events: none; }
+.aiThemeRelation { color: var(--text-2); font-size: 13px; padding-left: 25px; }
+.aiEvidence {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  padding-left: 25px; font-size: 12px;
+}
+.aiEvidenceTag {
+  color: var(--text-3); border: 1px solid var(--line); border-radius: var(--r-chip);
+  padding: 0 6px; font-size: 10.5px; white-space: nowrap; flex-shrink: 0;
+}
+.aiEvidenceText { color: var(--text-3); }
+.aiEvidenceLink { color: var(--accent); text-decoration: none; }
+.aiEvidenceLink:hover { text-decoration: underline; }
+.aiDisclaimer {
+  color: var(--text-3); font-size: 11.5px; line-height: 1.6;
+  border-top: 1px solid var(--line); padding-top: var(--sp-2);
+}
+/* ツールバーの「✨AIで追加」ボタン（＋まとめて追加の隣） */
+.aiOpenBtn {
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-line); border-radius: var(--r-btn);
+  padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.aiOpenBtn:hover { background: var(--accent); color: #fff; }
+/* SPボトムナビ中央の✨ボタン */
+.bottomNavAiBtn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 6px 0; background: none; border: none; cursor: pointer;
+  color: var(--accent); font-weight: 700;
+}
+.bottomNavAiIcon {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent-soft); border: 1.5px solid var(--accent-line);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+@media (max-width: 768px) {
+  .aiOverlay { align-items: flex-end; padding: 0; }
+  .aiPanel {
+    max-width: none; border-radius: var(--r-card) var(--r-card) 0 0;
+    max-height: 86vh; padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+  }
+}
+
 /* ── 検索ドロップダウン: ボーダーカラー ─────── */
 .searchDropdownPanel {
   border-color: rgba(20,184,166,0.22) !important;
